@@ -1,0 +1,12 @@
+// CareLayer database schema (PostgreSQL). Owned by Zainab.
+// No models yet: the skeleton does not build features. Add models from docs/API_CONTRACT.md,
+// then run `npm run db:migrate -w @carelayer/api`.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}

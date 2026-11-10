@@ -1,0 +1,55 @@
+{
+  "name": "carelayer",
+  "private": true,
+  "description": "CareLayer: an open network of verified health workers that AI agents can call and pay per answer over x402 on Stellar.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "postinstall": "npm run build -w @carelayer/shared",
+    "dev": "concurrently -k -n shared,api,web,workers -c gray,blue,magenta,green \"npm:dev:shared\" \"npm:dev:api\" \"npm:dev:web\" \"npm:dev:workers\"",
+    "dev:shared": "npm run dev -w @carelayer/shared",
+    "dev:web": "npm run dev -w @carelayer/web",
+    "dev:workers": "npm run dev -w @carelayer/workers",
+    "dev:api": "npm run dev -w @carelayer/api",
+    "dev:mcp": "npm run dev -w @carelayer/mcp",
+    "build": "npm run build --workspaces --if-present",
+    "build:web": "npm run build -w @carelayer/web",
+    "build:workers": "npm run build -w @carelayer/workers",
+    "build:api": "npm run build -w @carelayer/api",
+    "build:mcp": "npm run build -w @carelayer/mcp",
+    "lint": "eslint .",
+    "lint:web": "npm run lint -w @carelayer/web",
+    "lint:workers": "npm run lint -w @carelayer/workers",
+    "lint:api": "npm run lint -w @carelayer/api",
+    "lint:mcp": "npm run lint -w @carelayer/mcp",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "typecheck:web": "npm run typecheck -w @carelayer/web",
+    "typecheck:workers": "npm run typecheck -w @carelayer/workers",
+    "typecheck:api": "npm run typecheck -w @carelayer/api",
+    "typecheck:mcp": "npm run typecheck -w @carelayer/mcp",
+    "test": "npm run test --workspaces --if-present",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "db:up": "docker compose up -d postgres",
+    "db:down": "docker compose down"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.0.0",
+    "concurrently": "^9.2.1",
+    "eslint": "^10.14.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.7",
+    "globals": "^17.14.0",
+    "prettier": "^3.9.10",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.72.2"
+  }
+}

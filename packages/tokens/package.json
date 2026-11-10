@@ -1,0 +1,13 @@
+{
+  "name": "@carelayer/tokens",
+  "version": "0.0.0",
+  "private": true,
+  "description": "CareLayer design tokens (CSS custom properties). Owned by Hikmah.",
+  "type": "module",
+  "exports": {
+    "./tokens.css": "./tokens.css"
+  },
+  "files": [
+    "tokens.css"
+  ]
+}

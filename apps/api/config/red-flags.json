@@ -1,0 +1,6 @@
+{
+  "version": 0,
+  "owner": "Hikmah",
+  "description": "Fixed list of red-flag symptoms. Every message is checked against this list (plus the LLM) BEFORE anything else. A match shows the free emergency response and nothing is queued. Each flag: { id, label, patterns: [lowercase phrases, English and Pidgin], category? }.",
+  "flags": []
+}
