@@ -2,5 +2,168 @@
   "version": 0,
   "owner": "Hikmah",
   "description": "Fixed list of red-flag symptoms. Every message is checked against this list (plus the LLM) BEFORE anything else. A match shows the free emergency response and nothing is queued. Each flag: { id, label, patterns: [lowercase phrases, English and Pidgin], category? }.",
-  "flags": []
+  "reviewStatus": "DRAFT — requires review and sign-off by a qualified nurse, midwife or doctor before any production or demo use. Phrasing, wording coverage and clinical relevance are not yet clinically validated. This list is not exhaustive and must not be treated as a complete safety net: phrase matching is one layer only, alongside the LLM's own independent judgement (see apps/api/prompts/assistant.md). Failing to match a phrase here does not mean a message is safe.",
+  "matching": "Patterns are matched as case-insensitive substrings against the lowercased message text. This is intentionally a coarse, conservative net for near-exact phrasing; natural variation in how something is written may not match literally, which is why the LLM layer exists alongside it.",
+  "flags": [
+    {
+      "id": "severe_bleeding_pregnancy_or_postpartum",
+      "label": "Severe bleeding during pregnancy or after childbirth",
+      "category": "pregnancy",
+      "patterns": [
+        "bleeding heavily and i am pregnant",
+        "heavy bleeding while pregnant",
+        "bleeding a lot and i am pregnant",
+        "soaking through pads quickly while pregnant",
+        "heavy bleeding after giving birth",
+        "bleeding heavily after delivery",
+        "still bleeding heavily after childbirth",
+        "blood won't stop after giving birth",
+        "i dey pregnant and blood dey comot well well",
+        "belle dey and blood full ground",
+        "i just born and blood no dey stop",
+        "after i born blood dey comot anyhow"
+      ]
+    },
+    {
+      "id": "severe_abdominal_pelvic_pain_pregnancy",
+      "label": "Severe abdominal or pelvic pain with pregnancy or possible pregnancy",
+      "category": "pregnancy",
+      "patterns": [
+        "severe stomach pain and i might be pregnant",
+        "severe abdominal pain and i am pregnant",
+        "sharp pelvic pain and i am pregnant",
+        "unbearable pain and i am pregnant",
+        "stomach pain so bad i cannot stand and i am pregnant",
+        "belle dey pain me well well and i dey pregnant",
+        "my stomach dey pain me seriously and i tink say i don carry belle"
+      ]
+    },
+    {
+      "id": "ectopic_pregnancy_signs",
+      "label": "Symptoms suggestive of ectopic pregnancy complications",
+      "category": "pregnancy",
+      "patterns": [
+        "one sided sharp pain and my period is late",
+        "pain on one side of my belly and missed my period",
+        "shoulder tip pain and i think i am pregnant",
+        "dizzy and one sided stomach pain and late period",
+        "sharp pain on one side of my belly and positive pregnancy test",
+        "one side of my belle dey pain me seriously and my period never show",
+        "i dey feel faint with pain for one side and i never see my period"
+      ]
+    },
+    {
+      "id": "seizure_pregnancy_or_postpartum",
+      "label": "Seizures during pregnancy or after childbirth",
+      "category": "pregnancy",
+      "patterns": [
+        "had a seizure while pregnant",
+        "convulsing and i am pregnant",
+        "fitting after giving birth",
+        "shaking uncontrollably after having a baby",
+        "i dey pregnant and i just fit",
+        "my body dey shake anyhow after i born"
+      ]
+    },
+    {
+      "id": "severe_headache_visual_disturbance_pregnancy",
+      "label": "Severe headache with visual disturbances during pregnancy or after childbirth",
+      "category": "pregnancy",
+      "patterns": [
+        "severe headache and blurred vision and i am pregnant",
+        "worst headache of my life while pregnant",
+        "seeing flashing lights and severe headache and i am pregnant",
+        "headache with swelling in my face and hands during pregnancy",
+        "my head dey bang seriously and my eye dey see flash light and i dey pregnant",
+        "after i born my head dey pain me well and my eye dey blur"
+      ]
+    },
+    {
+      "id": "severe_breathing_difficulty_or_chest_pain",
+      "label": "Severe breathing difficulty or chest pain",
+      "patterns": [
+        "cannot breathe properly",
+        "can't breathe properly",
+        "severe chest pain and shortness of breath",
+        "struggling to breathe",
+        "chest pain spreading to my arm",
+        "i no fit breathe well at all",
+        "my chest dey pain me seriously and i no fit breathe well"
+      ]
+    },
+    {
+      "id": "loss_of_consciousness",
+      "label": "Loss of consciousness or unresponsiveness",
+      "patterns": [
+        "fainted and is not waking up",
+        "lost consciousness",
+        "not responding when i call her name",
+        "passed out and won't wake up",
+        "she don faint she no dey wake up",
+        "im no dey respond at all"
+      ]
+    },
+    {
+      "id": "stroke_warning_signs",
+      "label": "Stroke warning signs",
+      "patterns": [
+        "sudden weakness on one side of my body",
+        "face drooping on one side suddenly",
+        "slurred speech all of a sudden",
+        "face suddenly drooped on one side",
+        "sudden confusion and cannot speak properly",
+        "one side of my body don weak suddenly",
+        "my mouth don turn one side suddenly"
+      ]
+    },
+    {
+      "id": "severe_allergic_reaction",
+      "label": "Severe allergic reactions with breathing difficulty or facial/throat swelling",
+      "patterns": [
+        "throat is swelling and i can't breathe",
+        "face is swelling and i am struggling to breathe",
+        "severe allergic reaction and difficulty breathing",
+        "tongue and lips swelling fast",
+        "my throat dey swell i no fit breathe",
+        "my face swell up sudden and i dey find breathing hard"
+      ]
+    },
+    {
+      "id": "serious_infection_with_collapse_or_confusion",
+      "label": "Serious infection symptoms with confusion, collapse or severe deterioration",
+      "patterns": [
+        "high fever and confused and cannot stay awake",
+        "fever with confusion",
+        "collapsed with a high fever",
+        "getting worse very fast with fever and confusion",
+        "body hot well well and i dey confuse",
+        "fever dey worry me and i don near faint"
+      ]
+    },
+    {
+      "id": "suspected_overdose_or_poisoning",
+      "label": "Suspected overdose or poisoning",
+      "patterns": [
+        "took too many pills",
+        "swallowed something poisonous",
+        "overdosed on medication",
+        "accidentally swallowed a lot of tablets",
+        "drank something she was not supposed to and is now unresponsive",
+        "i swallow plenty tablet pass wetin dem talk",
+        "i drink something wey no good and i no dey feel well at all"
+      ]
+    },
+    {
+      "id": "suicide_or_self_harm_risk",
+      "label": "Immediate risk of suicide or serious self-harm",
+      "patterns": [
+        "i want to kill myself",
+        "i am going to end my life",
+        "i have a plan to hurt myself badly",
+        "i don't want to be alive anymore",
+        "i wan kill myself",
+        "i no won dey alive again"
+      ]
+    }
+  ]
 }
