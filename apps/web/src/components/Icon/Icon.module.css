@@ -1,0 +1,22 @@
+.icon {
+  display: inline-block;
+  flex-shrink: 0;
+  width: var(--icon-size);
+  height: var(--icon-size);
+  background-color: currentColor;
+  -webkit-mask-image: var(--icon-src);
+  mask-image: var(--icon-src);
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: var(--icon-mask-size);
+  mask-size: var(--icon-mask-size);
+  -webkit-mask-position: var(--icon-mask-position);
+  mask-position: var(--icon-mask-position);
+}
+
+/* Windows High Contrast: masks are dropped, so keep the glyph visible. */
+@media (forced-colors: active) {
+  .icon {
+    background-color: CanvasText;
+  }
+}

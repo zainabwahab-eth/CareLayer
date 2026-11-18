@@ -1,0 +1,129 @@
+/*
+ * Global base styles for the women's app.
+ * Every value comes from @carelayer/tokens (imported first in main.tsx).
+ * Do not hardcode colours here: use the semantic token aliases.
+ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  color-scheme: light dark;
+}
+
+html[data-theme='light'] {
+  color-scheme: light;
+}
+
+html[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  min-height: 100dvh;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+  font-weight: var(--text-body-m-weight);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+h1,
+h2,
+h3,
+h4,
+p,
+figure,
+ul,
+ol {
+  margin: 0;
+}
+
+ul[role='list'],
+ol[role='list'] {
+  list-style: none;
+  padding: 0;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: var(--color-primary-text);
+}
+
+/* One consistent, high-contrast focus ring for every interactive element. */
+:focus-visible {
+  outline: 2px solid var(--color-primary-text);
+  outline-offset: 2px;
+}
+
+/* Screen-reader-only text. */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Skip link: hidden until focused with the keyboard. */
+.skip-link {
+  position: fixed;
+  top: var(--space-8);
+  left: var(--space-8);
+  z-index: 100;
+  padding: var(--space-12) var(--space-16);
+  border-radius: var(--radius-sm);
+  background: var(--color-primary-bg);
+  color: var(--color-on-primary-bg);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  font-weight: var(--text-label-m-weight);
+  line-height: var(--text-label-m-leading);
+  text-decoration: none;
+  transform: translateY(-200%);
+}
+
+.skip-link:focus-visible {
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

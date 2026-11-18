@@ -1,0 +1,57 @@
+/* Mobile first. Breakpoint 60rem (960px) switches to the desktop sidebar layout. */
+.shell {
+  min-height: 100dvh;
+  background: var(--color-bg);
+}
+
+.sidebar {
+  display: none;
+}
+
+/* Figma mobile: 20px side margins, content starts 8px under the status bar. */
+.main {
+  min-width: 0;
+  padding: calc(var(--space-8) + env(safe-area-inset-top)) var(--layout-margin-inline)
+    calc(var(--space-32) + env(safe-area-inset-bottom));
+}
+
+.main:focus {
+  outline: none;
+}
+
+/* Leave room for the fixed tab bar (84px in Figma). */
+.withTabBar {
+  padding-bottom: calc(5.25rem + var(--space-24) + env(safe-area-inset-bottom));
+}
+
+.content {
+  width: 100%;
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+@media (min-width: 60rem) {
+  .shell {
+    display: grid;
+    grid-template-columns: 16.5rem minmax(0, 1fr);
+  }
+
+  .sidebar {
+    display: flex;
+  }
+
+  .tabBar {
+    display: none;
+  }
+
+  /* Figma desktop main: 36px top, 48px sides. */
+  .main,
+  .withTabBar {
+    padding: 2.25rem 3rem 3rem;
+  }
+
+  /* Figma content column is 1080px inside a 1176px main. */
+  .content {
+    max-width: 67.5rem;
+  }
+}

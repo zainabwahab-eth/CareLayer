@@ -1,0 +1,26 @@
+.main {
+  min-height: 100dvh;
+  padding: calc(var(--space-8) + env(safe-area-inset-top)) var(--layout-margin-inline)
+    calc(var(--space-32) + env(safe-area-inset-bottom));
+  background: var(--color-bg);
+}
+
+.main:focus {
+  outline: none;
+}
+
+.content {
+  width: 100%;
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+@media (min-width: 60rem) {
+  .main {
+    padding: 2.25rem 6rem 3rem; /* Figma desktop top nav: 96px sides */
+  }
+
+  .content {
+    max-width: 77rem;
+  }
+}

@@ -1,0 +1,76 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-gap-group);
+}
+
+/* The mobile top bar carries its own side padding and sits flush with the screen edge. */
+.withTopBar {
+  margin-inline: calc(-1 * var(--layout-margin-inline));
+  margin-top: calc(-1 * var(--space-8));
+}
+
+.withTopBar > .panel {
+  margin-inline: var(--layout-margin-inline);
+}
+
+.desktopOnly {
+  display: none;
+}
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-12);
+  padding: var(--space-24);
+  border: 1.5px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+}
+
+.panelTitle {
+  color: var(--color-text);
+  font-family: var(--text-display-s-family);
+  font-size: var(--text-display-s-size);
+  line-height: var(--text-display-s-leading);
+  font-weight: var(--text-display-s-weight);
+  letter-spacing: var(--text-display-s-tracking);
+}
+
+.description {
+  max-width: 40rem;
+  color: var(--color-text-muted);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+  margin-top: var(--space-8);
+}
+
+@media (min-width: 60rem) {
+  .withTopBar {
+    margin: 0;
+  }
+
+  .withTopBar > .panel {
+    margin-inline: 0;
+  }
+
+  .mobileOnly {
+    display: none;
+  }
+
+  .desktopOnly {
+    display: flex;
+  }
+
+  .panel {
+    padding: var(--space-32);
+  }
+}

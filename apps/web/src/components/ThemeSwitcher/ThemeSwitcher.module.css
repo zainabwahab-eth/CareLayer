@@ -1,0 +1,22 @@
+.fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.legend {
+  margin-bottom: var(--space-12);
+  padding: 0;
+  color: var(--color-text);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}

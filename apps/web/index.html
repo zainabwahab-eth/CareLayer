@@ -7,8 +7,17 @@
       name="description"
       content="Ask health questions privately. Get answers from verified health workers."
     />
-    <meta name="theme-color" content="#7c3aed" />
+    <!-- Matches --color-canvas from @carelayer/tokens; ThemeProvider keeps it in sync. -->
+    <meta name="theme-color" content="#f3f5f2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#131917" media="(prefers-color-scheme: dark)" />
     <meta name="color-scheme" content="light dark" />
+    <script>
+      // Apply the saved Appearance (System / Light / Dark) before first paint to avoid a flash.
+      try {
+        var theme = localStorage.getItem('carelayer.theme');
+        if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+      } catch (e) {}
+    </script>
     <link rel="icon" type="image/png" href="/icons/pwa-192x192.png" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180x180.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

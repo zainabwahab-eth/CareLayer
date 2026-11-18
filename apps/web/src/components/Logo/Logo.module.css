@@ -1,0 +1,47 @@
+.logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.625rem; /* 10px */
+  color: var(--color-primary-text);
+}
+
+.inverse {
+  color: var(--color-on-primary);
+}
+
+.mark {
+  position: relative;
+  flex-shrink: 0;
+  width: 1.625rem; /* 26px */
+  height: 1.625rem;
+}
+
+.markAccent,
+.markPrimary {
+  position: absolute;
+  width: 1.125rem; /* 18px */
+  height: 1.125rem;
+  border-radius: 6px;
+}
+
+.markAccent {
+  top: 0;
+  left: 0.5rem;
+  background: var(--color-accent-bg);
+}
+
+.markPrimary {
+  top: 0.5rem;
+  left: 0;
+  background: var(--color-primary-bg);
+}
+
+/* Figma: Literata Medium 24/30, -0.12px tracking. */
+.wordmark {
+  font-family: var(--font-family-display);
+  font-size: var(--text-display-s-size);
+  line-height: var(--text-display-s-leading);
+  font-weight: var(--text-display-s-weight);
+  letter-spacing: -0.0075rem;
+  white-space: nowrap;
+}
