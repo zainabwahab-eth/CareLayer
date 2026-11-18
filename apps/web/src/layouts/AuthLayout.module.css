@@ -1,0 +1,149 @@
+.shell {
+  min-height: 100dvh;
+  background: var(--color-bg);
+}
+
+.panel {
+  display: none;
+}
+
+.main {
+  padding: calc(var(--space-8) + env(safe-area-inset-top)) var(--layout-margin-inline)
+    calc(var(--space-32) + env(safe-area-inset-bottom));
+}
+
+.main:focus {
+  outline: none;
+}
+
+.content {
+  width: 100%;
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+@media (min-width: 60rem) {
+  .shell {
+    display: grid;
+    grid-template-columns: minmax(26rem, 37.5rem) minmax(0, 1fr);
+  }
+
+  /* Figma Auth panel/Women: primary fill, 56px padding, 20px gap. */
+  .panel {
+    position: sticky;
+    top: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-20);
+    height: 100dvh;
+    padding: 3.5rem;
+    overflow: hidden;
+    background: var(--color-primary-bg);
+    color: var(--color-on-primary);
+  }
+
+  .main {
+    display: flex;
+    align-items: center;
+    padding: 3.5rem 3rem;
+  }
+
+  .content {
+    max-width: 27.5rem;
+  }
+}
+
+/* Layered rounded squares (Figma "Illustration / Layers", 330px tall). */
+.illustration {
+  position: relative;
+  flex-shrink: 0;
+  width: 100%;
+  max-width: 22rem;
+  height: 20.625rem;
+}
+
+.illustration > span {
+  position: absolute;
+}
+
+.layerSoft {
+  top: 2.5rem;
+  left: 1.25rem;
+  width: 14.375rem;
+  height: 14.375rem;
+  border-radius: 3.75rem;
+  background: var(--color-primary-soft);
+  opacity: 0.14;
+}
+
+.layerAccent {
+  top: 0.625rem;
+  left: 9.375rem;
+  width: 12.5rem;
+  height: 12.5rem;
+  border-radius: 3.375rem;
+  background: var(--color-accent-bg);
+}
+
+.layerRose {
+  top: 6.875rem;
+  left: 3.125rem;
+  width: 13.75rem;
+  height: 11.25rem;
+  border-radius: 3.125rem;
+  background: var(--color-rose-bg);
+}
+
+.layerSurface {
+  top: 10rem;
+  left: 12.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 8.75rem;
+  height: 8.75rem;
+  border-radius: 2.625rem;
+  background: var(--color-bg-surface);
+  color: var(--color-primary-text);
+}
+
+.copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+  margin-top: auto;
+}
+
+.headline {
+  font-family: var(--text-display-l-family);
+  font-size: var(--text-display-l-size);
+  line-height: var(--text-display-l-leading);
+  font-weight: var(--text-display-l-weight);
+  letter-spacing: -0.0375rem;
+}
+
+.lede {
+  color: var(--color-on-primary-muted);
+  font-family: var(--text-body-l-family);
+  font-size: var(--text-body-l-size);
+  line-height: var(--text-body-l-leading);
+}
+
+.points {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.point {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+.pointIcon {
+  color: var(--color-accent-bg);
+}

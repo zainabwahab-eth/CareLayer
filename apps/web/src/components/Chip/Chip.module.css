@@ -1,0 +1,46 @@
+/* Figma Chip/*: 10px/16px padding, pill, Label/S. */
+.chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.625rem var(--space-16); /* 10px 16px */
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-surface);
+  color: var(--color-text);
+  font-family: var(--text-label-s-family);
+  font-size: var(--text-label-s-size);
+  line-height: var(--text-label-s-leading);
+  font-weight: var(--text-label-s-weight);
+  letter-spacing: var(--text-label-s-tracking);
+  white-space: nowrap;
+  cursor: pointer;
+  transition:
+    background-color 120ms ease,
+    border-color 120ms ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Chips are 38px tall visually; extend the hit area to the 48px touch target. */
+.chip::after {
+  content: '';
+  position: absolute;
+  inset: -5px 0;
+}
+
+.selected {
+  border-color: var(--color-primary-bg);
+  background: var(--color-primary-bg);
+  color: var(--color-on-primary-bg);
+}
+
+@media (hover: hover) {
+  .chip:not(.selected):hover {
+    background: var(--color-bg-surface-soft);
+  }
+}
+
+.chip:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}

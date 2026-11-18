@@ -1,20 +1,15 @@
-import { createBrowserRouter, Link, RouterProvider } from 'react-router';
-import { HomePage } from './pages/HomePage';
-
-const router = createBrowserRouter([
-  { path: '/', element: <HomePage /> },
-  { path: '*', element: <NotFound /> },
-]);
+import { RouterProvider } from 'react-router';
+import { api } from './api';
+import { ApiProvider } from './api/ApiProvider';
+import { router } from './routes/router';
+import { ThemeProvider } from './theme/ThemeProvider';
 
 export function App() {
-  return <RouterProvider router={router} />;
-}
-
-function NotFound() {
   return (
-    <main>
-      <h1>Page not found</h1>
-      <Link to="/">Back to CareLayer</Link>
-    </main>
+    <ApiProvider api={api}>
+      <ThemeProvider>
+        <RouterProvider router={router} />
+      </ThemeProvider>
+    </ApiProvider>
   );
 }

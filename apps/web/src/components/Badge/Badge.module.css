@@ -1,0 +1,39 @@
+/* Figma Badge/*: 5px/10px padding, pill, Label/S, 6px icon gap. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem; /* 6px */
+  padding: 0.3125rem 0.625rem; /* 5px 10px */
+  border-radius: var(--radius-full);
+  font-family: var(--text-label-s-family);
+  font-size: var(--text-label-s-size);
+  line-height: var(--text-label-s-leading);
+  font-weight: var(--text-label-s-weight);
+  letter-spacing: var(--text-label-s-tracking);
+  white-space: nowrap;
+}
+
+.verified {
+  background: var(--color-verified-bg-soft);
+  color: var(--color-verified);
+}
+
+.emergency {
+  background: var(--color-emergency-bg-soft);
+  color: var(--color-emergency);
+}
+
+.neutral {
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-muted);
+}
+
+.accent {
+  background: var(--color-accent-bg-soft);
+  color: var(--color-text);
+}
+
+.primary {
+  background: var(--color-primary-bg-soft);
+  color: var(--color-primary-text);
+}

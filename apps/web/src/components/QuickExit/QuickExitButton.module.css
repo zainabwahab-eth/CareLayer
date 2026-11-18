@@ -1,0 +1,69 @@
+.quickExit {
+  position: relative;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  border: 0;
+  background: var(--color-accent-bg-soft);
+  color: var(--color-text);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Mobile top bar: 8px/12px. Desktop header: 9px/14px. Label/S. */
+.pill {
+  gap: 0.375rem;
+  padding: var(--space-8) var(--space-12);
+  border-radius: var(--radius-full);
+  font-family: var(--text-label-s-family);
+  font-size: var(--text-label-s-size);
+  line-height: var(--text-label-s-leading);
+  font-weight: var(--text-label-s-weight);
+  letter-spacing: var(--text-label-s-tracking);
+}
+
+/* 32px tall visually; extend the hit area to 48px. */
+.pill::after {
+  content: '';
+  position: absolute;
+  inset: -8px 0;
+}
+
+/* Desktop sidebar: full width, 12px/14px, radius 12, Label/M. */
+.block {
+  justify-content: center;
+  gap: var(--space-8);
+  width: 100%;
+  min-height: var(--size-touch-target-min);
+  padding: var(--space-12) 0.875rem;
+  border-radius: var(--space-12);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+}
+
+.label {
+  white-space: nowrap;
+}
+
+.shortcut {
+  color: var(--color-text-muted);
+  font-family: var(--text-caption-family);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-leading);
+  font-weight: var(--text-caption-weight);
+  letter-spacing: var(--text-caption-tracking);
+}
+
+@media (min-width: 60rem) {
+  .pill {
+    padding: 0.5625rem 0.875rem; /* 9px 14px */
+  }
+}
+
+@media (hover: hover) {
+  .quickExit:hover {
+    filter: brightness(0.97);
+  }
+}
