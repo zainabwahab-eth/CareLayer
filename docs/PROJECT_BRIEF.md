@@ -15,7 +15,7 @@ Built for the **EmpowerHer: Building the Agent Economy** hackathon (women-focuse
 ### Solution
 
 - Women ask an AI assistant.
-- When a question needs a professional, the assistant (with her consent) sends it to a pool of verified nurses, midwives and doctors.
+- When a question needs a professional, the assistant (with her consent) sends it to a pool of verified, registered nurses and midwives.
 - A health worker answers. The agent pays per answer over x402. The health worker is paid instantly.
 - Any agent can use the network: our web app, Claude via our MCP server, or other apps.
 
@@ -24,7 +24,7 @@ Built for the **EmpowerHer: Building the Agent Economy** hackathon (women-focuse
 | User           | App                           | What they do                                                                                          |
 | -------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------- |
 | Women          | `apps/web` (mobile-first PWA) | Ask questions, get AI answers free, pay only for health worker answers.                               |
-| Health workers | `apps/workers`                | Registered nurses, midwives and doctors in Nigeria, any gender. Answer questions and earn per answer. |
+| Health workers | `apps/workers`                | Registered nurses and midwives in Nigeria (no doctors), any gender. Answer questions and earn per answer. |
 | Admin (us)     | Internal page                 | Approve health worker licences.                                                                       |
 
 ## 3. Core flow (women)
@@ -33,19 +33,25 @@ Built for the **EmpowerHer: Building the Agent Economy** hackathon (women-focuse
 2. If a professional is needed, the assistant offers to send the question, showing:
    - price
    - free answers remaining
-   - optional "prefer a female health worker"
+   - an "Only female health workers" toggle (a hard filter on the nurse's gender)
    - **Send** / **Not now**
 
    She can also choose **"Ask a health worker directly"** at any time.
 
-3. On consent, the question is sent.
+3. She chooses who answers:
+   - **First available** (default): any verified nurse or midwife can claim it.
+   - **A specific nurse**: she picks from nurse profiles. If that nurse does not claim within **10 minutes**, the question is offered to the first available nurse.
+4. On consent, the question is sent.
+   - **Consent is recorded**: what was shared and when she agreed. Shared: the cleaned question, assistant notes, category, age range and pregnancy weeks if relevant. Never her name, email, phone or location.
    - The assistant **cleans up spelling and grammar but NEVER summarises or shortens** it.
    - Store **both** the original and the cleaned version.
    - The assistant may add separate **"assistant notes"**.
    - The AI assigns a category: **Pregnancy, Periods, Contraception, Sexual health, General**. Women never choose categories.
-4. Health workers see the question. One claims it and answers.
-5. **Pay on delivery:** she is charged only when the answer is ready. Her **first 3 answers are free**.
-6. She sees the answer with the health worker's name, role and verified status.
+   - She can turn on **"Notify me when answered"**.
+5. Nurses see the question. One claims it and answers. The nurse can tick **"Recommend she sees someone today"** on the answer.
+6. **No answer within 30 minutes:** no new claims after 30 minutes; an active claim may finish its 10-minute lock (max wait 40 minutes). Then the question expires and she pays nothing.
+7. **Pay on delivery:** she is charged only when the answer is ready. Her **first 3 answers are free**.
+8. She sees the answer with the nurse's name, role and verified status, and can mark it **helpful or not helpful**.
    - **Never expose health worker contact details.**
    - **Women stay anonymous to health workers**, who see only the details needed to answer.
 
@@ -57,6 +63,8 @@ Built for the **EmpowerHer: Building the Agent Economy** hackathon (women-focuse
   - **free**
   - **nothing sent to the queue**
   - emergency call options and help finding the nearest hospital
+  - logged as an event with source and timestamp only (no user, no message text)
+- Chat history is not stored on the server; only questions sent to nurses are stored.
 - **Emergency numbers must be verified before the demo.**
 
 ## 5. Payments (Stellar testnet, x402, USDC)
@@ -77,7 +85,7 @@ Built for the **EmpowerHer: Building the Agent Economy** hackathon (women-focuse
 | Endpoint                    | Cost               | Purpose                                             |
 | --------------------------- | ------------------ | --------------------------------------------------- |
 | `POST /questions`           | free               | Creates the question, returns id + price.           |
-| `GET /questions/:id/status` | free               | Returns `open` / `claimed` / `answered`.            |
+| `GET /questions/:id/status` | free               | Returns `open` / `claimed` / `answered` / `expired` / `cancelled`. |
 | `GET /questions/:id/answer` | **x402-protected** | The agent pays when it fetches the finished answer. |
 
 A **guard runs before the payment middleware** so unanswered questions never request payment.
@@ -105,7 +113,7 @@ A **guard runs before the payment middleware** so unanswered questions never req
 
 - Sign up with full name as on their licence + email, or Google.
 - Onboarding collects:
-  - role (nurse / midwife / doctor)
+  - role (nurse / midwife)
   - full name confirmation
   - main area of practice
   - years of practice
@@ -114,11 +122,15 @@ A **guard runs before the payment middleware** so unanswered questions never req
   - payout wallet (auto-created, optional own Stellar address)
   - agreement to give **guidance, not diagnosis**
 
+### Public profile (shown to women)
+
+- Full name as on licence, role (nurse / midwife), years of practice, short bio, languages, topics, availability, average response time, rating.
+- Never contact details.
+
 ### Verification
 
 - **Manual by admin** for the hackathon.
 - Nurses and midwives: Nursing and Midwifery Council of Nigeria.
-- Doctors: Medical and Dental Council of Nigeria.
 - **Only approved workers can claim.**
 
 ### Claiming
@@ -127,11 +139,12 @@ A **guard runs before the payment middleware** so unanswered questions never req
 - 10-minute lock with countdown.
 - Release option.
 - Expired claims return to the open list.
+- A question sent to a chosen nurse is hers alone for its first 10 minutes, then open to everyone.
 
 ### Topics and availability
 
 - "Topics I answer": chosen categories control **alerts** (all open questions stay visible). At least one required.
-- Defaults: midwives get Pregnancy + Periods; nurses and doctors get all.
+- Defaults: midwives get Pregnancy + Periods; nurses get all.
 - An **Available** toggle controls alerts.
 - Answered questions can be viewed read-only.
 

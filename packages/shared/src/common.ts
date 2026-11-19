@@ -1,7 +1,7 @@
 // Common primitives used across the CareLayer API contract.
-// Contract version: v0 (agree before building). See docs/API_CONTRACT.md.
+// Contract version: v1 (Z1: schema-aligned, worker -> nurse). See docs/API_CONTRACT.md.
 
-export const API_CONTRACT_VERSION = 'v0' as const;
+export const API_CONTRACT_VERSION = 'v1' as const;
 
 /** ISO 8601 timestamp string, always UTC, e.g. "2026-11-10T14:00:00.000Z". */
 export type IsoDateTime = string;
@@ -57,12 +57,16 @@ export type ApiErrorCode =
   | 'STELLAR_ADDRESS_INVALID'
   | 'STELLAR_SUBMIT_FAILED'
   // questions / claims
+  | 'CONSENT_REQUIRED'
+  | 'CHOSEN_NURSE_UNAVAILABLE'
   | 'QUESTION_NOT_ANSWERED'
   | 'QUESTION_ALREADY_CLAIMED'
+  | 'QUESTION_EXPIRED'
+  | 'CLAIMS_CLOSED'
   | 'ACTIVE_CLAIM_EXISTS'
   | 'CLAIM_EXPIRED'
   | 'NOT_CLAIM_OWNER'
-  | 'WORKER_NOT_APPROVED'
+  | 'NURSE_NOT_APPROVED'
   | 'ONBOARDING_INCOMPLETE'
   | 'TOPICS_REQUIRED';
 

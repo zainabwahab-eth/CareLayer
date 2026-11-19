@@ -1,33 +1,56 @@
-import assert from 'node:assert/strict';
-import type { AddressInfo } from 'node:net';
-import { after, before, test } from 'node:test';
-import type { HealthResponse } from '@carelayer/shared';
-import { createApp } from '../src/app.js';
-import { loadConfig } from '../src/config.js';
+import { API_CONTRACT_VERSION, type HealthResponse } from '@carelayer/shared';
+import request from 'supertest';
+import { afterAll, describe, expect, it } from 'vitest';
+import { createDb } from '../src/db.js';
+import { buildTestApp, deadDb } from './helpers/app.js';
+import { testDatabaseUrl } from './helpers/env.js';
 
-let baseUrl = '';
-let close: () => void = () => {};
+const db = createDb(testDatabaseUrl());
+afterAll(() => db.$disconnect());
 
-before(async () => {
-  const app = createApp(loadConfig({ NODE_ENV: 'test' }));
-  const server = app.listen(0);
-  await new Promise<void>((resolve) => server.once('listening', () => resolve()));
-  baseUrl = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-  close = () => server.close();
-});
+describe('GET /health', () => {
+  it('returns 200 with database ok when Postgres answers', async () => {
+    const res = await request(buildTestApp(db)).get('/health');
+    expect(res.status).toBe(200);
+    const body = res.body as HealthResponse;
+    expect(body).toMatchObject({
+      status: 'ok',
+      database: 'ok',
+      service: 'carelayer-api',
+      contractVersion: API_CONTRACT_VERSION,
+    });
+    expect(Date.parse(body.time)).not.toBeNaN();
+    expect(res.headers['cache-control']).toBe('no-store');
+  });
 
-after(() => close());
+  it('returns 503 with database down when the query fails', async () => {
+    const res = await request(buildTestApp(deadDb('reject'))).get('/health');
+    expect(res.status).toBe(503);
+    expect(res.body).toMatchObject({ status: 'unavailable', database: 'down' });
+  });
 
-test('GET /health returns ok with the contract version', async () => {
-  const res = await fetch(`${baseUrl}/health`);
-  assert.equal(res.status, 200);
-  const body = (await res.json()) as HealthResponse;
-  assert.equal(body.status, 'ok');
-  assert.equal(body.service, 'carelayer-api');
-  assert.equal(body.contractVersion, 'v0');
-});
+  it('returns 503 instead of hanging when the database never answers', async () => {
+    const started = Date.now();
+    const res = await request(buildTestApp(deadDb('hang'))).get('/health');
+    expect(res.status).toBe(503);
+    expect(Date.now() - started).toBeLessThan(5000);
+  });
 
-test('CORS allows the web app origin', async () => {
-  const res = await fetch(`${baseUrl}/health`, { headers: { Origin: 'http://localhost:5173' } });
-  assert.equal(res.headers.get('access-control-allow-origin'), 'http://localhost:5173');
+  it('returns 503 against a real Postgres URL that nothing listens on', async () => {
+    const unreachable = createDb('postgresql://carelayer:carelayer@127.0.0.1:1/carelayer_test');
+    try {
+      const res = await request(buildTestApp(unreachable)).get('/health');
+      expect(res.status).toBe(503);
+      expect(res.body.database).toBe('down');
+    } finally {
+      await unreachable.$disconnect().catch(() => {});
+    }
+  });
+
+  it('allows the web app origin (CORS)', async () => {
+    const res = await request(buildTestApp(db))
+      .get('/health')
+      .set('Origin', 'http://localhost:5173');
+    expect(res.headers['access-control-allow-origin']).toBe('http://localhost:5173');
+  });
 });

@@ -1,7 +1,7 @@
-// Questions, claims and answers (x402 pay on delivery). See docs/API_CONTRACT.md §8-9.
+// Questions, consent, claims, answers and feedback (x402 pay on delivery). See docs/API_CONTRACT.md §8-9.
 import type { Id, IsoDateTime, Money } from './common.js';
 import type { EmergencyResponse } from './emergency.js';
-import type { WorkerRole } from './workers.js';
+import type { NurseRole } from './nurses.js';
 
 /** Assigned by the AI. Women never choose. */
 export const QUESTION_CATEGORIES = [
@@ -13,19 +13,65 @@ export const QUESTION_CATEGORIES = [
 ] as const;
 export type QuestionCategory = (typeof QUESTION_CATEGORIES)[number];
 
-export type QuestionStatus = 'open' | 'claimed' | 'answered';
+/**
+ * open      waiting for a claim (may still be inside a chosen nurse's 10-minute window)
+ * claimed   a nurse holds the 10-minute lock
+ * answered  answer written (she may not have collected it yet)
+ * expired   no nurse answered in time; she pays nothing
+ * cancelled she withdrew it before it was answered
+ */
+export const QUESTION_STATUSES = ['open', 'claimed', 'answered', 'expired', 'cancelled'] as const;
+export type QuestionStatus = (typeof QUESTION_STATUSES)[number];
 
 export type QuestionSource = 'web' | 'mcp' | 'agent';
 
+/** "First available" is the default. A chosen nurse has CHOSEN_NURSE_WINDOW_MINUTES to claim. */
+export type NurseSelection = 'first_available' | 'chosen_nurse';
+
+export const AGE_RANGES = [
+  'under_18',
+  'age_18_24',
+  'age_25_34',
+  'age_35_44',
+  'age_45_plus',
+] as const;
+export type AgeRange = (typeof AGE_RANGES)[number];
+
+/** What she agrees to share with the nurse (recorded per question). Never name, email, phone or location. */
+export const SHARED_FIELDS = [
+  'cleaned_text',
+  'original_text',
+  'assistant_notes',
+  'category',
+  'age_range',
+  'pregnancy_weeks',
+] as const;
+export type SharedField = (typeof SHARED_FIELDS)[number];
+
 export const CLAIM_LOCK_MINUTES = 10;
+export const CHOSEN_NURSE_WINDOW_MINUTES = 10;
+/** No new claims after this. An active claim may finish its lock (max wait 40 minutes). */
+export const QUESTION_CLAIMS_CLOSE_MINUTES = 30;
+
+export interface ConsentInput {
+  sharedFields: SharedField[];
+  /** Version of the consent text she saw (W07). */
+  consentVersion: string;
+}
 
 // POST /questions  (free)
 export interface CreateQuestionBody {
   /** Her exact words. Stored verbatim. */
   originalText: string;
-  conversationId?: Id;
-  preferFemaleWorker?: boolean;
   source: QuestionSource;
+  /** Required. No consent, no question. */
+  consent: ConsentInput;
+  /** Default "first_available". */
+  nurseSelection?: NurseSelection;
+  /** Required when nurseSelection = "chosen_nurse". Must be an approved, available nurse. */
+  chosenNurseId?: Id;
+  /** "Only female health workers". Default false. */
+  femaleOnly?: boolean;
   /** Must be true if price exceeds her spending limit. */
   approvedAboveLimit?: boolean;
 }
@@ -37,6 +83,11 @@ export interface CreatedQuestion {
   category: QuestionCategory;
   price: Money;
   isFree: boolean;
+  nurseSelection: NurseSelection;
+  /** End of the chosen nurse's window. Null for first available. */
+  chosenUntil: IsoDateTime | null;
+  /** No new claims after this (created + 30 min). */
+  claimsCloseAt: IsoDateTime;
   /**
    * Capability secret for callers without a CareLayer session (third-party agents).
    * Send as header `X-Question-Key` on status/answer calls. Null for signed-in callers.
@@ -52,20 +103,25 @@ export interface QuestionStatusResponse {
   id: Id;
   status: QuestionStatus;
   category: QuestionCategory;
+  claimsCloseAt: IsoDateTime;
   answeredAt: IsoDateTime | null;
+  expiredAt: IsoDateTime | null;
 }
 
 /** What a woman (or her agent) sees about who answered. Never contact details. */
-export interface PublicWorker {
+export interface PublicNurse {
+  id: Id;
   displayName: string;
-  role: WorkerRole;
+  role: NurseRole;
   verified: true;
 }
 
 export interface Answer {
   questionId: Id;
   text: string;
-  worker: PublicWorker;
+  nurse: PublicNurse;
+  /** The nurse ticked "Recommend she sees someone today". */
+  recommendSeeSomeoneToday: boolean;
   answeredAt: IsoDateTime;
 }
 
@@ -74,10 +130,20 @@ export interface AnswerResponse {
   answer: Answer;
   payment: {
     amount: Money;
-    /** Null when the answer was free (paid from treasury). */
+    /** Null when the answer was free to her (the treasury pays the nurse). */
     stellarTxHash: string | null;
     paidFromTreasury: boolean;
   };
+}
+
+// POST /questions/:id/feedback  (woman, answered + collected)
+export interface FeedbackBody {
+  helpful: boolean;
+}
+export interface FeedbackResponse {
+  questionId: Id;
+  helpful: boolean;
+  updatedAt: IsoDateTime;
 }
 
 /** A woman's own question, as listed in her app. */
@@ -89,35 +155,49 @@ export interface MyQuestion {
   cleanedText: string;
   price: Money;
   isFree: boolean;
-  /** Present once answered AND paid/collected. */
+  nurseSelection: NurseSelection;
+  /** The nurse she chose, if any. */
+  chosenNurse: PublicNurse | null;
+  femaleOnly: boolean;
+  claimsCloseAt: IsoDateTime;
+  /** Present once answered AND collected. */
   answer: Answer | null;
+  /** Her helpful / not helpful, if given. */
+  feedback: { helpful: boolean } | null;
   createdAt: IsoDateTime;
 }
 
-/** What a health worker sees. The woman is anonymous. */
-export interface WorkerQuestionView {
+/** What a nurse sees. The woman is anonymous: no name, email, wallet, location or chat history. */
+export interface NurseQuestionView {
   id: Id;
   status: QuestionStatus;
   category: QuestionCategory;
   /** Spelling and grammar cleaned, never summarised. */
   cleanedText: string;
-  /** Her exact words, so nothing is lost in clean-up. */
-  originalText: string;
+  /** Her exact words, so nothing is lost in clean-up (if she consented to share it). */
+  originalText: string | null;
   /** Separate notes added by the assistant (context, not a summary). */
   assistantNotes: string | null;
-  preferFemaleWorker: boolean;
+  ageRange: AgeRange | null;
+  pregnancyWeeks: number | null;
+  femaleOnly: boolean;
+  /** True while this question is reserved for you (chosen nurse window). */
+  chosenForYou: boolean;
+  claimsCloseAt: IsoDateTime;
   createdAt: IsoDateTime;
-  /** Set when this worker holds the claim. */
+  /** Set when this nurse holds the claim. */
   claimExpiresAt: IsoDateTime | null;
 }
 
-// POST /worker/questions/:id/claim
+// POST /nurse/questions/:id/claim
 export interface Claim {
   questionId: Id;
   expiresAt: IsoDateTime;
 }
 
-// POST /worker/questions/:id/answer
+// POST /nurse/questions/:id/answer
 export interface SubmitAnswerBody {
   text: string;
+  /** "Recommend she sees someone today". Default false. */
+  recommendSeeSomeoneToday?: boolean;
 }

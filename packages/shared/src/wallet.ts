@@ -3,8 +3,11 @@ import type { Id, IsoDateTime, Money } from './common.js';
 
 export const FREE_ANSWERS_PER_WOMAN = 3;
 
-/** Health worker share of every paid answer. Platform keeps the rest. */
-export const PAYOUT_SPLIT = { workerBps: 8000, platformBps: 2000 } as const;
+/** Nurse share of every answer (₦400 of ₦500). Platform keeps the rest. Free answers: the treasury pays the nurse. */
+export const PAYOUT_SPLIT = { nurseBps: 8000, platformBps: 2000 } as const;
+
+/** ₦500 per answer. The server reads ANSWER_PRICE_KOBO; this is the agreed default. */
+export const DEFAULT_ANSWER_PRICE_KOBO = 50_000;
 
 // GET /wallet
 export interface WalletResponse {
