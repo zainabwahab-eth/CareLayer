@@ -5,9 +5,11 @@ import type {
   Conversation,
   CreateQuestionResponse,
   EmergencyResponse,
+  FeedbackResponse,
   MyQuestion,
+  NotificationPreferences,
+  NursePublicProfile,
   Page,
-  PageQuery,
   QuestionStatusResponse,
   RequestCodeResponse,
   SendMessageResponse,
@@ -33,9 +35,12 @@ import type { CareLayerApi } from '../types';
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 
+/** Query string values. `undefined` entries are left out. */
+type Query = Readonly<Record<string, string | number | boolean | undefined>>;
+
 interface RequestOptions {
   body?: unknown;
-  query?: PageQuery;
+  query?: Query;
   /** Public endpoints never send a token and never trigger a refresh. */
   auth?: boolean;
 }
@@ -49,10 +54,11 @@ export function createHttpApi(baseUrl: string): CareLayerApi {
     return tokens;
   }
 
-  function buildUrl(path: string, query?: PageQuery) {
+  function buildUrl(path: string, query?: Query) {
     const url = new URL(path, `${baseUrl}/`);
-    if (query?.cursor) url.searchParams.set('cursor', query.cursor);
-    if (query?.limit !== undefined) url.searchParams.set('limit', String(query.limit));
+    for (const [key, value] of Object.entries(query ?? {})) {
+      if (value !== undefined && value !== '') url.searchParams.set(key, String(value));
+    }
     return url.toString();
   }
 
@@ -144,18 +150,21 @@ export function createHttpApi(baseUrl: string): CareLayerApi {
       update: (body) => authed<User>('PATCH', 'me', { body }),
       getSettings: () => authed<UserSettings>('GET', 'me/settings'),
       updateSettings: (body) => authed<UserSettings>('PATCH', 'me/settings', { body }),
+      getNotifications: () => authed<NotificationPreferences>('GET', 'me/notifications'),
+      updateNotifications: (body) =>
+        authed<NotificationPreferences>('PATCH', 'me/notifications', { body }),
     },
 
     wallet: {
       get: () => authed<WalletResponse>('GET', 'wallet'),
       listTransactions: (query) =>
-        authed<Page<WalletTransaction>>('GET', 'wallet/transactions', { query }),
+        authed<Page<WalletTransaction>>('GET', 'wallet/transactions', { query: { ...query } }),
     },
 
     chat: {
       createConversation: () => authed<Conversation>('POST', 'chat/conversations'),
       listConversations: (query) =>
-        authed<Page<Conversation>>('GET', 'chat/conversations', { query }),
+        authed<Page<Conversation>>('GET', 'chat/conversations', { query: { ...query } }),
       getConversation: (conversationId) =>
         authed<Conversation>('GET', `chat/conversations/${id(conversationId)}`),
       sendMessage: (conversationId, body) =>
@@ -164,14 +173,20 @@ export function createHttpApi(baseUrl: string): CareLayerApi {
         }),
     },
 
+    nurses: {
+      list: (query) => authed<NursePublicProfile[]>('GET', 'nurses', { query: { ...query } }),
+    },
+
     questions: {
       create: (body) => authed<CreateQuestionResponse>('POST', 'questions', { body }),
       getStatus: (questionId) =>
         authed<QuestionStatusResponse>('GET', `questions/${id(questionId)}/status`),
-      listMine: (query) => authed<Page<MyQuestion>>('GET', 'me/questions', { query }),
+      listMine: (query) => authed<Page<MyQuestion>>('GET', 'me/questions', { query: { ...query } }),
       getMine: (questionId) => authed<MyQuestion>('GET', `me/questions/${id(questionId)}`),
       collectAnswer: (questionId) =>
         authed<AnswerResponse>('POST', `me/questions/${id(questionId)}/collect`),
+      submitFeedback: (questionId, body) =>
+        authed<FeedbackResponse>('POST', `questions/${id(questionId)}/feedback`, { body }),
     },
 
     emergency: {
