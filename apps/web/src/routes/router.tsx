@@ -40,11 +40,13 @@ export const routes: RouteObject[] = [
   {
     Component: RootLayout,
     children: [
-      // Public: full-screen pages (W01, W13)
+      // Public: W01 landing page. Full-bleed, renders its own header and <main>.
+      { path: paths.welcome, Component: WelcomePage },
+
+      // Public: full-screen pages (W13, not found)
       {
         Component: StandaloneLayout,
         children: [
-          { path: paths.welcome, Component: WelcomePage },
           { path: paths.emergency, Component: EmergencyPage },
           ...devRoutes,
           { path: '*', Component: NotFoundPage },
