@@ -1,6 +1,9 @@
 import { FREE_ANSWERS_PER_WOMAN } from '@carelayer/shared';
+import { useEffect } from 'react';
 import { Outlet } from 'react-router';
 import { useApiQuery } from '../api/useApiQuery';
+import { isSessionError } from '../auth/auth-flow';
+import { useAuth } from '../auth/useAuth';
 import { cx } from '../components/cx';
 import { BalanceCard, Sidebar } from '../components/navigation/Sidebar';
 import { TabBar } from '../components/navigation/TabBar';
@@ -16,16 +19,23 @@ import styles from './AppLayout.module.css';
  */
 export function AppLayout() {
   const { nav, tabBar = false } = useRouteHandle();
-  // Sidebar profile and balance. Hidden until loaded; errors are handled by the auth phase.
-  const me = useApiQuery((api) => api.me.get());
+  // RequireAuth guarantees a signed-in user here; the sign-in response carries her profile.
+  const { state, sessionExpired } = useAuth();
+  const user = state.user;
+  // Sidebar balance. Hidden until loaded.
   const wallet = useApiQuery((api) => api.wallet.get());
+
+  // If the session has ended on the server, RequireAuth sends her to Log in.
+  useEffect(() => {
+    if (wallet.status === 'error' && isSessionError(wallet.error)) sessionExpired();
+  }, [wallet.status, wallet.error, sessionExpired]);
 
   return (
     <div className={styles.shell}>
       <Sidebar
         className={styles.sidebar}
         active={nav}
-        user={me.data && { name: me.data.displayName, email: me.data.email }}
+        user={user ? { name: user.displayName, email: user.email } : undefined}
         balance={
           wallet.data && (
             <BalanceCard

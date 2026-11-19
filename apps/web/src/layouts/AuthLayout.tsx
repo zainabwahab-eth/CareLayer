@@ -11,7 +11,7 @@ const points: ReadonlyArray<{ icon: IconName; text: string }> = [
 ];
 
 /*
- * Onboarding / auth shell (W02 Before you start, W03 Sign up, W04 Verify email).
+ * Onboarding / auth shell (W02 Before you start, W03 Sign up, W04 Verify email, Log in).
  *   Mobile: single column.
  *   Desktop: Figma "Auth panel/Women" (deep teal, 600px) on the left, content on the right.
  */

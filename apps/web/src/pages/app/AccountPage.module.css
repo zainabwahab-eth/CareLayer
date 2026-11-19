@@ -10,3 +10,45 @@
   border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
 }
+
+.profile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.identity {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.name {
+  color: var(--color-text);
+  font-family: var(--text-title-m-family);
+  font-size: var(--text-title-m-size);
+  line-height: var(--text-title-m-leading);
+  font-weight: var(--text-title-m-weight);
+}
+
+.email {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Full width on phones, natural width from tablet up. */
+.logout {
+  width: 100%;
+}
+
+@media (min-width: 40rem) {
+  .logout {
+    align-self: flex-start;
+    width: auto;
+  }
+}

@@ -12,11 +12,7 @@ import styles from './WelcomePage.module.css';
  *   Mobile: illustration, headline, then full-width stacked actions at the bottom.
  *   Tablet: same column, centred, plus the top nav and promises.
  *   Desktop: top nav, copy on the left, illustration on the right.
- *
- * There is no Log in screen yet (the H5 auth milestone adds one). Until then,
- * "Log in" and "I already have an account" go to W03, where sign-in will live.
  */
-const logInPath = paths.signUp;
 
 const promises: ReadonlyArray<{ icon: IconName; text: string }> = [
   { icon: 'lock', text: 'Anonymous by default' },
@@ -33,7 +29,7 @@ export function WelcomePage() {
           <a href={externalLinks.workersApp} className={styles.navLinkMuted}>
             For nurses and midwives
           </a>
-          <Link to={logInPath} className={styles.navLink}>
+          <Link to={paths.logIn} className={styles.navLink}>
             Log in
           </Link>
         </nav>
@@ -58,7 +54,7 @@ export function WelcomePage() {
             <ButtonLink to={paths.beforeYouStart} variant="secondary" tone="inverse">
               Get started<span className={styles.desktopOnly}>, it’s free</span>
             </ButtonLink>
-            <ButtonLink to={logInPath} variant="ghost" tone="inverse">
+            <ButtonLink to={paths.logIn} variant="ghost" tone="inverse">
               I already have an account
             </ButtonLink>
           </div>
