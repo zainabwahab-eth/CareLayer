@@ -1,5 +1,7 @@
 // Public API of the component library. Import from '../components' in pages and layouts.
+export { Alert, type AlertProps } from './Alert/Alert';
 export { Avatar, type AvatarProps } from './Avatar/Avatar';
+export { BackLink, type BackLinkProps } from './BackLink/BackLink';
 export { Badge, type BadgeProps, type BadgeVariant } from './Badge/Badge';
 export {
   Button,
@@ -8,7 +10,9 @@ export {
   type ButtonProps,
   type ButtonVariant,
 } from './Button/Button';
+export { Checkbox, type CheckboxProps } from './Checkbox/Checkbox';
 export { Chip, type ChipProps } from './Chip/Chip';
+export { CodeInput, type CodeInputProps } from './CodeInput/CodeInput';
 export { cx } from './cx';
 export { Icon, type IconProps } from './Icon/Icon';
 export { icons, type IconName } from './Icon/icons';

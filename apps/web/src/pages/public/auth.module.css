@@ -1,0 +1,168 @@
+/*
+ * Shared styles for the auth screens (W02 Before you start, W03 Sign up,
+ * W04 Verify email, Log in). Values follow the Figma mobile frames (390) and
+ * desktop frames (D-W02-D-W04, 1440) on the Women pages.
+ */
+
+/* Figma body: vertical stack, 20px gap (W03: 18px). */
+.page {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
+  gap: var(--space-20);
+  width: 100%;
+}
+
+/* W03 / Log in: 18px rhythm. */
+.tight {
+  gap: 1.125rem; /* 18px */
+}
+
+@media (min-width: 60rem) {
+  .page {
+    flex: 0 0 auto;
+  }
+
+  /* W03 / W04 / Log in: 420px column on desktop. */
+  .narrow {
+    max-width: 26.25rem;
+    margin-inline: auto;
+  }
+}
+
+/* Display/M title. */
+.title {
+  color: var(--color-text);
+  font-family: var(--text-display-m-family);
+  font-size: var(--text-display-m-size);
+  line-height: var(--text-display-m-leading);
+  font-weight: var(--text-display-m-weight);
+  letter-spacing: -0.01875rem; /* -0.3px, as drawn */
+}
+
+/* Body/L muted lede. */
+.lede {
+  color: var(--color-text-muted);
+  font-family: var(--text-body-l-family);
+  font-size: var(--text-body-l-size);
+  line-height: var(--text-body-l-leading);
+}
+
+.lede strong {
+  color: var(--color-text);
+  font-weight: var(--text-label-m-weight);
+  overflow-wrap: anywhere;
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+}
+
+/* The logo sits in the deep-teal panel on desktop, so only show it on mobile/tablet. */
+@media (min-width: 60rem) {
+  .mobileOnly {
+    display: none;
+  }
+}
+
+.desktopOnly {
+  display: none;
+}
+
+@media (min-width: 60rem) {
+  .desktopOnly {
+    display: revert;
+  }
+}
+
+/* ---- forms ---------------------------------------------------------------- */
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: inherit;
+}
+
+/* Figma "Divider": two 1px lines either side of a Caption label. */
+.divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  color: var(--color-text-muted);
+  font-family: var(--text-caption-family);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-leading);
+  font-weight: var(--text-caption-weight);
+  letter-spacing: var(--text-caption-tracking);
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1 1 0;
+  height: 1px;
+  background: var(--color-border);
+}
+
+/* Body/S helper under the primary button. */
+.helper {
+  color: var(--color-text-muted);
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+}
+
+/* ---- footer switch ("Already have an account? Log in") --------------------- */
+
+/* Mobile: pinned to the bottom and centred. Desktop: left-aligned under the form. */
+.switch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.375rem;
+  margin-top: auto;
+  padding-top: var(--space-8);
+  color: var(--color-text-muted);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+@media (min-width: 60rem) {
+  .switch {
+    justify-content: flex-start;
+    margin-top: 0;
+    padding-top: 0;
+  }
+}
+
+/* Label/M text link. */
+.textLink {
+  color: var(--color-primary-text);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+  text-decoration: none;
+}
+
+.textLink:hover {
+  text-decoration: underline;
+}
+
+/* A <button> that looks like .textLink. */
+.textButton {
+  composes: textLink;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.textButton:disabled {
+  cursor: default;
+  opacity: 0.6;
+}

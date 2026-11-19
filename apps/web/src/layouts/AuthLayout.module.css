@@ -8,7 +8,10 @@
 }
 
 .main {
-  padding: calc(var(--space-8) + env(safe-area-inset-top)) var(--layout-margin-inline)
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  padding: calc(var(--space-20) + env(safe-area-inset-top)) var(--layout-margin-inline)
     calc(var(--space-32) + env(safe-area-inset-bottom));
 }
 
@@ -16,9 +19,13 @@
   outline: none;
 }
 
+/* Mobile: fills the screen so pages can pin their last block to the bottom (Figma spacer). */
 .content {
+  display: flex;
+  flex: 1 0 auto;
+  flex-direction: column;
   width: 100%;
-  max-width: 40rem;
+  max-width: 35rem;
   margin: 0 auto;
 }
 
@@ -42,14 +49,16 @@
     color: var(--color-on-primary);
   }
 
+  /* Figma D-W02-D-W04: column centred in the content area (560px wide on W02, 420px on W03/W04). */
   .main {
-    display: flex;
-    align-items: center;
+    justify-content: center;
+    min-height: 0;
     padding: 3.5rem 3rem;
   }
 
   .content {
-    max-width: 27.5rem;
+    flex: 0 0 auto;
+    max-width: 35rem;
   }
 }
 

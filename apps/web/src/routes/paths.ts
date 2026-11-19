@@ -9,6 +9,7 @@ export const paths = {
   beforeYouStart: '/before-you-start', // W02
   signUp: '/sign-up', // W03
   verifyEmail: '/verify-email', // W04
+  logIn: '/log-in', // No Figma frame; mirrors W03
   emergency: '/emergency', // W13 - never behind auth
 
   // Authenticated

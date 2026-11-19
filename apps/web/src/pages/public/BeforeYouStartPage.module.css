@@ -1,0 +1,140 @@
+/* Mobile: Figma "Promise / *" rows, 44px icon circle + text, 14px gap. */
+.promises {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+}
+
+.promise {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem; /* 14px */
+}
+
+.iconCircle {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius-full);
+}
+
+.primary {
+  background: var(--color-primary-bg-soft);
+  color: var(--color-primary-text);
+}
+
+.verified {
+  background: var(--color-verified-bg-soft);
+  color: var(--color-verified-bg);
+}
+
+.emergency {
+  background: var(--color-emergency-bg-soft);
+  color: var(--color-emergency-bg);
+}
+
+.accent {
+  background: var(--color-accent-bg-soft);
+  color: var(--color-text);
+}
+
+.text {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* Title/M */
+.promiseTitle {
+  color: var(--color-text);
+  font-family: var(--text-title-m-family);
+  font-size: var(--text-title-m-size);
+  line-height: var(--text-title-m-leading);
+  font-weight: var(--text-title-m-weight);
+}
+
+/* Body/M muted (mobile), Body/S muted (desktop cards) */
+.promiseBody {
+  color: var(--color-text-muted);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+.shortText {
+  display: none;
+}
+
+/* Agreement + button: pinned to the bottom on mobile (Figma spacer). */
+.agreementForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+  margin-top: auto;
+  padding-top: var(--space-12);
+}
+
+/* Figma "Agreement": surface card, 1px line border, radius 14, 14px/16px padding. */
+.agreementForm .agreement {
+  padding: 0.875rem var(--space-16);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+}
+
+/* Tablet: two columns of rows so the list doesn't stretch too wide. */
+@media (min-width: 40rem) {
+  .promises {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-24) var(--space-20);
+  }
+}
+
+/* Desktop D-W02: 2 x 2 cards (surface, 1px line, radius 20, 18px padding, 10px gap). */
+@media (min-width: 60rem) {
+  .promises {
+    gap: var(--space-16);
+  }
+
+  .promise {
+    flex-direction: column;
+    gap: 0.625rem;
+    padding: 1.125rem;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-bg-surface);
+  }
+
+  .text {
+    gap: 0.625rem;
+  }
+
+  .promiseBody {
+    font-family: var(--text-body-s-family);
+    font-size: var(--text-body-s-size);
+    line-height: var(--text-body-s-leading);
+  }
+
+  .longText {
+    display: none;
+  }
+
+  .shortText {
+    display: inline;
+  }
+
+  .agreementForm {
+    margin-top: 0;
+    padding-top: 0;
+  }
+
+  .agreementForm .agreement {
+    align-items: center;
+  }
+}

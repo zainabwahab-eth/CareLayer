@@ -1,0 +1,38 @@
+/* Figma "Icon circle": 64px, accent-soft, icon/mail 30. */
+.iconCircle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 4rem;
+  height: 4rem;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-bg-soft);
+  color: var(--color-text);
+}
+
+/* Figma "Resend": centred on mobile, left-aligned on desktop. */
+.resend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: center;
+  gap: 0.375rem;
+  color: var(--color-text-muted);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+.countdown {
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (min-width: 60rem) {
+  .resend {
+    justify-content: flex-start;
+  }
+}

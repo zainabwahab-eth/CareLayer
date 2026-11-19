@@ -13,8 +13,13 @@ function createApi(): CareLayerApi {
   // Read the env var inline (not via apiConfig) so the bundler can fold the
   // condition and drop the unused implementation.
   if (import.meta.env.VITE_USE_MOCK_API === 'true') {
-    console.info('[CareLayer] Using the MOCK API (VITE_USE_MOCK_API=true). Data is sample data.');
-    return createMockApi();
+    console.info(
+      '[CareLayer] Using the MOCK API (VITE_USE_MOCK_API=true). Data is sample data. ' +
+        'Log in as tolu@example.com (or sign up with any email); the code is always 123456.',
+    );
+    // Start signed out so the real sign-up / log-in flow runs. The session then
+    // survives reloads in this tab (sessionStorage), like the refresh cookie.
+    return createMockApi({ startSignedIn: false });
   }
   return createHttpApi(apiConfig.baseUrl);
 }

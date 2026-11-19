@@ -15,9 +15,11 @@ import { WaitingPage } from '../pages/app/WaitingPage';
 import { EmergencyPage } from '../pages/EmergencyPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { BeforeYouStartPage } from '../pages/public/BeforeYouStartPage';
+import { LogInPage } from '../pages/public/LogInPage';
 import { SignUpPage } from '../pages/public/SignUpPage';
 import { VerifyEmailPage } from '../pages/public/VerifyEmailPage';
 import { WelcomePage } from '../pages/public/WelcomePage';
+import { GuestOnly } from './GuestOnly';
 import { paths } from './paths';
 import { RequireAuth } from './RequireAuth';
 import type { RouteHandle } from './route-handle';
@@ -53,13 +55,19 @@ export const routes: RouteObject[] = [
         ],
       },
 
-      // Public: onboarding / auth (W02-W04)
+      // Public: onboarding / auth (W02-W04 + Log in). Signed-in visitors are sent on.
       {
-        Component: AuthLayout,
+        Component: GuestOnly,
         children: [
-          { path: paths.beforeYouStart, Component: BeforeYouStartPage },
-          { path: paths.signUp, Component: SignUpPage },
-          { path: paths.verifyEmail, Component: VerifyEmailPage },
+          {
+            Component: AuthLayout,
+            children: [
+              { path: paths.beforeYouStart, Component: BeforeYouStartPage },
+              { path: paths.signUp, Component: SignUpPage },
+              { path: paths.verifyEmail, Component: VerifyEmailPage },
+              { path: paths.logIn, Component: LogInPage },
+            ],
+          },
         ],
       },
 
