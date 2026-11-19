@@ -1,3 +1,4 @@
+import alert18 from '../../assets/icons/alert-18.svg';
 import alert20 from '../../assets/icons/alert-20.svg';
 import alert from '../../assets/icons/alert.svg';
 import back from '../../assets/icons/back.svg';
@@ -6,9 +7,13 @@ import chat from '../../assets/icons/chat.svg';
 import clock from '../../assets/icons/clock.svg';
 import eyeOff from '../../assets/icons/eye-off.svg';
 import home from '../../assets/icons/home.svg';
+import lock18 from '../../assets/icons/lock-18.svg';
 import lock from '../../assets/icons/lock.svg';
+import shield18 from '../../assets/icons/shield-18.svg';
 import shield20 from '../../assets/icons/shield-20.svg';
+import shield56 from '../../assets/icons/shield-56.svg';
 import shield60 from '../../assets/icons/shield-60.svg';
+import shield84 from '../../assets/icons/shield-84.svg';
 import shield from '../../assets/icons/shield.svg';
 import user from '../../assets/icons/user.svg';
 
@@ -42,14 +47,21 @@ export const icons = {
   bell: { src: bell, frame: 24, x: 4.125, y: 4.625, w: 15.75, h: 16.25 },
   back: { src: back, frame: 24, x: 7.625, y: 5.125, w: 7.75, h: 13.75 },
   eyeOff: { src: eyeOff, frame: 18, x: 1.75, y: 2.5, w: 14.5, h: 13 },
-  lock: { src: lock, frame: 20, x: 3.29, y: 2.458, w: 13.417, h: 15.083 },
+  lock: [
+    { src: lock18, frame: 18, x: 2.875, y: 2.125, w: 12.25, h: 13.75 },
+    { src: lock, frame: 20, x: 3.29, y: 2.458, w: 13.417, h: 15.083 },
+  ],
   shield: [
     { src: shield, frame: 14, x: 2.042, y: 1.167, w: 9.917, h: 11.667 },
+    { src: shield18, frame: 18, x: 2.875, y: 1.75, w: 12.25, h: 14.5 },
     { src: shield20, frame: 20, x: 3.29, y: 2.042, w: 13.417, h: 15.917 },
+    { src: shield56, frame: 56, x: 10.792, y: 7.292, w: 34.417, h: 41.417 },
     { src: shield60, frame: 60, x: 11.625, y: 7.875, w: 36.75, h: 44.25 },
+    { src: shield84, frame: 84, x: 16.625, y: 11.375, w: 50.75, h: 61.25 },
   ],
   alert: [
     { src: alert, frame: 14, x: 0.875, y: 1.458, w: 12.25, h: 10.792 },
+    { src: alert18, frame: 18, x: 1.375, y: 2.125, w: 15.25, h: 13.375 },
     { src: alert20, frame: 20, x: 1.625, y: 2.458, w: 16.75, h: 14.667 },
   ],
 } satisfies Record<string, IconDefinition | readonly IconDefinition[]>;

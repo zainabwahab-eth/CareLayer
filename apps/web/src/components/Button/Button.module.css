@@ -75,3 +75,37 @@
 .button:active:not(:disabled) {
   filter: brightness(0.95);
 }
+
+/*
+ * Inverse tone: on a primary (deep teal) panel, e.g. W01 Welcome.
+ * Figma: Secondary is a borderless surface fill; Ghost is on-primary text.
+ * The focus ring switches to on-primary so it stays visible on teal.
+ */
+.inverse:focus-visible {
+  outline-color: var(--color-on-primary);
+}
+
+.secondary.inverse {
+  border-color: transparent;
+}
+
+.ghost.inverse {
+  color: var(--color-on-primary);
+}
+
+@media (hover: hover) {
+  .secondary.inverse:hover:not(:disabled) {
+    background: var(--color-bg-surface);
+    filter: brightness(0.96);
+  }
+
+  .ghost.inverse:hover:not(:disabled) {
+    background: color-mix(in srgb, var(--color-on-primary) 10%, transparent);
+  }
+}
+
+@media (forced-colors: active) {
+  .inverse:focus-visible {
+    outline-color: Highlight;
+  }
+}

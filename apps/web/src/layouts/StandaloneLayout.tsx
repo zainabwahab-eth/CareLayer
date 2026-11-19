@@ -3,7 +3,7 @@ import styles from './StandaloneLayout.module.css';
 
 /*
  * Full-screen pages with their own top area and no app navigation:
- * W01 Welcome, W13 Emergency, Not found.
+ * W13 Emergency, Not found. (W01 Welcome is full-bleed and has its own layout.)
  */
 export function StandaloneLayout() {
   return (

@@ -7,6 +7,8 @@ interface ImportMetaEnv {
   /** "true" = use the in-browser mock API instead of apps/api. */
   readonly VITE_USE_MOCK_API?: string;
   readonly VITE_GOOGLE_CLIENT_ID?: string;
+  /** Health workers' app (apps/workers), linked from the landing page. */
+  readonly VITE_WORKERS_APP_URL?: string;
 }
 
 interface ImportMeta {

@@ -1,0 +1,337 @@
+/*
+ * W01 Welcome. Every colour is a theme token, so light and dark follow
+ * "W01 Welcome" and "W01 Welcome — Dark" without extra rules.
+ *
+ * Breakpoints: mobile < 40rem, tablet 40-60rem, desktop >= 60rem (the app shell's).
+ */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--color-primary-bg);
+  color: var(--color-on-primary);
+}
+
+/* Figma "Top nav" (desktop only). Hidden on phones, where W01 has no header. */
+.topNav {
+  display: none;
+}
+
+.navLinks {
+  display: flex;
+  align-items: center;
+  gap: var(--space-32);
+}
+
+.navLink,
+.navLinkMuted {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target-min);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+  color: var(--color-on-primary);
+  text-decoration: none;
+  text-underline-offset: 0.25em;
+}
+
+.navLinkMuted {
+  color: var(--color-on-primary-muted);
+}
+
+.navLink:hover,
+.navLinkMuted:hover {
+  text-decoration: underline;
+}
+
+/* The global focus ring is primary-coloured, which would vanish on this teal page. */
+.page :focus-visible {
+  outline-color: var(--color-on-primary);
+}
+
+.hero {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.hero:focus {
+  outline: none;
+}
+
+/* Figma "Body": 8px top, 20px sides, 32px bottom, 16px gap. */
+.copy {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-16);
+  padding: var(--space-8) var(--layout-margin-inline)
+    calc(var(--space-32) + env(safe-area-inset-bottom));
+}
+
+/* Display/L. Figma tracks it at -1.5% (-0.6px), as in the auth panel. */
+.headline {
+  font-family: var(--text-display-l-family);
+  font-size: var(--text-display-l-size);
+  line-height: var(--text-display-l-leading);
+  font-weight: var(--text-display-l-weight);
+  letter-spacing: -0.0375rem;
+}
+
+.lede {
+  color: var(--color-on-primary-muted);
+  font-family: var(--text-body-l-family);
+  font-size: var(--text-body-l-size);
+  line-height: var(--text-body-l-leading);
+}
+
+/* Promises: desktop (and tablet) only, as in D-W01. */
+.promises {
+  display: none;
+  flex-wrap: wrap;
+  gap: var(--space-8) var(--space-24);
+}
+
+.promise {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+}
+
+.promiseIcon {
+  color: var(--color-accent-bg);
+}
+
+/* Mobile: the Figma spacer pushes the actions to the bottom; full-width, stacked. */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  margin-top: auto;
+  padding-top: var(--space-16);
+}
+
+.desktopOnly {
+  display: none;
+}
+
+/*
+ * Figma "Illustration / Layers". Shapes are placed on a stage measured in
+ * --u (1px on phones). Mobile frame: 360px tall, stage 300 x 265 at (40, 40).
+ * Comes first visually on phones, after the copy in the DOM.
+ */
+.illustration {
+  --u: 1px;
+  order: -1;
+  flex-shrink: 0;
+  padding: calc(40 * var(--u)) 0 calc(55 * var(--u));
+  padding-top: calc(40 * var(--u) + env(safe-area-inset-top));
+}
+
+.stage {
+  position: relative;
+  width: calc(300 * var(--u));
+  height: calc(265 * var(--u));
+  margin-inline: auto;
+}
+
+.stage > span {
+  position: absolute;
+}
+
+.layerSoft {
+  top: calc(30 * var(--u));
+  left: 0;
+  width: calc(220 * var(--u));
+  height: calc(220 * var(--u));
+  border-radius: calc(56 * var(--u));
+  background: var(--color-primary-soft);
+  opacity: 0.14;
+}
+
+.layerAccent {
+  top: 0;
+  left: calc(110 * var(--u));
+  width: calc(190 * var(--u));
+  height: calc(190 * var(--u));
+  border-radius: calc(52 * var(--u));
+  background: var(--color-accent-bg);
+}
+
+.layerRose {
+  top: calc(90 * var(--u));
+  left: calc(30 * var(--u));
+  width: calc(210 * var(--u));
+  height: calc(170 * var(--u));
+  border-radius: calc(48 * var(--u));
+  background: var(--color-rose-bg);
+}
+
+.layerSurface {
+  top: calc(135 * var(--u));
+  left: calc(165 * var(--u));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: calc(130 * var(--u));
+  height: calc(130 * var(--u));
+  border-radius: calc(40 * var(--u));
+  background: var(--color-bg-surface);
+  color: var(--color-primary-text);
+}
+
+.layerSurface .shieldMobile {
+  width: calc(56 * var(--u));
+  height: calc(56 * var(--u));
+}
+
+.layerSurface .shieldDesktop {
+  display: none;
+  width: calc(84 * var(--u));
+  height: calc(84 * var(--u));
+}
+
+/* ---------- Tablet: centred column, top nav and promises appear ---------- */
+@media (min-width: 40rem) {
+  .topNav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-32);
+    padding: calc(var(--space-24) + env(safe-area-inset-top)) var(--space-40) 0;
+  }
+
+  .hero {
+    width: 100%;
+    max-width: 36rem;
+    margin-inline: auto;
+  }
+
+  .illustration {
+    --u: 1.15px;
+    padding-top: calc(32 * var(--u));
+  }
+
+  .copy {
+    gap: var(--space-24);
+  }
+
+  .promises {
+    display: flex;
+  }
+
+  .actions {
+    gap: var(--space-12);
+  }
+}
+
+/* ---------- Desktop: Figma D-W01 ---------- */
+@media (min-width: 60rem) {
+  .page {
+    --page-inline: clamp(3rem, 7.5vw, 6rem); /* 96px at 1280px, as in Figma */
+  }
+
+  /* Figma "Top nav": 32px vertical, 96px sides, 32px gap. */
+  .topNav {
+    width: 100%;
+    max-width: calc(78rem + 2 * var(--page-inline));
+    margin-inline: auto;
+    padding: var(--space-32) var(--page-inline);
+  }
+
+  /* Figma "Hero": copy | 80px | illustration, vertically centred, 64px bottom. */
+  .hero {
+    flex-direction: row;
+    align-items: center;
+    gap: clamp(2.5rem, 6vw, 5rem);
+    max-width: calc(78rem + 2 * var(--page-inline));
+    padding: 0 var(--page-inline) 4rem; /* 64px */
+  }
+
+  .copy {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 0;
+  }
+
+  /* Display/XL (56/62, -2% = -1.12px). No token for it yet, so it is set here. */
+  .headline {
+    font-size: clamp(2.75rem, 1rem + 3vw, 3.5rem);
+    line-height: 1.107;
+    letter-spacing: -0.02em;
+  }
+
+  .actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: var(--space-12);
+    margin-top: 0;
+    padding-top: var(--space-12);
+  }
+
+  .desktopOnly {
+    display: inline;
+  }
+
+  /*
+   * Desktop frame: 540 x 520, stage 460 x 410 at (30, 40). --u reaches 1px at
+   * a 1440px window (the Figma frame) and shrinks below that so the copy keeps its room.
+   */
+  .illustration {
+    --u: min(1px, (100vw - 15rem) / 1200);
+    order: 0;
+    width: calc(540 * var(--u));
+    height: calc(520 * var(--u));
+    padding: calc(40 * var(--u)) 0 0 calc(30 * var(--u));
+  }
+
+  .stage {
+    width: calc(460 * var(--u));
+    height: calc(410 * var(--u));
+    margin: 0;
+  }
+
+  .layerSoft {
+    top: calc(50 * var(--u));
+    width: calc(320 * var(--u));
+    height: calc(320 * var(--u));
+    border-radius: calc(80 * var(--u));
+  }
+
+  .layerAccent {
+    left: calc(180 * var(--u));
+    width: calc(280 * var(--u));
+    height: calc(280 * var(--u));
+    border-radius: calc(72 * var(--u));
+  }
+
+  .layerRose {
+    top: calc(140 * var(--u));
+    left: calc(40 * var(--u));
+    width: calc(300 * var(--u));
+    height: calc(250 * var(--u));
+    border-radius: calc(68 * var(--u));
+  }
+
+  .layerSurface {
+    top: calc(210 * var(--u));
+    left: calc(250 * var(--u));
+    width: calc(200 * var(--u));
+    height: calc(200 * var(--u));
+    border-radius: calc(56 * var(--u));
+  }
+
+  .layerSurface .shieldMobile {
+    display: none;
+  }
+
+  .layerSurface .shieldDesktop {
+    display: inline-block;
+  }
+}
