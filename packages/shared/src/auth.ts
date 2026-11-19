@@ -3,7 +3,7 @@ import type { Id, IsoDateTime } from './common.js';
 import type { User } from './users.js';
 
 /** Which app the person is signing into. Accounts are per app. */
-export type AppAudience = 'women' | 'workers';
+export type AppAudience = 'women' | 'nurses';
 
 export type CodePurpose = 'signup' | 'login' | 'step_up';
 
@@ -12,7 +12,7 @@ export const AUTH_RULES = {
   codeTtlMinutes: 10,
   codeMaxAttempts: 5,
   accessTokenTtlMinutes: 15,
-  refreshTtlDays: { women: 90, workers: 30 },
+  refreshTtlDays: { women: 90, nurses: 30 },
   stepUpTtlMinutes: 5,
 } as const;
 
@@ -21,7 +21,7 @@ export interface RequestCodeBody {
   email: string;
   purpose: CodePurpose;
   app: AppAudience;
-  /** Required when purpose = "signup". Women: "What should we call you?". Workers: full name as on licence. */
+  /** Required when purpose = "signup". Women: "What should we call you?". Nurses: full name as on licence. */
   name?: string;
 }
 export interface RequestCodeResponse {

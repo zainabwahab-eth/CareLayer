@@ -1,12 +1,617 @@
-// CareLayer database schema (PostgreSQL). Owned by Zainab.
-// No models yet: the skeleton does not build features. Add models from docs/API_CONTRACT.md,
-// then run `npm run db:migrate -w @carelayer/api`.
+// CareLayer database schema (PostgreSQL, Prisma 7). Owned by Zainab.
+// Decisions behind this schema: docs/TASKS.md section 2 (decisions log).
+//
+// Rules this schema enforces or relies on:
+// - Money: naira as integer kobo (Int), USDC as integer stroops (BigInt, 7 decimals). No floats anywhere.
+// - Every on-chain movement (payment, payout, top-up, withdrawal) has a stellarTxHash column.
+// - Privacy: no column stores a woman's location, phone, or chat history. EmergencyEvent has no user,
+//   no text and no red-flag id. Nurses never see who asked (enforced in the API layer).
+// - Emails are stored lowercased; the API normalises them before every read and write.
+// - Partial unique indexes on Claim: one ACTIVE claim per nurse and per question.
 
 generator client {
-  provider = "prisma-client"
-  output   = "../src/generated/prisma"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
 }
 
 datasource db {
   provider = "postgresql"
+}
+
+// ============================================================================
+// Enums
+// ============================================================================
+
+enum UserRole {
+  WOMAN
+  NURSE
+  ADMIN
+}
+
+enum NurseRole {
+  NURSE
+  MIDWIFE
+}
+
+enum Gender {
+  FEMALE
+  MALE
+  PREFER_NOT_TO_SAY
+}
+
+enum Language {
+  ENGLISH
+  PIDGIN
+  YORUBA
+  HAUSA
+  IGBO
+}
+
+enum VerificationStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum NurseDocumentType {
+  PRACTISING_LICENCE
+  REGISTRATION_CERTIFICATE
+  GOVERNMENT_ID
+  SELFIE_WITH_ID
+}
+
+enum CodePurpose {
+  SIGNUP
+  LOGIN
+  STEP_UP
+}
+
+enum QuestionStatus {
+  OPEN // waiting for a claim (may still be inside a chosen nurse's 10-minute window)
+  CLAIMED // a nurse holds the 10-minute lock
+  ANSWERED // answer written; she may not have collected (paid for) it yet, see collectedAt
+  EXPIRED // no answer: no new claims after 30 min and no active claim. She pays nothing.
+  CANCELLED // she withdrew it before it was answered
+}
+
+enum NurseSelection {
+  FIRST_AVAILABLE
+  CHOSEN_NURSE
+}
+
+enum QuestionSource {
+  WEB
+  MCP
+  AGENT
+}
+
+enum AgeRange {
+  UNDER_18
+  AGE_18_24
+  AGE_25_34
+  AGE_35_44
+  AGE_45_PLUS
+}
+
+enum ClaimStatus {
+  ACTIVE
+  RELEASED
+  EXPIRED
+  ANSWERED
+}
+
+enum SharedField {
+  CLEANED_TEXT
+  ORIGINAL_TEXT
+  ASSISTANT_NOTES
+  CATEGORY
+  AGE_RANGE
+  PREGNANCY_WEEKS
+}
+
+enum PaymentSource {
+  WOMAN_WALLET // her custodial wallet paid over x402
+  TREASURY_FREE // one of her first 3 answers: she pays nothing, amount is 0
+  EXTERNAL_AGENT // a third-party agent paid from its own wallet
+}
+
+enum TxStatus {
+  PENDING
+  SUBMITTED
+  CONFIRMED
+  FAILED
+}
+
+enum Appearance {
+  SYSTEM
+  LIGHT
+  DARK
+}
+
+enum QuickExitTarget {
+  GOOGLE
+  WEATHER
+  NEWS
+}
+
+enum EmergencySource {
+  CHAT
+  QUESTION
+  MCP
+}
+
+// ============================================================================
+// Identity and auth
+// ============================================================================
+
+/// One account per (email, role): the same email can be a woman and a nurse, as two accounts.
+model User {
+  id              String    @id @default(cuid())
+  role            UserRole
+  /// Lowercased by the API.
+  email           String
+  /// Women: "What should we call you?". Nurses: full name as on licence. Admin: any.
+  displayName     String
+  googleSub       String?
+  /// Women only. Incremented with a conditional update (WHERE freeAnswersUsed < 3) when a free answer is collected.
+  freeAnswersUsed Int       @default(0)
+  /// W02 "Before you start" agreement, recorded at sign-up.
+  termsAcceptedAt DateTime?
+  termsVersion    String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  sessions               Session[]
+  agentTokens            AgentToken[]
+  settings               UserSettings?
+  notificationPreference NotificationPreference?
+  wallet                 Wallet?
+  nurseProfile           NurseProfile?           @relation("NurseUser")
+  reviewedNurses         NurseProfile[]          @relation("NurseReviewer")
+  questions              Question[]
+  topups                 Topup[]
+  feedback               Feedback[]
+
+  @@unique([email, role])
+  @@unique([googleSub, role])
+}
+
+/// One row per signed-in device (a refresh-token family).
+model Session {
+  id           String    @id @default(cuid())
+  userId       String
+  deviceName   String?
+  createdAt    DateTime  @default(now())
+  lastUsedAt   DateTime  @default(now())
+  /// Sliding: pushed forward on every refresh (90 days women, 30 days nurses).
+  expiresAt    DateTime
+  /// Set when she verified a fresh code; withdrawals and payout changes need it within 5 minutes.
+  stepUpAt     DateTime?
+  revokedAt    DateTime?
+  /// logout | logout_all | reuse_detected | expired
+  revokeReason String?
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokens RefreshToken[]
+
+  @@index([userId, revokedAt])
+}
+
+/// Every refresh token ever issued for a session. Presenting a used one = reuse: revoke the session.
+model RefreshToken {
+  id        String    @id @default(cuid())
+  sessionId String
+  /// HMAC-SHA256 of the token with REFRESH_TOKEN_PEPPER. The token itself is never stored.
+  tokenHash String    @unique
+  createdAt DateTime  @default(now())
+  usedAt    DateTime?
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+}
+
+/// 6-digit sign-in / step-up codes. Not linked to a user: signup codes exist before the user does.
+model EmailCode {
+  id         String      @id @default(cuid())
+  /// Lowercased by the API.
+  email      String
+  /// Which app the code is for (accounts are per role).
+  role       UserRole
+  purpose    CodePurpose
+  codeHash   String
+  attempts   Int         @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime    @default(now())
+
+  /// Latest code lookup, resend-after-45s and max-5-per-hour checks.
+  @@index([email, role, purpose, createdAt(sort: Desc)])
+}
+
+/// Revocable token the MCP server (Claude) uses to act for a woman.
+model AgentToken {
+  id         String    @id @default(cuid())
+  userId     String
+  label      String
+  tokenHash  String    @unique
+  createdAt  DateTime  @default(now())
+  lastUsedAt DateTime?
+  revokedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model UserSettings {
+  userId                        String          @id
+  appearance                    Appearance      @default(SYSTEM)
+  /// Women only.
+  quickExitTarget               QuickExitTarget @default(GOOGLE)
+  /// Women only. Above this she must approve the payment.
+  spendingLimitPerAnswerKobo    Int             @default(100000)
+  /// Women only. Separate limit for payments made through Claude.
+  mcpSpendingLimitPerAnswerKobo Int             @default(50000)
+  mcpAskBeforeEachPayment       Boolean         @default(true)
+  updatedAt                     DateTime        @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/// Email only (push notifications are out of scope).
+model NotificationPreference {
+  userId             String   @id
+  /// Women: email when a nurse answers.
+  notifyWhenAnswered Boolean  @default(true)
+  updatedAt          DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================================
+// Wallets
+// ============================================================================
+
+/// Custodial Stellar testnet wallet, created at sign-up. The secret never leaves the server.
+model Wallet {
+  id                   String    @id @default(cuid())
+  userId               String    @unique
+  stellarPublicKey     String    @unique
+  /// AES-256-GCM with WALLET_ENCRYPTION_KEY (iv + tag + ciphertext).
+  encryptedSecret      Bytes
+  /// The chain is the source of truth. Refreshed after each transaction.
+  cachedBalanceStroops BigInt    @default(0)
+  balanceSyncedAt      DateTime?
+  createdAt            DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+}
+
+// ============================================================================
+// Nurses
+// ============================================================================
+
+/// One per NURSE user. Primary key is the user id.
+model NurseProfile {
+  userId             String             @id
+  role               NurseRole?
+  /// Full name as on licence.
+  fullName           String
+  fullNameConfirmed  Boolean            @default(false)
+  gender             Gender?
+  practiceArea       String?
+  yearsOfPractice    Int?
+  bio                String?            @db.VarChar(280)
+  languages          Language[]
+  licenceNumber      String?            @unique
+  available          Boolean            @default(false)
+  /// Optional own payout address. Null = pay out to the custodial wallet.
+  ownStellarAddress  String?
+  guidanceAcceptedAt DateTime?
+  verificationStatus VerificationStatus @default(DRAFT)
+  submittedAt        DateTime?
+  reviewedAt         DateTime?
+  reviewedById       String?
+  rejectionReason    String?
+  /// Caches for the public profile. Recomputed when an answer or feedback is written.
+  avgResponseSeconds Int?
+  helpfulCount       Int                @default(0)
+  feedbackCount      Int                @default(0)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  user            User            @relation("NurseUser", fields: [userId], references: [id], onDelete: Restrict)
+  reviewedBy      User?           @relation("NurseReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  documents       NurseDocument[]
+  topics          NurseTopic[]
+  chosenQuestions Question[]      @relation("ChosenNurse")
+  claims          Claim[]
+  answers         Answer[]
+  payouts         Payout[]
+  withdrawals     Withdrawal[]
+
+  /// Admin review queue.
+  @@index([verificationStatus, submittedAt])
+  /// "Choose who answers" list and alert targeting.
+  @@index([verificationStatus, available, gender])
+}
+
+/// Private uploads. storageKey points into private storage; never a public URL.
+model NurseDocument {
+  id         String            @id @default(cuid())
+  nurseId    String
+  type       NurseDocumentType
+  storageKey String            @unique
+  fileName   String
+  mimeType   String
+  sizeBytes  Int
+  sha256     String
+  uploadedAt DateTime          @default(now())
+
+  nurse NurseProfile @relation(fields: [nurseId], references: [userId], onDelete: Cascade)
+
+  /// One current file per type; re-upload replaces it.
+  @@unique([nurseId, type])
+}
+
+/// Question categories. Assigned by the AI; women never choose.
+model Topic {
+  /// pregnancy | periods | contraception | sexual_health | general (matches QuestionCategory in packages/shared)
+  slug      String @id
+  label     String
+  sortOrder Int    @unique
+
+  nurses    NurseTopic[]
+  questions Question[]
+}
+
+/// "Topics I answer": controls alerts only. All open questions stay visible.
+model NurseTopic {
+  nurseId   String
+  topicSlug String
+
+  nurse NurseProfile @relation(fields: [nurseId], references: [userId], onDelete: Cascade)
+  topic Topic        @relation(fields: [topicSlug], references: [slug], onDelete: Restrict)
+
+  @@id([nurseId, topicSlug])
+  /// Who to alert for a new question in this topic.
+  @@index([topicSlug])
+}
+
+// ============================================================================
+// Questions, consent, claims, answers, feedback
+// ============================================================================
+
+/// Chosen-nurse rule: while now < chosenUntil, only chosenNurseId may see and claim an OPEN question.
+/// After chosenUntil (or if she releases, or her claim expires) it is open to every eligible nurse.
+/// Expiry rule: no new claims after expiresAt (created + 30 min). An ACTIVE claim at that moment may
+/// finish its 10-minute lock; if it ends without an answer the question becomes EXPIRED.
+model Question {
+  id              String         @id @default(cuid())
+  /// Null when a third-party agent without a CareLayer account asked.
+  womanId         String?
+  source          QuestionSource
+  status          QuestionStatus @default(OPEN)
+  /// Her exact words. Never changed.
+  originalText    String
+  /// Spelling and grammar fixed only. Never shortened or summarised.
+  cleanedText     String
+  /// Separate notes from the assistant. Never merged into the question.
+  assistantNotes  String?
+  /// AI-assigned category.
+  topicSlug       String
+  ageRange        AgeRange?
+  pregnancyWeeks  Int?
+  femaleOnly      Boolean        @default(false)
+  selection       NurseSelection @default(FIRST_AVAILABLE)
+  chosenNurseId   String?
+  /// createdAt + 10 min when selection = CHOSEN_NURSE.
+  chosenUntil     DateTime?
+  /// When the question was opened to everyone (window passed, release or claim expiry). Audit + alerts.
+  fellBackAt      DateTime?
+  /// createdAt + 30 min. No new claims after this.
+  expiresAt       DateTime
+  /// Quoted at creation. ANSWER_PRICE_KOBO converted at NGN_PER_USDC.
+  priceKobo       Int
+  priceStroops    BigInt
+  /// Quote: she had free answers left when she asked. Final charge is decided on collection.
+  isFree          Boolean
+  /// HMAC of the X-Question-Key given to third-party agents. Null for signed-in callers.
+  questionKeyHash String?        @unique
+  createdAt       DateTime       @default(now())
+  answeredAt      DateTime?
+  expiredAt       DateTime?
+  cancelledAt     DateTime?
+  /// She (or her agent) fetched and paid for the answer.
+  collectedAt     DateTime?
+
+  woman       User?         @relation(fields: [womanId], references: [id], onDelete: Restrict)
+  topic       Topic         @relation(fields: [topicSlug], references: [slug], onDelete: Restrict)
+  chosenNurse NurseProfile? @relation("ChosenNurse", fields: [chosenNurseId], references: [userId], onDelete: SetNull)
+  consent     Consent?
+  claims      Claim[]
+  answer      Answer?
+  payment     Payment?
+
+  /// Open questions by topic (nurse "Waiting" tab, alerts).
+  @@index([status, topicSlug, createdAt])
+  /// Sweeper: expire questions past expiresAt.
+  @@index([status, expiresAt])
+  /// Sweeper: open chosen-nurse questions after the 10-minute window.
+  @@index([status, chosenUntil])
+  /// "Sent to you" for a chosen nurse.
+  @@index([chosenNurseId, status])
+  /// Her history.
+  @@index([womanId, createdAt(sort: Desc)])
+}
+
+/// What she agreed to share with the nurse, and when. One per question.
+model Consent {
+  id             String        @id @default(cuid())
+  questionId     String        @unique
+  sharedFields   SharedField[]
+  /// Version of the consent text she saw (W07).
+  consentVersion String
+  agreedAt       DateTime      @default(now())
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+}
+
+/// A nurse's 10-minute lock on a question. History is kept: released and expired claims stay.
+model Claim {
+  id         String      @id @default(cuid())
+  questionId String
+  nurseId    String
+  status     ClaimStatus @default(ACTIVE)
+  claimedAt  DateTime    @default(now())
+  /// claimedAt + 10 min.
+  expiresAt  DateTime
+  endedAt    DateTime?
+
+  question Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  nurse    NurseProfile @relation(fields: [nurseId], references: [userId], onDelete: Restrict)
+  answer   Answer?
+
+  /// One active claim per nurse.
+  @@unique([nurseId], map: "Claim_one_active_per_nurse", where: { status: "ACTIVE" })
+  /// One active claim per question.
+  @@unique([questionId], map: "Claim_one_active_per_question", where: { status: "ACTIVE" })
+  /// A nurse's claims by state (her active claim, history).
+  @@index([nurseId, status])
+  /// Sweeper: expire claims past expiresAt.
+  @@index([status, expiresAt])
+  @@index([questionId])
+}
+
+model Answer {
+  id                       String   @id @default(cuid())
+  questionId               String   @unique
+  claimId                  String   @unique
+  nurseId                  String
+  text                     String
+  recommendSeeSomeoneToday Boolean  @default(false)
+  createdAt                DateTime @default(now())
+
+  question Question     @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  claim    Claim        @relation(fields: [claimId], references: [id], onDelete: Restrict)
+  nurse    NurseProfile @relation(fields: [nurseId], references: [userId], onDelete: Restrict)
+  feedback Feedback?
+
+  /// Nurse's "Completed" tab.
+  @@index([nurseId, createdAt(sort: Desc)])
+}
+
+/// Helpful / not helpful. She can change her mind (one row per answer, updated).
+model Feedback {
+  id        String   @id @default(cuid())
+  answerId  String   @unique
+  womanId   String
+  helpful   Boolean
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  answer Answer @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  woman  User   @relation(fields: [womanId], references: [id], onDelete: Cascade)
+}
+
+// ============================================================================
+// Money (kobo Int, stroops BigInt)
+// ============================================================================
+
+/// What was charged for an answer (x402 settlement to the platform). One per question.
+/// Free answers: source TREASURY_FREE, amounts 0, no stellarTxHash (no on-chain charge to her).
+model Payment {
+  id                 String        @id @default(cuid())
+  questionId         String        @unique
+  source             PaymentSource
+  /// Stellar address that paid. Null for TREASURY_FREE.
+  payerAddress       String?
+  amountKobo         Int
+  amountStroops      BigInt
+  /// 20% of amountStroops kept by the platform.
+  platformFeeStroops BigInt
+  status             TxStatus
+  stellarTxHash      String?       @unique
+  /// Facilitator settlement reference, for reconciliation.
+  x402Reference      String?
+  createdAt          DateTime      @default(now())
+  settledAt          DateTime?
+
+  question Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
+  payout   Payout?
+}
+
+/// The nurse's 80% (₦400 on a ₦500 answer). Paid from the treasury, also for free answers.
+model Payout {
+  id                 String    @id @default(cuid())
+  paymentId          String    @unique
+  nurseId            String
+  amountKobo         Int
+  amountStroops      BigInt
+  /// True when the answer was free to her.
+  fromTreasury       Boolean
+  destinationAddress String
+  status             TxStatus
+  stellarTxHash      String?   @unique
+  createdAt          DateTime  @default(now())
+  confirmedAt        DateTime?
+
+  payment Payment      @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  nurse   NurseProfile @relation(fields: [nurseId], references: [userId], onDelete: Restrict)
+
+  /// Nurse earnings.
+  @@index([nurseId, createdAt(sort: Desc)])
+}
+
+/// Paystack test payment -> test USDC from the treasury.
+model Topup {
+  id                String    @id @default(cuid())
+  womanId           String
+  /// Paystack reference. Webhook is idempotent on it.
+  paystackReference String    @unique
+  amountKobo        Int
+  amountStroops     BigInt
+  status            TxStatus
+  stellarTxHash     String?   @unique
+  failureReason     String?
+  createdAt         DateTime  @default(now())
+  creditedAt        DateTime?
+
+  woman User @relation(fields: [womanId], references: [id], onDelete: Restrict)
+
+  @@index([womanId, createdAt(sort: Desc)])
+}
+
+/// Nurse withdrawal to a Stellar address. Needs a fresh code.
+model Withdrawal {
+  id                 String    @id @default(cuid())
+  nurseId            String
+  amountKobo         Int
+  amountStroops      BigInt
+  destinationAddress String
+  status             TxStatus
+  stellarTxHash      String?   @unique
+  failureReason      String?
+  createdAt          DateTime  @default(now())
+  confirmedAt        DateTime?
+
+  nurse NurseProfile @relation(fields: [nurseId], references: [userId], onDelete: Restrict)
+
+  @@index([nurseId, createdAt(sort: Desc)])
+}
+
+// ============================================================================
+// Safety
+// ============================================================================
+
+/// A red flag fired. Source and time only: no user id, no message text, no red-flag id, no location.
+model EmergencyEvent {
+  id        String          @id @default(cuid())
+  source    EmergencySource
+  createdAt DateTime        @default(now())
+
+  @@index([createdAt])
 }

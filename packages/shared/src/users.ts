@@ -1,12 +1,12 @@
 // Users and settings. See docs/API_CONTRACT.md §3.
 import type { Id, IsoDateTime } from './common.js';
 
-export type UserRole = 'woman' | 'worker' | 'admin';
+export type UserRole = 'woman' | 'nurse' | 'admin';
 
 export interface User {
   id: Id;
   role: UserRole;
-  /** Women: what we call her. Workers: full name as on licence. */
+  /** Women: what we call her. Nurses: full name as on licence. */
   displayName: string;
   email: string;
   createdAt: IsoDateTime;
@@ -41,3 +41,10 @@ export interface UpdateMeBody {
 
 // PATCH /me/settings
 export type UpdateSettingsBody = Partial<UserSettings>;
+
+/** Email only (push notifications are out of scope). GET/PATCH /me/notifications */
+export interface NotificationPreferences {
+  /** Women: email me when a nurse answers. */
+  notifyWhenAnswered: boolean;
+}
+export type UpdateNotificationPreferencesBody = Partial<NotificationPreferences>;
