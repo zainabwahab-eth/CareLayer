@@ -10,8 +10,11 @@
  */
 import {
   FREE_ANSWERS_PER_WOMAN,
+  type ConsentInput,
   type Conversation,
-  type PublicWorker,
+  type NurseSelection,
+  type NursePublicProfile,
+  type PublicNurse,
   type QuestionCategory,
   type User,
   type UserSettings,
@@ -53,16 +56,111 @@ export const MOCK_SETTINGS: UserSettings = {
   mcpAskBeforeEachPayment: true,
 };
 
-/** Mock verified health workers (public view only: never contact details). */
-export const MOCK_WORKERS: readonly PublicWorker[] = [
-  { displayName: 'Funmilayo B.', role: 'midwife', verified: true },
-  { displayName: 'Hauwa M.', role: 'midwife', verified: true },
-  { displayName: 'Amaka O.', role: 'midwife', verified: true },
-  { displayName: 'Chiamaka E.', role: 'nurse', verified: true },
+export const MOCK_NOTIFICATIONS_SEED = { notifyWhenAnswered: true };
+
+/** Version of the W07 consent text the mock records for seeded questions. */
+export const MOCK_CONSENT_VERSION = 'mock-consent-v1';
+const SEED_CONSENT: ConsentInput = {
+  sharedFields: ['cleaned_text', 'original_text', 'category'],
+  consentVersion: MOCK_CONSENT_VERSION,
+};
+
+/**
+ * Mock verified nurses and midwives, modelled on the apps/api seed (Z1).
+ * `profile` is the GET /nurses directory view; `publicView` is the PublicNurse
+ * shown on answers. Never contact details, email or licence number.
+ * Chiamaka is approved but not available, so she answers past questions but is
+ * left out of the directory (GET /nurses returns available nurses only).
+ */
+export interface MockNurse {
+  profile: NursePublicProfile;
+  /** Name shown on answers. Short form, as drawn in Figma ("Funmilayo B."). */
+  displayName: string;
+}
+
+export const MOCK_NURSES: readonly MockNurse[] = [
+  {
+    displayName: 'Funmilayo B.',
+    profile: {
+      id: 'mock_nurse_funmilayo',
+      fullName: 'Funmilayo Bello',
+      role: 'midwife',
+      gender: 'female',
+      yearsOfPractice: 6,
+      bio: 'Midwife focused on family planning, periods and reproductive health. No question is too small or too embarrassing.',
+      languages: ['english', 'yoruba'],
+      topics: ['pregnancy', 'periods', 'contraception'],
+      available: true,
+      verified: true,
+      avgResponseMinutes: 9,
+      helpful: { percent: 96, count: 212 },
+    },
+  },
+  {
+    displayName: 'Hauwa M.',
+    profile: {
+      id: 'mock_nurse_hauwa',
+      fullName: 'Hauwa Musa',
+      role: 'midwife',
+      gender: 'female',
+      yearsOfPractice: 11,
+      bio: 'Nurse-midwife with 11 years in maternal and newborn health. I answer in English or Hausa.',
+      languages: ['english', 'hausa'],
+      topics: ['pregnancy', 'periods'],
+      available: true,
+      verified: true,
+      avgResponseMinutes: 14,
+      helpful: { percent: 94, count: 87 },
+    },
+  },
+  {
+    displayName: 'Amaka O.',
+    profile: {
+      id: 'mock_nurse_amaka',
+      fullName: 'Amaka Okafor',
+      role: 'midwife',
+      gender: 'female',
+      yearsOfPractice: 9,
+      bio: 'Midwife with 9 years in antenatal and postnatal care. I help women feel calm and informed through pregnancy, birth and the months after.',
+      languages: ['english', 'igbo'],
+      topics: ['pregnancy', 'periods', 'sexual_health'],
+      available: true,
+      verified: true,
+      avgResponseMinutes: 11,
+      helpful: { percent: 98, count: 154 },
+    },
+  },
+  {
+    displayName: 'Chiamaka E.',
+    profile: {
+      id: 'mock_nurse_chiamaka',
+      fullName: 'Chiamaka Eze',
+      role: 'nurse',
+      gender: 'female',
+      yearsOfPractice: 4,
+      bio: 'Registered nurse in general practice.',
+      languages: ['english', 'igbo', 'pidgin'],
+      topics: ['pregnancy', 'periods', 'contraception', 'sexual_health', 'general'],
+      available: false,
+      verified: true,
+      avgResponseMinutes: null,
+      helpful: { percent: null, count: 0 },
+    },
+  },
 ];
 
-/** Mock health worker answers by category, used when a new mock question gets "answered". */
-export const MOCK_WORKER_ANSWERS: Record<QuestionCategory, string> = {
+/** The PublicNurse shown on answers (contract §8.3). */
+export function toPublicNurse(nurse: MockNurse): PublicNurse {
+  return {
+    id: nurse.profile.id,
+    displayName: nurse.displayName,
+    role: nurse.profile.role,
+    verified: true,
+  };
+}
+
+/** Mock nurse answers by category, used when a new mock question gets "answered". */
+export const MOCK_NURSE_ANSWERS: Record<QuestionCategory, string> = {
   pregnancy:
     'Thank you for your question. What you describe is common at this stage, and usually not a sign of a problem. Rest with your feet raised, drink plenty of water, and go to your antenatal clinic if it gets worse, or if you notice headaches, blurred vision or bleeding.',
   periods:
@@ -82,18 +180,36 @@ export interface MockQuestionRecord {
   cleanedText: string;
   isFree: boolean;
   createdAt: string;
-  conversationId: string | null;
-  /** Simulated lifecycle: ms after creation when a worker claims / answers. */
+  consent: ConsentInput;
+  nurseSelection: NurseSelection;
+  /** Set when nurseSelection = "chosen_nurse". */
+  chosenNurseId: string | null;
+  femaleOnly: boolean;
+  /**
+   * Simulated lifecycle: ms after creation when a nurse claims / answers.
+   * A claim after QUESTION_CLAIMS_CLOSE_MINUTES means nobody claimed it in time: expired.
+   */
   claimAfterMs: number;
   answerAfterMs: number;
-  worker: PublicWorker;
+  /** Who claims and answers it. */
+  nurse: MockNurse;
   answerText: string;
+  recommendSeeSomeoneToday: boolean;
   /** Set once she has collected (paid for) the answer. */
   collected: boolean;
   stellarTxHash: string | null;
+  feedback: { helpful: boolean; updatedAt: string } | null;
 }
 
-const worker = (index: number) => MOCK_WORKERS[index % MOCK_WORKERS.length]!;
+const nurse = (index: number) => MOCK_NURSES[index % MOCK_NURSES.length]!;
+const seedDefaults = {
+  consent: SEED_CONSENT,
+  nurseSelection: 'first_available',
+  chosenNurseId: null,
+  femaleOnly: false,
+  recommendSeeSomeoneToday: false,
+  feedback: null,
+} as const satisfies Partial<MockQuestionRecord>;
 
 /** Seed questions: the three "Recent consultations" and the active one from Figma Home. */
 export function seedQuestions(): MockQuestionRecord[] {
@@ -105,11 +221,11 @@ export function seedQuestions(): MockQuestionRecord[] {
       cleanedText: 'My feet are swelling a little. I am 30 weeks pregnant. Is it normal?',
       isFree: true, // she still has free answers; one is used when she collects
       createdAt: ago(3 * MINUTE),
-      conversationId: 'mock_conv_swelling',
+      ...seedDefaults,
       claimAfterMs: 1 * MINUTE,
       answerAfterMs: 6 * MINUTE,
-      worker: worker(3),
-      answerText: MOCK_WORKER_ANSWERS.pregnancy,
+      nurse: nurse(3),
+      answerText: MOCK_NURSE_ANSWERS.pregnancy,
       collected: false,
       stellarTxHash: null,
     },
@@ -120,13 +236,16 @@ export function seedQuestions(): MockQuestionRecord[] {
       cleanedText: 'Spotting after starting the pill. Is this normal?',
       isFree: false,
       createdAt: ago(2 * DAY),
-      conversationId: null,
+      ...seedDefaults,
+      nurseSelection: 'chosen_nurse',
+      chosenNurseId: nurse(0).profile.id,
       claimAfterMs: 2 * MINUTE,
       answerAfterMs: 9 * MINUTE,
-      worker: worker(0),
-      answerText: MOCK_WORKER_ANSWERS.contraception,
+      nurse: nurse(0),
+      answerText: MOCK_NURSE_ANSWERS.contraception,
       collected: true,
       stellarTxHash: mockStellar('tx', 'spotting'),
+      feedback: { helpful: true, updatedAt: ago(2 * DAY - 20 * MINUTE) },
     },
     {
       id: 'mock_q_cycle',
@@ -135,11 +254,11 @@ export function seedQuestions(): MockQuestionRecord[] {
       cleanedText: 'Is a 40-day cycle normal?',
       isFree: false,
       createdAt: ago(9 * DAY),
-      conversationId: null,
+      ...seedDefaults,
       claimAfterMs: 4 * MINUTE,
       answerAfterMs: 14 * MINUTE,
-      worker: worker(1),
-      answerText: MOCK_WORKER_ANSWERS.periods,
+      nurse: nurse(1),
+      answerText: MOCK_NURSE_ANSWERS.periods,
       collected: true,
       stellarTxHash: mockStellar('tx', 'cycle'),
     },
@@ -150,10 +269,12 @@ export function seedQuestions(): MockQuestionRecord[] {
       cleanedText: 'Pain during sex after birth. My baby is 4 months old.',
       isFree: true,
       createdAt: ago(16 * DAY),
-      conversationId: null,
+      ...seedDefaults,
+      femaleOnly: true,
       claimAfterMs: 1 * MINUTE,
       answerAfterMs: 6 * MINUTE,
-      worker: worker(2),
+      nurse: nurse(2),
+      recommendSeeSomeoneToday: true,
       answerText:
         'This is very common after giving birth and it is not your fault. Healing can take several months, and breastfeeding can cause dryness. Go slowly and use a water-based lubricant. If the pain is sharp or does not improve, please see a health worker for a check.',
       collected: true,

@@ -5,17 +5,24 @@ import type {
   CreateQuestionBody,
   CreateQuestionResponse,
   EmergencyResponse,
+  FeedbackBody,
+  FeedbackResponse,
   GoogleAuthBody,
   Id,
   MyQuestion,
+  NotificationPreferences,
+  NurseListQuery,
+  NursePublicProfile,
   Page,
   PageQuery,
+  QuestionStatus,
   QuestionStatusResponse,
   RequestCodeBody,
   RequestCodeResponse,
   SendMessageBody,
   SendMessageResponse,
   UpdateMeBody,
+  UpdateNotificationPreferencesBody,
   UpdateSettingsBody,
   User,
   UserSettings,
@@ -24,8 +31,11 @@ import type {
   WalletTransaction,
 } from '@carelayer/shared';
 
+/** GET /me/questions query: `?status=` + PageQuery (contract §8.4). */
+export type MyQuestionsQuery = PageQuery & { status?: QuestionStatus };
+
 /*
- * The women's app's view of the CareLayer API (docs/API_CONTRACT.md v0).
+ * The women's app's view of the CareLayer API (docs/API_CONTRACT.md v1).
  *
  * UI code depends only on this interface, never on how it is implemented.
  * Two implementations exist:
@@ -65,6 +75,10 @@ export interface CareLayerApi {
     getSettings(): Promise<UserSettings>;
     /** PATCH /me/settings */
     updateSettings(body: UpdateSettingsBody): Promise<UserSettings>;
+    /** GET /me/notifications (email only) */
+    getNotifications(): Promise<NotificationPreferences>;
+    /** PATCH /me/notifications */
+    updateNotifications(body: UpdateNotificationPreferencesBody): Promise<NotificationPreferences>;
   };
 
   wallet: {
@@ -85,17 +99,24 @@ export interface CareLayerApi {
     sendMessage(conversationId: Id, body: SendMessageBody): Promise<SendMessageResponse>;
   };
 
+  nurses: {
+    /** GET /nurses. Approved, available nurses for W08 "Choose who answers". */
+    list(query?: NurseListQuery): Promise<NursePublicProfile[]>;
+  };
+
   questions: {
     /** POST /questions. May return an EmergencyResponse instead of a question. */
     create(body: CreateQuestionBody): Promise<CreateQuestionResponse>;
     /** GET /questions/:id/status */
     getStatus(id: Id): Promise<QuestionStatusResponse>;
     /** GET /me/questions */
-    listMine(query?: PageQuery): Promise<Page<MyQuestion>>;
+    listMine(query?: MyQuestionsQuery): Promise<Page<MyQuestion>>;
     /** GET /me/questions/:id */
     getMine(id: Id): Promise<MyQuestion>;
-    /** POST /me/questions/:id/collect. Pays (or uses a free answer) and returns the health worker's answer. */
+    /** POST /me/questions/:id/collect. Pays (or uses a free answer) and returns the nurse's answer. */
     collectAnswer(id: Id): Promise<AnswerResponse>;
+    /** POST /questions/:id/feedback. Helpful / not helpful; sending again changes it. */
+    submitFeedback(id: Id, body: FeedbackBody): Promise<FeedbackResponse>;
   };
 
   emergency: {
