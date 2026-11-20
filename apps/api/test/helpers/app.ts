@@ -5,6 +5,8 @@ import type { Db } from '../../src/db.js';
 import { createLogger, type Logger } from '../../src/lib/logger.js';
 import type { CodeEmail, EmailSender } from '../../src/modules/auth/email.js';
 import type { GoogleIdentity, GoogleVerifier } from '../../src/modules/auth/google.js';
+import type { TopupChain } from '../../src/modules/topups/chain.js';
+import type { PaystackClient } from '../../src/modules/topups/paystack.js';
 import type { WalletChain } from '../../src/modules/wallets/chain.js';
 import { testConfig } from './env.js';
 
@@ -18,6 +20,8 @@ export function buildTestApp(
     emailSender?: EmailSender;
     googleVerifier?: GoogleVerifier;
     walletChain?: WalletChain;
+    paystack?: PaystackClient;
+    topupChain?: TopupChain;
   } = {},
 ) {
   return createApp({
@@ -29,6 +33,8 @@ export function buildTestApp(
     emailSender: opts.emailSender ?? memoryEmailSender(),
     googleVerifier: opts.googleVerifier,
     walletChain: opts.walletChain,
+    paystack: opts.paystack,
+    topupChain: opts.topupChain,
   });
 }
 

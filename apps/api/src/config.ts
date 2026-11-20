@@ -131,6 +131,24 @@ const EnvSchema = z
       emptyToUndefined,
       z.url().default('https://horizon-testnet.stellar.org'),
     ),
+
+    // ---- Paystack top-ups (Z5). TEST mode only: live keys are refused. ----
+    /** Test secret key (sk_test_...). Unset = POST /topups answers 503. Secret. */
+    PAYSTACK_SECRET_KEY: optionalString.refine(
+      (v) => v === undefined || /^sk_test_[A-Za-z0-9]+$/.test(v),
+      'PAYSTACK_SECRET_KEY must be a TEST secret key (sk_test_...); live keys are not allowed',
+    ),
+    /** Test public key (pk_test_...). Not used by the API today (checkout is a redirect). */
+    PAYSTACK_PUBLIC_KEY: optionalString.refine(
+      (v) => v === undefined || /^pk_test_[A-Za-z0-9]+$/.test(v),
+      'PAYSTACK_PUBLIC_KEY must be a TEST public key (pk_test_...)',
+    ),
+    /** Where Paystack sends her after paying. The API adds ?topupId=...; Paystack adds &reference=... */
+    PAYSTACK_CALLBACK_URL: z.preprocess(
+      emptyToUndefined,
+      z.url().default('http://localhost:5173/account/wallet'),
+    ),
+    PAYSTACK_BASE_URL: z.preprocess(emptyToUndefined, z.url().default('https://api.paystack.co')),
   })
   .superRefine((e, ctx) => {
     if (e.NODE_ENV === 'production' && e.EMAIL_TRANSPORT === 'console') {
@@ -210,6 +228,12 @@ export type AuthConfig = {
   cookie: { secure: boolean; sameSite: 'lax' | 'strict' | 'none' };
 };
 
+export type PaystackConfig = {
+  secretKey: string | undefined;
+  callbackUrl: string;
+  baseUrl: string;
+};
+
 export type WalletConfig = {
   /** 32 bytes. */
   encryptionKey: Buffer;
@@ -229,6 +253,7 @@ export type Config = {
   x402: X402Config;
   auth: AuthConfig;
   wallet: WalletConfig;
+  paystack: PaystackConfig;
 };
 
 export class ConfigError extends Error {
@@ -281,6 +306,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       encryptionKey: e.WALLET_ENCRYPTION_KEY,
       treasurySecret: e.STELLAR_TREASURY_SECRET,
       horizonUrl: e.STELLAR_HORIZON_URL,
+    },
+    paystack: {
+      secretKey: e.PAYSTACK_SECRET_KEY,
+      callbackUrl: e.PAYSTACK_CALLBACK_URL,
+      baseUrl: e.PAYSTACK_BASE_URL,
     },
   };
 }

@@ -140,7 +140,7 @@ Figma file: **"CareLayer – Product design v1"**, key `cCmDYngHpc03VO66FsVUvD`.
 | W11 Nurse response               | `/questions/:id` (answered)                        | web     | `GET /questions/:id/answer`, `POST /questions/:id/feedback`             |
 | W12 History                      | `/history`                                         | web     | `GET /me/questions`                                                     |
 | W13 Emergency                    | `/emergency`                                       | web     | returned by `POST /chat`                                                |
-| _(no design)_ Wallet             | `/account/wallet`                                  | web     | `GET /wallet`, `POST /me/topups`                                        |
+| _(no design)_ Wallet             | `/account/wallet`                                  | web     | `GET /wallet`, `POST /topups`                                           |
 | _(no design)_ Account / settings | `/account`                                         | web     | `GET/PATCH /me/settings`, `POST /auth/logout`, `POST /auth/logout-all`  |
 | N01 Join                         | `/` (workers app)                                  | workers | `POST /auth/code/request`, `POST /auth/google`                          |
 | _(no design)_ Log in + verify    | `/login`, `/verify`                                | workers | `POST /auth/code/request`, `POST /auth/code/verify`                     |
@@ -264,9 +264,18 @@ Implement everything in "Accounts and auth" (section 2): `POST /auth/code/reques
 **Tests:** wallet service unit tests with Stellar mocked; testnet integration test creates an account with a trustline.
 **Done when:** every new user has a working testnet wallet visible on the explorer.
 
-### Z5. Top-up with Paystack test mode
+### Z5. Top-up with Paystack test mode (backend done; "done when" needs H7's wallet screen)
 
-- `POST /me/topups` initialises a Paystack test transaction; webhook verifies the signature, then sends test USDC from the treasury; idempotent on the Paystack reference; records the Stellar hash.
+- `POST /topups` initialises a Paystack test transaction; webhook verifies the signature, then sends test USDC from the treasury; idempotent on the Paystack reference; records the Stellar hash.
+- **Decided in Z5:**
+  - **Payment is confirmed by the signed webhook OR a server-side verify** (`GET /topups/:id` + a background loop every minute). Webhooks cannot reach localhost, so local dev works without a tunnel, and a missed webhook never strands a payment.
+  - **The paid amount and currency must match** the top-up.
+  - **New status `paid`** between `pending` and `credited` (Paystack confirmed, USDC on its way).
+  - **No double credit:** the credit is claimed with a conditional update, and the treasury's Stellar payment carries memo = top-up id. Before any retry, Horizon is searched for that memo.
+  - **A pending wallet is activated before crediting.**
+  - **Unpaid top-ups are closed as `abandoned` after 24 h**, but a late payment is still honoured.
+  - **Limits:** ₦100 to ₦100,000 per top-up. Test keys only (`sk_test_`); live keys are refused by config.
+  - **Paystack receives her account email** (it sends the receipt). Revisit if we want to pass a relay address instead.
 
 **Tests:** signature check; duplicate webhook credits once; failed payment credits nothing.
 **Postman:** Top-up folder, including a sample webhook body.
@@ -403,7 +412,7 @@ Tick in the PR that completes the task.
 - [x] Z2 x402 proof
 - [x] Z3 Auth
 - [x] Z4 Wallets
-- [ ] Z5 Top-up
+- [x] Z5 Top-up
 - [ ] Z6 Chat and questions
 - [ ] Z9 Nurse onboarding + admin
 - [ ] Z7 Claiming and answering

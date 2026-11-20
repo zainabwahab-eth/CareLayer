@@ -579,6 +579,9 @@ model Payout {
 }
 
 /// Paystack test payment -> test USDC from the treasury.
+/// Status: PENDING = waiting for her to pay; SUBMITTED = paid (Paystack confirmed), USDC credit in
+/// progress or retrying; CONFIRMED = USDC credited on-chain (stellarTxHash); FAILED = payment failed,
+/// abandoned or did not match.
 model Topup {
   id                String    @id @default(cuid())
   womanId           String
@@ -587,14 +590,22 @@ model Topup {
   amountKobo        Int
   amountStroops     BigInt
   status            TxStatus
+  /// Stellar payment from the treasury. Its memo is this top-up's id (used to reconcile after a crash).
   stellarTxHash     String?   @unique
   failureReason     String?
   createdAt         DateTime  @default(now())
   creditedAt        DateTime?
+  /// When Paystack confirmed the payment (webhook or verify).
+  paidAt            DateTime?
+  /// Credit attempt claim and retry state (same pattern as wallet activation).
+  creditAttemptAt   DateTime?
+  creditAttempts    Int       @default(0)
 
   woman User @relation(fields: [womanId], references: [id], onDelete: Restrict)
 
   @@index([womanId, createdAt(sort: Desc)])
+  /// Background loop: unpaid top-ups to verify, paid ones to credit.
+  @@index([status, createdAt])
 }
 
 /// Nurse withdrawal to a Stellar address. Needs a fresh code.

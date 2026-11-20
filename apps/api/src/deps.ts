@@ -5,6 +5,8 @@ import type { Db } from './db.js';
 import type { Logger } from './lib/logger.js';
 import type { EmailSender } from './modules/auth/email.js';
 import type { GoogleVerifier } from './modules/auth/google.js';
+import type { TopupChain } from './modules/topups/chain.js';
+import type { PaystackClient } from './modules/topups/paystack.js';
 import type { WalletChain } from './modules/wallets/chain.js';
 
 export interface AppDeps {
@@ -24,4 +26,8 @@ export interface AppDeps {
   googleVerifier?: GoogleVerifier;
   /** Stellar side of wallets. Default: Horizon with the treasury, or none (wallets stay pending). */
   walletChain?: WalletChain;
+  /** Paystack. Default: built from PAYSTACK_SECRET_KEY, or none (POST /topups answers 503). */
+  paystack?: PaystackClient;
+  /** Treasury USDC payments for top-ups. Default: Horizon with the treasury, or none. */
+  topupChain?: TopupChain;
 }

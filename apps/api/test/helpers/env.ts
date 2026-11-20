@@ -54,6 +54,12 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
       treasurySecret: undefined,
       horizonUrl: 'https://horizon.invalid',
     },
+    paystack: {
+      // Test-only. Tests inject a fake Paystack client; nothing calls the real API.
+      secretKey: 'sk_test_unit0123456789abcdef',
+      callbackUrl: 'http://localhost:5173/account/wallet',
+      baseUrl: 'https://paystack.invalid',
+    },
     ...overrides,
   };
 }
