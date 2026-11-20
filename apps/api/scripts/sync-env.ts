@@ -32,6 +32,9 @@ writeFileSync(envPath, result.text);
 console.log('[env:sync] backup: apps/api/.env.bak');
 console.log(`[env:sync] kept your value for ${result.kept.length} keys`);
 if (result.added.length) console.log(`[env:sync] added with defaults: ${result.added.join(', ')}`);
+if (result.filled.length) {
+  console.log(`[env:sync] were empty, filled with defaults: ${result.filled.join(', ')}`);
+}
 if (result.extra.length) {
   console.log(`[env:sync] not in .env.example (moved to the bottom): ${result.extra.join(', ')}`);
 }

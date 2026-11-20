@@ -30,6 +30,7 @@ Claude Code should follow this loop without waiting for new prompts:
 5. **Test:** write the tests listed for the task and make them pass. Run lint and typecheck.
 6. **Postman (backend tasks):** add or update requests in the Postman collection **"CareLayer API"** (folder per module), with an example response for each request. Export it to `docs/postman/carelayer.postman_collection.json` and the environment to `docs/postman/carelayer.local.postman_environment.json` (no secrets in the export).
 7. **Docs:** update `docs/API_CONTRACT.md` and `packages/shared` if any endpoint or type changed. Tick the task in the status tracker (section 8).
+   **Env:** if an env var was added, renamed or removed, update `.env.example` (a gate test fails if `config.ts` reads a key it lacks), run `npm run env:sync -w @carelayer/api`, and list in the session and the PR every key that still needs a value from the user (secrets and account-tied keys).
 8. **PR:** open a pull request into `main` with: what changed, how to test it, any contract changes (in bold), and screenshots for frontend work. The other person approves. Squash and merge.
 
 ### When to stop and ask
