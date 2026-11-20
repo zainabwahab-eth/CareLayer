@@ -3,18 +3,23 @@
  *
  * - Implements the same CareLayerApi interface as the HTTP client, using only
  *   @carelayer/shared types, so screens never know which one is active.
- * - Mirrors the contract's behaviour and error codes (docs/API_CONTRACT.md v0)
+ * - Mirrors the contract's behaviour and error codes (docs/API_CONTRACT.md v1)
  *   closely enough to build every state of the UI: loading, errors, emergency
- *   responses, free vs paid answers, spending limit, insufficient balance.
+ *   responses, free vs paid answers, spending limit, insufficient balance,
+ *   consent, chosen nurse vs first available, "only female", expiry, feedback.
  * - State is in memory and resets on reload. The signed-in session is kept in
  *   sessionStorage to stand in for the httpOnly refresh cookie.
  * - Sign-in code for any email: MOCK_VERIFICATION_CODE ("123456").
- * - New questions are "claimed" by a mock health worker after ~45s and
- *   "answered" after ~2 min, so the waiting and response screens can be built.
+ * - New questions are "claimed" by a mock nurse after ~45s and "answered"
+ *   after ~2 min, so the waiting and response screens can be built. Pass a
+ *   claimAfterMs beyond QUESTION_CLAIMS_CLOSE_MINUTES to see them expire.
  */
 import {
   AUTH_RULES,
+  CHOSEN_NURSE_WINDOW_MINUTES,
   FREE_ANSWERS_PER_WOMAN,
+  QUESTION_CLAIMS_CLOSE_MINUTES,
+  SHARED_FIELDS,
   type AnswerResponse,
   type ApiErrorCode,
   type AuthTokensResponse,
@@ -24,6 +29,7 @@ import {
   type EscalationOffer,
   type Id,
   type MyQuestion,
+  type NotificationPreferences,
   type Page,
   type PageQuery,
   type QuestionStatus,
@@ -37,13 +43,16 @@ import {
   MOCK_SETTINGS,
   MOCK_USER,
   MOCK_VERIFICATION_CODE,
+  MOCK_NOTIFICATIONS_SEED,
+  MOCK_NURSE_ANSWERS,
+  MOCK_NURSES,
   MOCK_WALLET_SEED,
-  MOCK_WORKER_ANSWERS,
-  MOCK_WORKERS,
   mockStellar,
   seedConversations,
   seedQuestions,
   seedTransactions,
+  toPublicNurse,
+  type MockNurse,
   type MockQuestionRecord,
 } from './mock-data';
 import {
@@ -62,7 +71,7 @@ export interface MockApiOptions {
   latencyMs?: number;
   /** Start signed in as the demo user (Tolu) unless she logged out this session. Default true. */
   startSignedIn?: boolean;
-  /** Simulated health worker timings for new questions. */
+  /** Simulated nurse timings for new questions. */
   claimAfterMs?: number;
   answerAfterMs?: number;
 }
@@ -72,9 +81,13 @@ const SESSION_KEY = 'carelayer.mock.session';
 const SIGNED_OUT = 'signed-out';
 const RESEND_COOLDOWN_MS = 30_000;
 const MAX_TEXT_LENGTH = 4_000;
+const MINUTE_MS = 60_000;
+const CLAIMS_CLOSE_MS = QUESTION_CLAIMS_CLOSE_MINUTES * MINUTE_MS;
+const CHOSEN_WINDOW_MS = CHOSEN_NURSE_WINDOW_MINUTES * MINUTE_MS;
 
 interface UserData {
   settings: UserSettings;
+  notifications: NotificationPreferences;
   wallet: { stellarAddress: string; balanceKobo: number; freeAnswersRemaining: number };
   conversations: Conversation[];
   questions: MockQuestionRecord[];
@@ -156,6 +169,7 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
       MOCK_USER.id,
       {
         settings: { ...MOCK_SETTINGS },
+        notifications: { ...MOCK_NOTIFICATIONS_SEED },
         wallet: { ...MOCK_WALLET_SEED },
         conversations: seedConversations(),
         questions: seedQuestions(),
@@ -212,6 +226,7 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
     usersByEmail.set(email, user);
     dataByUser.set(user.id, {
       settings: { ...MOCK_SETTINGS },
+      notifications: { ...MOCK_NOTIFICATIONS_SEED },
       wallet: {
         stellarAddress: mockStellar('address', user.id),
         balanceKobo: 0,
@@ -224,11 +239,19 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
     return user;
   }
 
+  /** Nobody claimed it before claims closed (contract §8.1 step 8): she pays nothing. */
+  const neverClaimed = (q: MockQuestionRecord) => q.claimAfterMs > CLAIMS_CLOSE_MS;
+
   function questionStatus(q: MockQuestionRecord): QuestionStatus {
     const age = now() - Date.parse(q.createdAt);
+    if (neverClaimed(q)) return age >= CLAIMS_CLOSE_MS ? 'expired' : 'open';
     if (age >= q.answerAfterMs) return 'answered';
     if (age >= q.claimAfterMs) return 'claimed';
     return 'open';
+  }
+
+  function claimsCloseAt(q: MockQuestionRecord) {
+    return iso(Date.parse(q.createdAt) + CLAIMS_CLOSE_MS);
   }
 
   function answeredAt(q: MockQuestionRecord) {
@@ -247,7 +270,8 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
       answer: {
         questionId: q.id,
         text: q.answerText,
-        worker: q.worker,
+        nurse: toPublicNurse(q.nurse),
+        recommendSeeSomeoneToday: q.recommendSeeSomeoneToday,
         answeredAt: answeredAt(q),
       },
       payment: {
@@ -268,10 +292,26 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
       cleanedText: q.cleanedText,
       price: mockMoney(MOCK_ANSWER_PRICE_KOBO),
       isFree: q.isFree,
+      nurseSelection: q.nurseSelection,
+      chosenNurse: q.chosenNurseId ? toPublicNurse(findNurse(q.chosenNurseId)!) : null,
+      femaleOnly: q.femaleOnly,
+      claimsCloseAt: claimsCloseAt(q),
       // Contract: present once answered AND paid/collected.
       answer: status === 'answered' && q.collected ? toAnswerResponse(q).answer : null,
+      feedback: q.feedback ? { helpful: q.feedback.helpful } : null,
       createdAt: q.createdAt,
     };
+  }
+
+  function findNurse(id: Id): MockNurse | undefined {
+    return MOCK_NURSES.find((n) => n.profile.id === id);
+  }
+
+  /** Approved, available nurses she may send this question to (GET /nurses and selection). */
+  function eligibleNurses(femaleOnly: boolean): MockNurse[] {
+    return MOCK_NURSES.filter(
+      (n) => n.profile.available && (!femaleOnly || n.profile.gender === 'female'),
+    );
   }
 
   function findConversation(id: Id) {
@@ -426,6 +466,31 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
           data.settings = { ...data.settings, ...body };
           return data.settings;
         }),
+      getNotifications: () => respond(() => currentData().notifications),
+      updateNotifications: (body) =>
+        respond(() => {
+          const data = currentData();
+          if (
+            body.notifyWhenAnswered !== undefined &&
+            typeof body.notifyWhenAnswered !== 'boolean'
+          ) {
+            fail(400, 'VALIDATION_FAILED', 'notifyWhenAnswered must be true or false.', {
+              field: 'notifyWhenAnswered',
+            });
+          }
+          data.notifications = { ...data.notifications, ...body };
+          return data.notifications;
+        }),
+    },
+
+    nurses: {
+      list: (query = {}) =>
+        respond(() => {
+          currentUser(); // auth: agent (a signed-in woman here)
+          return eligibleNurses(query.femaleOnly === true)
+            .filter((n) => !query.topic || n.profile.topics.includes(query.topic))
+            .map((n) => n.profile);
+        }),
     },
 
     wallet: {
@@ -511,10 +576,43 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
         respond(() => {
           const data = currentData();
           const originalText = requireText(body.originalText, 'originalText');
-          if (body.conversationId) findConversation(body.conversationId);
 
+          // Red-flag check comes first (§8.1 step 1): emergency, nothing queued, free.
           const flags = detectMockRedFlags(originalText);
           if (flags.length > 0) return mockEmergencyResponse(flags);
+
+          const consent = body.consent;
+          if (
+            !consent ||
+            !Array.isArray(consent.sharedFields) ||
+            consent.sharedFields.length === 0 ||
+            !consent.sharedFields.every((f) => SHARED_FIELDS.includes(f)) ||
+            typeof consent.consentVersion !== 'string' ||
+            !consent.consentVersion.trim()
+          ) {
+            fail(400, 'CONSENT_REQUIRED', 'Agree to what is shared with the nurse first.');
+          }
+
+          const nurseSelection = body.nurseSelection ?? 'first_available';
+          if (nurseSelection !== 'first_available' && nurseSelection !== 'chosen_nurse') {
+            fail(400, 'VALIDATION_FAILED', 'Unknown nurse selection.', { field: 'nurseSelection' });
+          }
+          const femaleOnly = body.femaleOnly === true;
+          const eligible = eligibleNurses(femaleOnly);
+          let answerer: MockNurse;
+          if (nurseSelection === 'chosen_nurse') {
+            if (!body.chosenNurseId) {
+              fail(400, 'VALIDATION_FAILED', 'Choose a nurse.', { field: 'chosenNurseId' });
+            }
+            const chosen = eligible.find((n) => n.profile.id === body.chosenNurseId);
+            if (!chosen) {
+              fail(409, 'CHOSEN_NURSE_UNAVAILABLE', 'That nurse is not available right now.');
+            }
+            answerer = chosen!;
+          } else {
+            answerer =
+              eligible[data.questions.length % Math.max(eligible.length, 1)] ?? MOCK_NURSES[0]!;
+          }
 
           const isFree = data.wallet.freeAnswersRemaining > 0;
           if (
@@ -536,13 +634,21 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
             cleanedText: mockCleanText(originalText),
             isFree,
             createdAt: iso(),
-            conversationId: body.conversationId ?? null,
+            consent: {
+              sharedFields: [...consent.sharedFields],
+              consentVersion: consent.consentVersion,
+            },
+            nurseSelection,
+            chosenNurseId: nurseSelection === 'chosen_nurse' ? answerer.profile.id : null,
+            femaleOnly,
             claimAfterMs,
             answerAfterMs,
-            worker: MOCK_WORKERS[data.questions.length % MOCK_WORKERS.length]!,
-            answerText: MOCK_WORKER_ANSWERS[category],
+            nurse: answerer,
+            answerText: MOCK_NURSE_ANSWERS[category],
+            recommendSeeSomeoneToday: false,
             collected: false,
             stellarTxHash: null,
+            feedback: null,
           };
           data.questions.unshift(record);
 
@@ -553,6 +659,12 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
             category,
             price: mockMoney(MOCK_ANSWER_PRICE_KOBO),
             isFree,
+            nurseSelection,
+            chosenUntil:
+              nurseSelection === 'chosen_nurse'
+                ? iso(Date.parse(record.createdAt) + CHOSEN_WINDOW_MS)
+                : null,
+            claimsCloseAt: claimsCloseAt(record),
             questionKey: null, // signed-in caller
             createdAt: record.createdAt,
           };
@@ -567,16 +679,20 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
             id: q.id,
             status,
             category: q.category,
+            claimsCloseAt: claimsCloseAt(q),
             answeredAt: status === 'answered' ? answeredAt(q) : null,
+            expiredAt: status === 'expired' ? claimsCloseAt(q) : null,
           };
         }),
 
-      listMine: (query) =>
+      listMine: (query = {}) =>
         respond(() => {
           const sorted = [...currentData().questions].sort((a, b) =>
             b.createdAt.localeCompare(a.createdAt),
           );
-          return paginate(sorted.map(toMyQuestion), query);
+          const mine = sorted.map(toMyQuestion);
+          const { status, ...page } = query;
+          return paginate(status ? mine.filter((q) => q.status === status) : mine, page);
         }),
 
       getMine: (id) => respond(() => toMyQuestion(findQuestion(id))),
@@ -585,9 +701,13 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
         respond(() => {
           const data = currentData();
           const q = findQuestion(id);
-          // Answered guard runs before any payment.
-          if (questionStatus(q) !== 'answered') {
-            fail(409, 'QUESTION_NOT_ANSWERED', 'A health worker has not answered yet.');
+          // Answered guard runs before any payment. Expired questions are never charged.
+          const status = questionStatus(q);
+          if (status === 'expired') {
+            fail(410, 'QUESTION_EXPIRED', 'No nurse was free in time. You were not charged.');
+          }
+          if (status !== 'answered') {
+            fail(409, 'QUESTION_NOT_ANSWERED', 'A nurse has not answered yet.');
           }
           if (q.collected) return toAnswerResponse(q);
 
@@ -613,6 +733,20 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
           }
           q.collected = true;
           return toAnswerResponse(q);
+        }),
+
+      submitFeedback: (id, body) =>
+        respond(() => {
+          const q = findQuestion(id);
+          if (typeof body.helpful !== 'boolean') {
+            fail(400, 'VALIDATION_FAILED', 'helpful must be true or false.', { field: 'helpful' });
+          }
+          // Feedback is on an answer she has seen (answered + collected).
+          if (questionStatus(q) !== 'answered' || !q.collected) {
+            fail(409, 'QUESTION_NOT_ANSWERED', 'You can rate an answer once you have read it.');
+          }
+          q.feedback = { helpful: body.helpful, updatedAt: iso() };
+          return { questionId: q.id, helpful: q.feedback.helpful, updatedAt: q.feedback.updatedAt };
         }),
     },
 
