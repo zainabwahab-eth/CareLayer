@@ -40,6 +40,7 @@ Placeholders, clearly not real: wallet keys start with `GSEED` (no secret; Z4 cr
 
 ## Auth (Z3)
 
+- After pulling changes that add env vars, run `npm run env:sync -w @carelayer/api`: it rebuilds `.env` in `.env.example` order, keeps your values, adds new keys with defaults, and moves unknown ones to the bottom (backup in `.env.bak`).
 - Set `JWT_ACCESS_SECRET` and `AUTH_PEPPER` in `apps/api/.env` (32+ chars each; the generate command is in `.env.example`). The API refuses to start without them.
 - Local sign-in: `POST /auth/code/request`, then copy the code from the `dev_email_code` line in the API log (`EMAIL_TRANSPORT=console`; refused in production), then `POST /auth/code/verify`. Postman: the Auth folder.
 - `src/modules/auth/`: `service.ts` (codes, sign-in, sessions, refresh rotation and reuse detection, step-up), `middleware.ts` (`requireAuth`, `requireRole`, `requireFreshCode`), `tokens.ts` (15-min HS256 JWT via `jose`), `crypto.ts` (codes, opaque tokens, peppered HMAC), `cookies.ts` (`cl_refresh`), `email.ts` (`EmailSender`), `google.ts` (`GoogleVerifier`), `router.ts`.

@@ -23,7 +23,8 @@
     "testnet:setup": "tsx scripts/testnet-setup.ts",
     "x402:pay": "tsx --env-file-if-exists=.env scripts/pay-x402.ts",
     "test:testnet": "vitest run --config vitest.testnet.config.ts",
-    "email:test": "tsx --env-file-if-exists=.env scripts/send-test-email.ts"
+    "email:test": "tsx --env-file-if-exists=.env scripts/send-test-email.ts",
+    "env:sync": "tsx scripts/sync-env.ts"
   },
   "dependencies": {
     "@carelayer/shared": "*",

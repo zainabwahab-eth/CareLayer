@@ -27,6 +27,64 @@ export function fillEnv(
   return { text: lines.join('\n'), results };
 }
 
+const KEY_LINE = /^\s*([A-Z][A-Z0-9_]*)\s*=(.*)$/;
+
+export const EXTRA_KEYS_HEADER =
+  '# --- Not in .env.example (kept by env:sync; delete if you no longer need them) ---';
+
+export interface SyncResult {
+  text: string;
+  /** Keys taken from your .env (your value kept, even if empty). */
+  kept: string[];
+  /** Keys your .env did not have: added with the example's default value. */
+  added: string[];
+  /** Keys in your .env that the example no longer has: moved to the bottom section. */
+  extra: string[];
+}
+
+/**
+ * Rebuilds a .env in .env.example's order and comments, keeping every value already set.
+ * Never drops a key: ones the example does not know are kept under EXTRA_KEYS_HEADER.
+ * Pure: no file IO, and idempotent (syncing the result again changes nothing).
+ */
+export function syncEnvWithExample(example: string, env: string): SyncResult {
+  const values = new Map<string, string>();
+  for (const line of env.split(/\r?\n/)) {
+    const m = KEY_LINE.exec(line);
+    if (m && !values.has(m[1]!)) values.set(m[1]!, m[2]!);
+  }
+
+  const out: string[] = [];
+  const seen = new Set<string>();
+  const kept: string[] = [];
+  const added: string[] = [];
+  for (const line of example.split(/\r?\n/)) {
+    const m = KEY_LINE.exec(line);
+    if (!m) {
+      out.push(line);
+      continue;
+    }
+    const key = m[1]!;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    if (values.has(key)) {
+      out.push(`${key}=${values.get(key)}`);
+      kept.push(key);
+    } else {
+      out.push(`${key}=${m[2]!}`);
+      added.push(key);
+    }
+  }
+
+  const extra = [...values.keys()].filter((k) => !seen.has(k));
+  while (out.length && out[out.length - 1]!.trim() === '') out.pop();
+  if (extra.length) {
+    out.push('', EXTRA_KEYS_HEADER);
+    for (const key of extra) out.push(`${key}=${values.get(key)}`);
+  }
+  return { text: out.join('\n') + '\n', kept, added, extra };
+}
+
 /** Reads KEY=value pairs (no expansion, no quotes handling beyond trimming). */
 export function readEnvValue(text: string, key: string): string | undefined {
   const line = text.split(/\r?\n/).find((l) => new RegExp(`^\\s*${key}\\s*=`).test(l));
