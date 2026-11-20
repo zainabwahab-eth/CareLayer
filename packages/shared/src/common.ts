@@ -39,6 +39,8 @@ export type ApiErrorCode =
   | 'CONFLICT'
   | 'RATE_LIMITED'
   | 'INTERNAL'
+  /** A dependency (Google sign-in, email, facilitator) is not configured or not reachable. Retry later. */
+  | 'SERVICE_UNAVAILABLE'
   // auth
   | 'ACCOUNT_EXISTS'
   | 'ACCOUNT_NOT_FOUND'

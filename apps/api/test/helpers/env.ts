@@ -38,6 +38,15 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
       payToAddress: undefined,
       testRouteEnabled: false,
     },
+    auth: {
+      // Test-only values, never used outside tests.
+      jwtAccessSecret: 'test-jwt-secret-0123456789abcdefghijklmnop',
+      pepper: 'test-pepper-0123456789abcdefghijklmnopqrstuv',
+      googleClientId: undefined,
+      emailTransport: 'console',
+      emailFrom: undefined,
+      cookie: { secure: false, sameSite: 'lax' },
+    },
     ...overrides,
   };
 }
