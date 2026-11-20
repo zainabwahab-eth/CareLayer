@@ -377,6 +377,18 @@ Order: H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8 → H9 → H10. All s
 - `apps/api/config/red-flags.json`: red-flag symptoms.
 - `apps/api/prompts/test-set.json`: ~30 questions with expected outcome (answer / offer / emergency) and category. Get a nurse or midwife to review the red flags.
 - **Done when:** the test set passes through Zainab's `/chat`.
+- **Open after Z6 (read `docs/QUESTIONS.md` Q3 first).** The eval runs the test set (`apps/api/test/fixtures/assistant-test-questions.json`) through the real model: `npm run eval:assistant -w @carelayer/api` (about 4 min; needs `LLM_API_KEY` in `apps/api/.env`, a free NVIDIA key from build.nvidia.com works).
+  - **Baseline:** emergency recall 100%, category 95%, clean-up 100%, but **action accuracy 69.7% (target 80%)**.
+  - **The main problem is over-offering.** The model offers a nurse on plain information questions marked "answer": q01, q10, q13, q14, q16, q18, q23.
+  - **Fix in `assistant.md`'s escalation section:**
+    - Answer general "what is / how does / is it common" questions directly, with no offer.
+    - Offer a nurse only when she describes her _own_ symptoms or situation and needs a judgement on it.
+    - Add a few one-line "answer, no offer" examples.
+  - **Also in `assistant.md`:**
+    - Describe the two Mode B fields the API now asks for: `statedAge` (her age as a number, only if stated) and `pregnancyWeeks` (only if she stated weeks).
+    - Update the endpoint names: Mode A = `POST /chat`; Mode B = `POST /chat/draft` and `POST /questions`.
+  - **Ask the reviewing nurse or midwife** whether q02 (baby moving less at 32 weeks) and q12 (soaking pads quickly) should be "emergency". The model routes both there.
+  - Re-run the eval after each prompt change until it reports PASS. Paste the score table into the PR.
 
 ### H3. App shells, theme and mocks
 
