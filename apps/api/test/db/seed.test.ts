@@ -64,8 +64,21 @@ describe('seed on a freshly migrated database', () => {
     }
   });
 
-  it('Tolu has 2 of 3 free answers left and starts at ₦0 with no fake top-ups', async () => {
-    expect(summary.tolu.freeAnswersLeft).toBe(2);
+  it('Tolu: free answers follow the quote rule (1 used + 2 held by open questions = 0 left), ₦0, no fake top-ups', async () => {
+    expect(summary.tolu.freeAnswersLeft).toBe(0);
+    // Never more free promises than free answers: used + in-flight free quotes <= 3.
+    const tolu = await db.user.findUniqueOrThrow({
+      where: { email_role: { email: SEED_EMAILS.tolu, role: 'WOMAN' } },
+    });
+    const inFlightFree = await db.question.count({
+      where: {
+        womanId: tolu.id,
+        isFree: true,
+        collectedAt: null,
+        status: { in: ['OPEN', 'CLAIMED', 'ANSWERED'] },
+      },
+    });
+    expect(tolu.freeAnswersUsed + inFlightFree).toBe(3);
     expect(BigInt(summary.tolu.cachedBalanceStroops)).toBe(0n);
     // Money only appears through a real test top-up, so history always matches the chain.
     expect(summary.counts.topups).toBe(0);

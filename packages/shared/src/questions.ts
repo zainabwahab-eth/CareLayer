@@ -74,7 +74,18 @@ export interface CreateQuestionBody {
   femaleOnly?: boolean;
   /** Must be true if price exceeds her spending limit. */
   approvedAboveLimit?: boolean;
+  /**
+   * From POST /chat/draft. The question is stored exactly as that draft (what she saw on W07);
+   * `originalText` must match the draft's. Without it the server prepares the question itself.
+   */
+  draftToken?: string;
 }
+
+/** Sharing these is required: a nurse cannot answer without the question and its topic. */
+export const REQUIRED_SHARED_FIELDS: readonly SharedField[] = ['cleaned_text', 'category'];
+
+/** GET /me/questions?status=. "active" = open or claimed (W05 Home). */
+export type MyQuestionsStatusFilter = QuestionStatus | 'active';
 
 export interface CreatedQuestion {
   kind: 'question';

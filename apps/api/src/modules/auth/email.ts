@@ -15,8 +15,25 @@ export interface CodeEmail {
   expiresInMinutes: number;
 }
 
+/**
+ * "A question is waiting" alert to a nurse (Z6). Deliberately says only the topic: the question
+ * itself stays inside the nurse app, behind sign-in, never in an inbox.
+ */
+export interface NurseAlertEmail {
+  to: string;
+  /** Display label, e.g. "Pregnancy". */
+  topicLabel: string;
+  /** True when she chose this nurse: "sent to you" wording. */
+  chosenForYou: boolean;
+  /** Where the nurse opens it (nurse app). */
+  url: string;
+  /** Idempotency: one alert per (question, nurse). */
+  questionId: string;
+}
+
 export interface EmailSender {
   sendCode(email: CodeEmail): Promise<void>;
+  sendNurseAlert(email: NurseAlertEmail): Promise<void>;
 }
 
 const SUBJECTS: Record<CodePurpose, string> = {
@@ -47,12 +64,39 @@ export function codeEmailText(email: CodeEmail): { subject: string; text: string
   return { subject, text, html };
 }
 
+export function nurseAlertEmailText(email: NurseAlertEmail): {
+  subject: string;
+  text: string;
+  html: string;
+} {
+  const subject = email.chosenForYou
+    ? `A woman chose you for a ${email.topicLabel.toLowerCase()} question`
+    : `A new ${email.topicLabel.toLowerCase()} question is waiting`;
+  const lead = email.chosenForYou
+    ? 'A woman chose you to answer her question. It is reserved for you for 10 minutes.'
+    : 'A new question in one of your topics is waiting for a nurse or midwife.';
+  const text = `${lead} Open CareLayer to read and claim it: ${email.url}`;
+  const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#F3F5F2;font-family:Arial,Helvetica,sans-serif;color:#13201D">
+<div style="max-width:440px;margin:0 auto;background:#FFFFFF;border-radius:20px;padding:32px">
+<p style="margin:0 0 8px;font-size:15px;color:#55635F">CareLayer · ${escapeHtml(email.topicLabel)}</p>
+<h1 style="margin:0 0 16px;font-size:22px;font-weight:600">${escapeHtml(subject)}</h1>
+<p style="margin:0 0 24px;font-size:15px">${escapeHtml(lead)}</p>
+<a href="${escapeHtml(email.url)}" style="display:inline-block;background:#0F4A43;color:#FFFFFF;text-decoration:none;font-size:15px;font-weight:600;padding:14px 20px;border-radius:14px">Open CareLayer</a>
+<p style="margin:24px 0 0;font-size:13px;color:#55635F">You get these because you are available for this topic. Change it in your profile.</p>
+</div></body></html>`;
+  return { subject, text, html };
+}
+
 /** Development only: prints the code so you can sign in locally. */
 export function createConsoleEmailSender(logger: Logger): EmailSender {
   return {
     async sendCode(email) {
       const { subject } = codeEmailText(email);
       logger.info('dev_email_code', { to: email.to, subject, code: email.code });
+    },
+    async sendNurseAlert(email) {
+      const { subject } = nurseAlertEmailText(email);
+      logger.info('dev_email_nurse_alert', { to: email.to, subject, url: email.url });
     },
   };
 }
@@ -78,34 +122,42 @@ export function createResendEmailSender(
   opts: { apiKey: string; from: string; timeoutMs?: number },
   fetchImpl: typeof fetch = fetch,
 ): EmailSender {
+  async function send(
+    to: string,
+    content: { subject: string; text: string; html: string },
+    idempotencySeed: string,
+  ) {
+    let res: Response;
+    try {
+      res = await fetchImpl(RESEND_API_URL, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${opts.apiKey}`,
+          'Content-Type': 'application/json',
+          'Idempotency-Key': createHash('sha256').update(idempotencySeed).digest('hex'),
+        },
+        body: JSON.stringify({ from: opts.from, to: [to], ...content }),
+        signal: AbortSignal.timeout(opts.timeoutMs ?? 10_000),
+      });
+    } catch (err) {
+      const reason = err instanceof Error ? err.name : 'unknown';
+      throw new EmailSendError(`Resend request failed (${reason})`);
+    }
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { name?: string; message?: string };
+      throw new EmailSendError(
+        `Resend rejected the email: ${res.status} ${body.name ?? ''} ${body.message ?? ''}`.trim(),
+        res.status,
+      );
+    }
+  }
+
   return {
     async sendCode(email) {
-      const { subject, text, html } = codeEmailText(email);
-      let res: Response;
-      try {
-        res = await fetchImpl(RESEND_API_URL, {
-          method: 'POST',
-          headers: {
-            Authorization: `Bearer ${opts.apiKey}`,
-            'Content-Type': 'application/json',
-            'Idempotency-Key': createHash('sha256')
-              .update(`${email.to}\0${email.code}`)
-              .digest('hex'),
-          },
-          body: JSON.stringify({ from: opts.from, to: [email.to], subject, text, html }),
-          signal: AbortSignal.timeout(opts.timeoutMs ?? 10_000),
-        });
-      } catch (err) {
-        const reason = err instanceof Error ? err.name : 'unknown';
-        throw new EmailSendError(`Resend request failed (${reason})`);
-      }
-      if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { name?: string; message?: string };
-        throw new EmailSendError(
-          `Resend rejected the email: ${res.status} ${body.name ?? ''} ${body.message ?? ''}`.trim(),
-          res.status,
-        );
-      }
+      await send(email.to, codeEmailText(email), `${email.to}\0${email.code}`);
+    },
+    async sendNurseAlert(email) {
+      await send(email.to, nurseAlertEmailText(email), `alert\0${email.to}\0${email.questionId}`);
     },
   };
 }

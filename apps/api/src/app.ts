@@ -5,8 +5,14 @@ import type { AppDeps } from './deps.js';
 import { errorHandler, notFoundHandler } from './lib/errors.js';
 import { requestLogger } from './lib/request-logger.js';
 import { createAdminRouter } from './modules/admin/router.js';
+import { createEmailSender } from './modules/auth/email.js';
 import { createAuthRouter } from './modules/auth/router.js';
 import { createChatRouter } from './modules/chat/router.js';
+import { createChatService, type ChatService } from './modules/chat/service.js';
+import { loadRedFlags } from './modules/emergency/red-flags.js';
+import { createAssistant, loadAssistantPrompt } from './modules/llm/assistant.js';
+import { createOpenAiCompatibleClient } from './modules/llm/client.js';
+import { createQuestionService, type QuestionService } from './modules/questions/service.js';
 import { createHealthRouter } from './modules/health/router.js';
 import { createNursesRouter } from './modules/nurses/router.js';
 import { createPaymentsRouter } from './modules/payments/router.js';
@@ -72,11 +78,46 @@ export function buildTopupService(deps: AppDeps, wallets: WalletService): TopupS
 export interface AppServices {
   wallets: WalletService;
   topups: TopupService;
+  chat: ChatService;
+  questions: QuestionService;
+}
+
+/**
+ * Chat + questions share the assistant and the red-flag list. Both files are read once here, at
+ * startup: a missing prompt or a broken red-flag file stops the API instead of running without them.
+ */
+export function buildChatAndQuestionServices(deps: AppDeps) {
+  const now = deps.clock ?? (() => new Date());
+  const redFlags = loadRedFlags();
+  const assistant = createAssistant({
+    llm: deps.llm ?? createOpenAiCompatibleClient(deps.config.llm),
+    systemPrompt: loadAssistantPrompt(),
+    logger: deps.logger,
+  });
+  const shared = {
+    db: deps.db,
+    config: deps.config,
+    assistant,
+    redFlags,
+    logger: deps.logger,
+    now,
+  };
+  return {
+    chat: createChatService(shared),
+    questions: createQuestionService({
+      ...shared,
+      email: deps.emailSender ?? createEmailSender(deps.config.auth, deps.logger),
+    }),
+  };
 }
 
 export function buildServices(deps: AppDeps): AppServices {
   const wallets = buildWalletService(deps);
-  return { wallets, topups: buildTopupService(deps, wallets) };
+  return {
+    wallets,
+    topups: buildTopupService(deps, wallets),
+    ...buildChatAndQuestionServices(deps),
+  };
 }
 
 export function createApp(deps: AppDeps, services: AppServices = buildServices(deps)) {
@@ -95,8 +136,8 @@ export function createApp(deps: AppDeps, services: AppServices = buildServices(d
   app.use(createUsersRouter(deps));
   app.use(createWalletsRouter(deps, services.wallets));
   app.use(createTopupsRouter(deps, services.topups));
-  app.use(createChatRouter(deps));
-  app.use(createQuestionsRouter(deps));
+  app.use(createChatRouter(deps, services.chat));
+  app.use(createQuestionsRouter(deps, services.questions));
   app.use(createNursesRouter(deps));
   app.use(createPaymentsRouter(deps));
   app.use(createAdminRouter(deps));

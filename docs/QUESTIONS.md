@@ -8,6 +8,14 @@ Questions that need a decision before work can continue (see `docs/TASKS.md` §1
 
 **Raised by:** Hikmah (H6), November 2026. **For:** Zainab (Z6). **Blocks:** H6 on the real API, H10.
 
+> **Answered in Z6 (Zainab): option A, with the draft as its own call.** Contract §7 has the details.
+>
+> - `POST /chat { messages: ChatTurn[] }` returns the **same shape your ChatProvider already handles**: `{ kind: "reply", message, escalationOffer } | EmergencyResponse`. Only the endpoint and the body change.
+> - The draft is **`POST /chat/draft { messages }`** → `{ kind: "draft", draft, draftToken, draftExpiresAt, offer } | EmergencyResponse`. Call it when she taps Send on the offer (W07 shows `draft`) and for "Ask a nurse directly" (her question as the only turn). It is a separate call because building the draft is a second LLM call (about 10 s), and most offers end in "Not now". Each chat reply stays at one call.
+> - Send `draftToken` with `POST /questions`, and `originalText` = `draft.originalText`.
+> - Limits are in `CHAT_LIMITS`: 40 turns, 4,000 characters each, 12 requests a minute.
+> - The old types stay as `@deprecated` until you switch, so nothing breaks.
+
 ### Where things stand
 
 |                                       | What it says                                                                                                                                                                                                                                                                   |
@@ -81,3 +89,45 @@ Matches the decisions log (nothing stored), keeps one discriminant across the AP
 **What W13 does now:** a number with `verified: false` is never shown as the main red "Call" button. It appears as a secondary button marked "Not verified", with a note to go to the nearest hospital if the call does not connect. If no number is verified, "Find the nearest hospital" becomes the main action.
 
 **Ask:** confirm the real numbers and set `verified: true` only after someone has checked them (who, and when?). Recommendation: keep the `verified` flag in the contract permanently, so a number that has not been checked can never look like a checked one.
+
+> **Z6 status (Zainab):** the API returns one contact, `112` (Nigeria's national emergency number), with `verified: false`, from `EMERGENCY_CONTACTS` in `apps/api/src/modules/emergency/service.ts`. Agreed: the flag stays in the contract permanently. **Still open:** who calls 112 (and any state or hospital line we add) from a Nigerian phone, and when, before the demo. Then flip `verified` in that file.
+
+---
+
+## Q3. Assistant prompt: two Mode B fields to add, and the model offers a nurse too often
+
+**Raised by:** Zainab (Z6), November 2026. **For:** Hikmah (H2). **Blocks:** H2 "done when the test set passes through `/chat`".
+
+### 1. Mode B fields the API now asks for
+
+The API appends short call instructions after `assistant.md` (in `apps/api/src/modules/llm/assistant.ts`, so the prompt file stays yours). For Mode B it asks for two extra fields:
+
+- `statedAge`: her age as a number, only if she stated it. The API turns it into `ageRange` in code.
+- `pregnancyWeeks`: only if she stated weeks (never converted from months).
+
+**Ask:** describe these two fields in the prompt's Mode B section, so the prompt and the API agree. Also update the endpoint names it mentions: Mode A is `POST /chat`, Mode B is `POST /chat/draft` and `POST /questions` without a draft.
+
+### 2. Eval result on the real model (`nvidia/nemotron-3-ultra-550b-a55b`)
+
+`npm run eval:assistant -w @carelayer/api` runs your 33-question test set plus a 12-question clean-up set:
+
+| Metric                 | Score                                                    | Threshold |
+| ---------------------- | -------------------------------------------------------- | --------- |
+| Emergency recall       | **100%** (10/10: 7 by the fixed list, 3 by the LLM only) | 100%      |
+| Action accuracy        | **69.7%**                                                | 80%       |
+| Category accuracy      | 95.2% (test set), 100% (clean-up set)                    | 80%       |
+| Clean-up pass rate     | 100%                                                     | 90%       |
+| Age / weeks extraction | 100%                                                     | 90%       |
+
+**Most of the action misses are over-offering.** The model offers a nurse on plain information questions you marked "answer": q01 (tired in early pregnancy), q10 (period pain, Pidgin), q13 (how the injection works), q14 (pill vs coil), q16 (family planning, Pidgin), q18 (UTI symptoms), q23 (foods for women's health).
+
+**Two of your "offer" cases became emergencies** (the LLM's own judgement): q02 (baby moving less at 32 weeks) and q12 (soaking through pads quickly, not pregnant). Both may be right clinically. Worth asking the reviewing nurse or midwife whether the test set or the prompt should change.
+
+(q07 failed on a network blip; the API now retries those once.)
+
+**Options:**
+
+- **A. Tighten the escalation section (recommended).** Add: answer general "what is / how does / is it common" questions directly with no offer; offer only when she describes _her own_ symptoms or situation and needs a judgement on it. A few one-line examples of "answer, no offer" from the test set would help most.
+- **B. Leave it.** Over-offering is the safe side, but the app asks her to pay ₦500 more often than needed.
+
+After a prompt change, re-run `npm run eval:assistant -w @carelayer/api`. It takes about 4 minutes, and the report is written to `apps/api/evals/reports/`.

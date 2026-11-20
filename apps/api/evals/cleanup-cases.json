@@ -1,0 +1,94 @@
+{
+  "version": 1,
+  "owner": "Zainab",
+  "description": "Mode B clean-up eval: messy questions as women really type them. Checked in code: the clean-up passes the deterministic rules (not shortened, no number dropped, not padded) on the first try, keeps her uncertainty words, and extracts age range / pregnancy weeks only when she stated them. Run with `npm run eval:assistant -w @carelayer/api`.",
+  "cases": [
+    {
+      "id": "c01",
+      "text": "my feet dey swell small small, im 30 weeks pregnant is it normal",
+      "expectCategory": "pregnancy",
+      "expectAgeRange": null,
+      "expectPregnancyWeeks": 30
+    },
+    {
+      "id": "c02",
+      "text": "pls i have been having discharge that smell bad for 2 weeks after i sleep with my boyfriend, i am 22, i dont know if its infection or what",
+      "expectCategory": "sexual_health",
+      "expectAgeRange": "age_18_24",
+      "expectPregnancyWeeks": null,
+      "keepWords": ["don't know|do not know|dont know"]
+    },
+    {
+      "id": "c03",
+      "text": "i think i missed 2 pills last week maybe 3, i am not sure. can i still get pregnant if we had sex on saturday",
+      "expectCategory": "contraception",
+      "expectAgeRange": null,
+      "expectPregnancyWeeks": null,
+      "keepWords": ["think", "maybe", "not sure"]
+    },
+    {
+      "id": "c04",
+      "text": "My period come twice this month and the second one heavy pass normal. Im 41. Wetin dey cause am?",
+      "expectCategory": "periods",
+      "expectAgeRange": "age_35_44",
+      "expectPregnancyWeeks": null
+    },
+    {
+      "id": "c05",
+      "text": "i am 6 months pregnant and my back dey pain me every night, which position i fit sleep",
+      "expectCategory": "pregnancy",
+      "expectAgeRange": null,
+      "expectPregnancyWeeks": null
+    },
+    {
+      "id": "c06",
+      "text": "after i born my baby 3 weeks ago my breast dey hot and pain me for one side, i still dey breastfeed. is it normal or i need to see somebody",
+      "expectCategory": "pregnancy",
+      "expectAgeRange": null,
+      "expectPregnancyWeeks": null
+    },
+    {
+      "id": "c07",
+      "text": "Is it safe to use the injection (depo) if I have high blood pressure? I used it for 1 year before and I want to start again",
+      "expectCategory": "contraception",
+      "expectAgeRange": null,
+      "expectPregnancyWeeks": null
+    },
+    {
+      "id": "c08",
+      "text": "e dey burn me when i wee and i dey wee every 10 minutes since yesterday",
+      "expectCategory": "sexual_health",
+      "expectAgeRange": null,
+      "expectPregnancyWeeks": null
+    },
+    {
+      "id": "c09",
+      "text": "im 16 and my period has never come. my friends all have theirs. is something wrong with me",
+      "expectCategory": "periods",
+      "expectAgeRange": "under_18",
+      "expectPregnancyWeeks": null
+    },
+    {
+      "id": "c10",
+      "text": "I have been feeling very sad and crying everyday since i had my baby 2 months ago. I dont enjoy anything again. I dont know who to tell.",
+      "expectCategory": "pregnancy",
+      "expectAgeRange": null,
+      "expectPregnancyWeeks": null,
+      "keepWords": ["don't know|do not know|dont know"]
+    },
+    {
+      "id": "c11",
+      "text": "we have been trying for baby for 18 months. i am 29 and my husband is 35. when should we go for test",
+      "expectCategory": "pregnancy",
+      "expectAgeRange": "age_25_34",
+      "expectPregnancyWeeks": null
+    },
+    {
+      "id": "c12",
+      "text": "I am 12 weeks pregnant and I took 2 paracetamol and 1 ibuprofen for headache yesterday before I knew. Will it affect my baby?",
+      "expectCategory": "pregnancy",
+      "expectAgeRange": null,
+      "expectPregnancyWeeks": 12
+    }
+  ]
+}

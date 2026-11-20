@@ -35,6 +35,17 @@ Every type named here is exported from `@carelayer/shared` (`packages/shared/src
 
 **Known follow-ups:** the `docs/TASKS.md` screen map uses slightly different names for some routes (`POST /chat`, `PATCH /nurse/availability`, `GET /nurse/dashboard`). Each is reconciled in the task that builds it (Z6, Z7, Z9). Auth (Z3) and wallet (Z4) were reconciled: the contract names stay (`/auth/code/*`, `/wallet`), because `apps/web` already calls them.
 
+**Z6 changes (chat, emergencies, questions). Hikmah: see "For Hikmah" in the Z6 PR.**
+
+- **§7 conversation endpoints are gone. Chat is `POST /chat { messages }`** (the client sends the thread; nothing stored). The response is the same shape as before (`{ kind: "reply", message, escalationOffer } | EmergencyResponse`), now named `ChatResponse`. `Conversation`, `SendMessageBody` and `SendMessageResponse` stay in `@carelayer/shared` as `@deprecated` until `apps/web` switches.
+- **New `POST /chat/draft { messages }`** returns the exact question a nurse would receive (`QuestionDraft`), a `draftToken`, and the price `offer`. Used by W07 Consent and "Ask a nurse directly".
+- **`CreateQuestionBody.draftToken`** (optional): the question is stored exactly as that draft.
+- **Consent must share `cleaned_text` and `category`** (`REQUIRED_SHARED_FIELDS`), else `CONSENT_REQUIRED` with `details.missing`. Fields she does not share are not stored.
+- **`GET /me/questions?status=active`** (open or claimed), type `MyQuestionsStatusFilter`.
+- **Free answers left counts in-flight free questions** (open, claimed, or answered but not collected), in offers, `POST /questions` and `GET /wallet`. An expired or cancelled question gives its free answer back.
+- Added: `ChatTurn`, `ChatRequestBody`, `ChatResponse`, `CHAT_LIMITS`, `QuestionDraft`, `DraftRequestBody`, `DraftResponse`, `REQUIRED_SHARED_FIELDS`, `MyQuestionsStatusFilter`.
+- `GET /nurses` and the question endpoints are **woman-only for now**. Agent tokens (Claude) and third-party agents (`X-Question-Key`) come with Z12.
+
 **Z5 changes (top-ups):** **`TopupStatus` adds `"paid"`.** `TOPUP_LIMITS_KOBO` added to `@carelayer/shared`. Route names stay `/topups` (the TASKS.md screen map said `/me/topups`).
 
 **Z4 changes (wallet):** **`WalletResponse` adds `status: "pending"|"active"` and `balanceSyncedAt`** (required). **`WalletTransaction` lists confirmed movements only.** `stellarExplorerUrl()` added to `@carelayer/shared`. Hikmah: `getWallet` in `apps/web/src/api/mock/mock-api.ts` needs the two new fields.
@@ -186,7 +197,13 @@ There is **no** withdraw endpoint for women.
 
 ## 6. Emergencies
 
-Every chat message and every `POST /questions` is checked **first** against `apps/api/config/red-flags.json` plus the LLM. On a match the endpoint returns `EmergencyResponse` instead of its normal result. Free. Nothing is queued, no question is created. The server logs an `EmergencyEvent` with **source and timestamp only** (no user, no text, no red-flag id).
+**Built in Z6.** Every chat message, draft and `POST /questions` is checked **first** against `apps/api/config/red-flags.json`, then by the LLM's own judgement (`redFlagSuspected`). On a match the endpoint returns `EmergencyResponse` (HTTP 200) instead of its normal result. Free. Nothing is queued, no question is created. The server logs an `EmergencyEvent` with **source and timestamp only** (no user, no text, no red-flag id).
+
+- **What is checked:** `POST /chat` checks her new message (an earlier emergency in the thread does not repeat on every later message). `POST /chat/draft` and `POST /questions` check the whole question.
+- **Matching:** case-insensitive substring after normalising both sides (lowercase, curly quotes to straight, whitespace collapsed). The fixed list runs before the LLM, so it works even when the LLM is down.
+- **`triggeredBy`:** the matching red-flag ids, or `["llm"]`.
+- **Sources:** `CHAT` (chat and drafts), `QUESTION` (`POST /questions`), `MCP` (Z12).
+- **Contacts:** `112` (national emergency number) with `verified: false` until someone has checked it (docs/QUESTIONS.md Q2). `findHospitalUrl` opens a map search on her device; CareLayer never sees her location.
 
 ```ts
 EmergencyResponse = { kind: "emergency", message, triggeredBy: string[], contacts: EmergencyContact[], findHospitalUrl }
@@ -201,16 +218,31 @@ Emergency numbers must be verified (`verified: true`) before the demo.
 
 ## 7. Chat (AI assistant, free)
 
-> **Superseded by the decisions log: chat history is not stored on the server.** Z6 replaces the conversation endpoints below with a single stateless `POST /chat` (history sent by the client; returns an answer, an offer with a draft, or an emergency). Until Z6 lands, treat this section as provisional.
+**Built in Z6.** Stateless: chat history is **not stored on the server**. The client keeps the thread in memory and sends it with every message. Only questions sent to nurses are stored.
 
-| Method | Path                               | Auth  | Request                      | Response                                                                                                                        | Errors             |
-| ------ | ---------------------------------- | ----- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
-| POST   | `/chat/conversations`              | woman | none                         | 201 `Conversation` (empty `messages`)                                                                                           | 401                |
-| GET    | `/chat/conversations`              | woman | `PageQuery`                  | 200 `Page<Conversation>` (messages omitted or last only)                                                                        | 401                |
-| GET    | `/chat/conversations/:id`          | woman | none                         | 200 `Conversation`                                                                                                              | 401; 404           |
-| POST   | `/chat/conversations/:id/messages` | woman | `SendMessageBody` `{ text }` | 200 `SendMessageResponse`: either `{ kind: "reply", message, escalationOffer: EscalationOffer \| null }` or `EmergencyResponse` | 400; 401; 404; 429 |
+- **LLM:** Hikmah's `apps/api/prompts/assistant.md` (Mode A for chat, Mode B for drafts). It is called through any OpenAI-compatible API (`LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`); the default is NVIDIA's free tier with `nvidia/nemotron-3-ultra-550b-a55b`, which takes about 10 s per call.
+- **Limits (`CHAT_LIMITS`):**
+  - At most 40 turns per request; the server sends the last 20 to the model.
+  - Each turn: 1 to 4,000 characters.
+  - `POST /chat`: the last turn must be hers (`role: "user"`).
+  - `POST /chat/draft`: at least one turn must be hers; the thread may end with the assistant's offer.
+  - A question (her messages joined): at most 8,000 characters.
+  - At most 12 chat + draft requests per woman per minute.
+- **LLM down or not configured:** `503 SERVICE_UNAVAILABLE`. The message says to try again and to go to the nearest hospital if it is urgent. `details: { retryable, reason }`, with `reason` one of `rate_limited`, `timeout`, `upstream`, `bad_response`, `not_configured`, `auth`.
 
-`EscalationOffer = { price, isFree, freeAnswersRemaining, suggestedCategory, exceedsSpendingLimit }`.
+| Method | Path          | Auth  | Request                                       | Response                                                                                                                                  | Errors                                                                         |
+| ------ | ------------- | ----- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| POST   | `/chat`       | woman | `ChatRequestBody` `{ messages: ChatTurn[] }`  | 200 `ChatResponse`: `{ kind: "reply", message: ChatMessage, escalationOffer: EscalationOffer \| null }` or `EmergencyResponse`            | 400 `VALIDATION_FAILED`; 401; 403; 429 `RATE_LIMITED`; 503                     |
+| POST   | `/chat/draft` | woman | `DraftRequestBody` `{ messages: ChatTurn[] }` | 200 `DraftResponse`: `{ kind: "draft", draft: QuestionDraft, draftToken, draftExpiresAt, offer: EscalationOffer }` or `EmergencyResponse` | 400 (incl. question too long, `details.field: "messages"`); 401; 403; 429; 503 |
+
+- `ChatTurn = { role: "user" | "assistant", text }`. `ChatMessage = { id, role: "assistant", text, createdAt }` (the id is generated per reply; nothing is stored).
+- `EscalationOffer = { price, isFree, freeAnswersRemaining, suggestedCategory, exceedsSpendingLimit }`. It is present when the assistant suggests a nurse. `exceedsSpendingLimit` is true only when she would pay and the price is above her per-answer limit.
+- `QuestionDraft = { originalText, cleanedText, assistantNotes, category, ageRange, pregnancyWeeks }`:
+  - `originalText`: all of her messages in the thread, joined with a blank line, word for word (the assistant's turns are not included).
+  - `cleanedText`: spelling and grammar fixed only. If the model shortens the question or drops any number she wrote (checked in code, one retry), her original words are used instead.
+  - `ageRange` / `pregnancyWeeks`: only when she stated them (her age as a number, weeks as weeks). The age range is computed in code.
+- **`draftToken`:** signed, bound to her account, valid 2 hours (`draftExpiresAt`). Send it with `POST /questions` so the stored question is exactly what she saw on W07.
+- **"Ask a nurse directly":** call `POST /chat/draft` with her question as the only turn.
 
 ## 8. Questions (agent-facing, x402 pay on delivery)
 
@@ -218,32 +250,34 @@ Any agent can call these: our web app (through the API's own agent), Claude via 
 
 ### 8.0 Nurse directory (W08 "Choose who answers")
 
-| Method | Path      | Auth  | Request                                | Response                                                                                                                                                                                                           | Errors   |
-| ------ | --------- | ----- | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------- |
-| GET    | `/nurses` | agent | `NurseListQuery` `?topic=&femaleOnly=` | 200 `NursePublicProfile[]`: approved, available nurses only. `{ id, fullName, role, gender, yearsOfPractice, bio, languages, topics, available, verified: true, avgResponseMinutes, helpful: { percent, count } }` | 400; 401 |
+| Method | Path      | Auth                  | Request                                    | Response                                                                                                                                                                                                           | Errors        |
+| ------ | --------- | --------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
+| GET    | `/nurses` | woman (agents in Z12) | `NurseListQuery` `?topic=&femaleOnly=true` | 200 `NursePublicProfile[]`: approved, available nurses only. `{ id, fullName, role, gender, yearsOfPractice, bio, languages, topics, available, verified: true, avgResponseMinutes, helpful: { percent, count } }` | 400; 401; 403 |
 
-Rating is "% helpful + count" (e.g. "96% helpful (212)"); `percent` is null until the first feedback. No stars. No email, phone or licence number.
+Rating is "% helpful + count" (e.g. "96% helpful (212)"); `percent` is null until the first feedback. No stars. No email, phone or licence number. Sorted fastest average response first, nurses with no answers yet after them, then by name.
 
 ### 8.1 Create
 
-| Method | Path         | Auth  | Request                                                                                                                                                                                                                 | Response                                                                                                                                                                                     | Errors                                                                                                                                                                     |
-| ------ | ------------ | ----- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| POST   | `/questions` | agent | `CreateQuestionBody` `{ originalText, source: "web"\|"mcp"\|"agent", consent: { sharedFields, consentVersion }, nurseSelection?: "first_available"\|"chosen_nurse", chosenNurseId?, femaleOnly?, approvedAboveLimit? }` | 201 `CreatedQuestion` `{ kind: "question", id, status: "open", category, price, isFree, nurseSelection, chosenUntil, claimsCloseAt, questionKey, createdAt }` **or** 200 `EmergencyResponse` | 400 `VALIDATION_FAILED` / `CONSENT_REQUIRED`; 401; 409 `SPENDING_LIMIT_EXCEEDED` (price above her limit and `approvedAboveLimit` not true); 409 `CHOSEN_NURSE_UNAVAILABLE` |
+| Method | Path         | Auth                  | Request                                                                                                                                                                                                              | Response                                                                                                                                                                                     | Errors                                                                                                                                                                                                                                                                                                                     |
+| ------ | ------------ | --------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/questions` | woman (agents in Z12) | `CreateQuestionBody` `{ originalText, source: "web", consent: { sharedFields, consentVersion }, nurseSelection?: "first_available"\|"chosen_nurse", chosenNurseId?, femaleOnly?, approvedAboveLimit?, draftToken? }` | 201 `CreatedQuestion` `{ kind: "question", id, status: "open", category, price, isFree, nurseSelection, chosenUntil, claimsCloseAt, questionKey, createdAt }` **or** 200 `EmergencyResponse` | 400 `VALIDATION_FAILED` (incl. `details.field: "draftToken"` expired/invalid, `"originalText"` not the draft's) / `CONSENT_REQUIRED` (`details.missing`); 401; 403; 409 `SPENDING_LIMIT_EXCEEDED` (`details: { priceKobo, spendingLimitKobo }`); 409 `CHOSEN_NURSE_UNAVAILABLE`; 503 (no `draftToken` and the LLM is down) |
 
-`SharedField` = `cleaned_text | original_text | assistant_notes | category | age_range | pregnancy_weeks`. Never her name, email, phone or location.
+`SharedField` = `cleaned_text | original_text | assistant_notes | category | age_range | pregnancy_weeks`. Never her name, email, phone or location. `cleaned_text` and `category` are required (`REQUIRED_SHARED_FIELDS`).
 
 Server behaviour:
 
-1. Red-flag check first (see §6).
-2. Consent is required and stored per question (fields shared, consent text version, time).
-3. Store `originalText` **verbatim**.
-4. LLM produces `cleanedText`: spelling and grammar only, **never summarised or shortened**. It may add separate `assistantNotes`, and extracts `ageRange` / `pregnancyWeeks` only when she mentioned them. (Z6 may move this into the chat draft.)
-5. LLM assigns `category`.
-6. **Selection.** `first_available` (default): any eligible nurse. `chosen_nurse`: `chosenNurseId` must be an approved, available nurse (and female if `femaleOnly`). She alone can see and claim it until `chosenUntil` (created + 10 min); after that, or if she releases or her claim expires, it opens to everyone.
-7. **`femaleOnly`**: only nurses with gender `female` can see or claim it.
-8. **Expiry.** `claimsCloseAt` = created + 30 min. No new claims after that. An active claim may finish its 10-minute lock (max wait 40 min). Unanswered → `expired`, she pays nothing.
-9. `isFree` is true while she has free answers left (first 3). It is a quote: the final charge is decided when she collects the answer. Third-party agents without a CareLayer account always pay.
-10. `questionKey` is returned only to callers without a CareLayer session; they send it as `X-Question-Key` afterwards.
+1. Consent: missing, or not sharing `cleaned_text` + `category` → 400 `CONSENT_REQUIRED`. Stored per question (fields shared, consent text version, time).
+2. Red-flag check on `originalText` (see §6).
+3. Store `originalText` **verbatim** (validated, never trimmed).
+4. **With `draftToken`** (the web app): the question is the signed draft from `POST /chat/draft`, so what is stored is exactly what she saw. `originalText` must equal the draft's. No second LLM call. **Without it**: the server runs the same clean-up (Mode B), including the LLM's red-flag check.
+5. `cleanedText` is spelling and grammar only, **never summarised or shortened**. `assistantNotes`, `ageRange` and `pregnancyWeeks` are stored only if she shared them.
+6. `category` comes from the LLM.
+7. **Alerts** (after the response): an email to every approved, available nurse with that topic (female only if `femaleOnly`); for `chosen_nurse`, only to her. The email names the topic only; the question stays in the nurse app.
+8. **Selection.** `first_available` (default): any eligible nurse. `chosen_nurse`: `chosenNurseId` must be an approved, available nurse (and female if `femaleOnly`). She alone can see and claim it until `chosenUntil` (created + 10 min); after that, or if she releases or her claim expires, it opens to everyone.
+9. **`femaleOnly`**: only nurses with gender `female` can see or claim it.
+10. **Expiry.** `claimsCloseAt` = created + 30 min. No new claims after that. An active claim may finish its 10-minute lock (max wait 40 min). Unanswered → `expired`, she pays nothing.
+11. `isFree` is true while she has free answers left (first 3, minus her free questions still in flight). It is a quote: the final charge is decided when she collects the answer. Third-party agents without a CareLayer account always pay.
+12. `questionKey` is returned only to callers without a CareLayer session; they send it as `X-Question-Key` afterwards.
 
 ### 8.2 Status
 
@@ -270,12 +304,12 @@ Order of middleware is part of the contract:
 
 ### 8.4 Her questions and feedback (web app)
 
-| Method | Path                        | Auth  | Request                      | Response                                                                                                                                           | Errors                                                                                 |
-| ------ | --------------------------- | ----- | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| GET    | `/me/questions`             | woman | `?status=` + `PageQuery`     | 200 `Page<MyQuestion>`                                                                                                                             | 401                                                                                    |
-| GET    | `/me/questions/:id`         | woman | none                         | 200 `MyQuestion`                                                                                                                                   | 401; 404                                                                               |
-| POST   | `/me/questions/:id/collect` | woman | none                         | 200 `AnswerResponse`. The API's own agent calls `GET /questions/:id/answer`, paying over x402 from her custodial wallet (or the treasury if free). | 409 `QUESTION_NOT_ANSWERED`; 409 `INSUFFICIENT_BALANCE`; 409 `SPENDING_LIMIT_EXCEEDED` |
-| POST   | `/questions/:id/feedback`   | woman | `FeedbackBody` `{ helpful }` | 200 `FeedbackResponse` `{ questionId, helpful, updatedAt }`. One per answer; sending again changes it. Updates the nurse's % helpful.              | 400; 401; 404; 409 `QUESTION_NOT_ANSWERED`                                             |
+| Method | Path                        | Auth  | Request                                                          | Response                                                                                                                                           | Errors                                                                                 |
+| ------ | --------------------------- | ----- | ---------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| GET    | `/me/questions`             | woman | `?status=` (a status or `active` = open + claimed) + `PageQuery` | 200 `Page<MyQuestion>`                                                                                                                             | 401                                                                                    |
+| GET    | `/me/questions/:id`         | woman | none                                                             | 200 `MyQuestion`                                                                                                                                   | 401; 404                                                                               |
+| POST   | `/me/questions/:id/collect` | woman | none                                                             | 200 `AnswerResponse`. The API's own agent calls `GET /questions/:id/answer`, paying over x402 from her custodial wallet (or the treasury if free). | 409 `QUESTION_NOT_ANSWERED`; 409 `INSUFFICIENT_BALANCE`; 409 `SPENDING_LIMIT_EXCEEDED` |
+| POST   | `/questions/:id/feedback`   | woman | `FeedbackBody` `{ helpful }`                                     | 200 `FeedbackResponse` `{ questionId, helpful, updatedAt }`. One per answer; sending again changes it. Updates the nurse's % helpful.              | 400; 401; 404; 409 `QUESTION_NOT_ANSWERED`                                             |
 
 `MyQuestion = { id, status, category, originalText, cleanedText, price, isFree, nurseSelection, chosenNurse, femaleOnly, claimsCloseAt, answer, feedback, createdAt }`.
 

@@ -21,6 +21,7 @@ import type {
 } from '../generated/prisma/client.js';
 import { koboToStroops, splitPayout, splitPayoutKobo } from '../lib/money.js';
 import { helpfulRating, recomputeNurseStats } from '../modules/nurses/stats.js';
+import { freeAnswersRemaining } from '../modules/questions/pricing.js';
 import { newCustodialWallet } from '../modules/wallets/crypto.js';
 
 export interface SeedOptions {
@@ -153,7 +154,7 @@ export async function seed(db: PrismaClient, opts: SeedOptions) {
     role: 'WOMAN',
     email: SEED_EMAILS.tolu,
     displayName: 'Tolu',
-    freeAnswersUsed: 1, // 2 of 3 free answers left; balance ₦0 until a real test top-up
+    freeAnswersUsed: 1, // 1 collected + 2 held by open questions = 0 left; ₦0 until a real top-up
     createdAt: at(-21 * DAY),
   });
 
@@ -292,6 +293,8 @@ export async function seed(db: PrismaClient, opts: SeedOptions) {
     expiredAt?: Date;
     cancelledAt?: Date;
     collectedAt?: Date;
+    /** The quote when she asked. Default free; see the free-answer note above question 1. */
+    isFree?: boolean;
   }) {
     const chosen = Boolean(input.chosenNurseId);
     return db.question.create({
@@ -312,8 +315,7 @@ export async function seed(db: PrismaClient, opts: SeedOptions) {
         fellBackAt: input.fellBackAt ?? null,
         expiresAt: new Date(input.createdAt.getTime() + 30 * MINUTE),
         ...price,
-        // She had free answers left when she asked each of these.
-        isFree: true,
+        isFree: input.isFree ?? true,
         createdAt: input.createdAt,
         answeredAt: input.answeredAt ?? null,
         expiredAt: input.expiredAt ?? null,
@@ -329,6 +331,11 @@ export async function seed(db: PrismaClient, opts: SeedOptions) {
       },
     });
   }
+
+  // Free answers follow the API's quote rule (src/modules/questions/pricing.ts): 3 per woman, and a
+  // free question still in flight holds one. Q1 used one; the two oldest in-flight questions (Q2,
+  // Q6) hold the other two; Q3, Q4 and Q5 were quoted ₦500. Q7 and Q8 were free when asked and gave
+  // their free answer back when they expired / were cancelled. So Tolu has 0 free answers left.
 
   // 1. ANSWERED + collected. Her first free answer: she paid nothing, the treasury paid Amaka ₦400.
   const q1Created = at(-9 * DAY);
@@ -434,6 +441,7 @@ export async function seed(db: PrismaClient, opts: SeedOptions) {
     pregnancyWeeks: 30,
     createdAt: q3Created,
     status: 'CLAIMED',
+    isFree: false,
   });
   await db.claim.create({
     data: {
@@ -454,6 +462,7 @@ export async function seed(db: PrismaClient, opts: SeedOptions) {
     createdAt: at(-2 * MINUTE),
     status: 'OPEN',
     chosenNurseId: amaka.id,
+    isFree: false,
   });
 
   // 5. OPEN, first available, "Only female health workers".
@@ -465,6 +474,7 @@ export async function seed(db: PrismaClient, opts: SeedOptions) {
     createdAt: at(-5 * MINUTE),
     status: 'OPEN',
     femaleOnly: true,
+    isFree: false,
   });
 
   // 6. OPEN after fallback: Funmilayo was chosen but did not claim within 10 minutes.
@@ -559,7 +569,8 @@ export async function summarise(db: PrismaClient) {
       helpful: helpfulRating(n.helpfulCount, n.feedbackCount),
     })),
     tolu: {
-      freeAnswersLeft: 3 - tolu.freeAnswersUsed,
+      // Same count the API shows (GET /wallet, offers): in-flight free questions are reserved.
+      freeAnswersLeft: await freeAnswersRemaining(db, tolu),
       cachedBalanceStroops: tolu.wallet!.cachedBalanceStroops.toString(),
     },
     counts: { claims, activeClaims, answers, payments, payouts, topups, emergencyEvents },

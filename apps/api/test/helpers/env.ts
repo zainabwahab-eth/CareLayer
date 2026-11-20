@@ -60,6 +60,14 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
       callbackUrl: 'http://localhost:5173/account/wallet',
       baseUrl: 'https://paystack.invalid',
     },
+    llm: {
+      // Tests inject a fake LlmClient; nothing calls a real provider.
+      baseUrl: 'https://llm.invalid/v1',
+      apiKey: undefined,
+      model: 'test-model',
+      timeoutMs: 5_000,
+    },
+    nurseAppUrl: 'http://localhost:5174',
     ...overrides,
   };
 }
