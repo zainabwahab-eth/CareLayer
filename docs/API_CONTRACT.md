@@ -33,7 +33,9 @@ Every type named here is exported from `@carelayer/shared` (`packages/shared/src
 
 **Added:** `QuestionStatus` `expired` and `cancelled`; `CreateQuestionBody.consent`, `nurseSelection`, `chosenNurseId`; `Answer.recommendSeeSomeoneToday`; `GET /nurses` + `NursePublicProfile`; `POST /questions/:id/feedback`; `GET/PATCH /me/notifications`; `NurseQuestionView.ageRange`, `pregnancyWeeks`, `chosenForYou`, `claimsCloseAt`; nurse `bio`, `languages`, `helpful`, `avgResponseMinutes`; `/health` reports the database and returns 503 when it is down; error codes `CONSENT_REQUIRED`, `CHOSEN_NURSE_UNAVAILABLE`, `QUESTION_EXPIRED`, `CLAIMS_CLOSED`.
 
-**Known follow-ups:** the `docs/TASKS.md` screen map uses slightly different names for some routes (`/me/topups`, `POST /chat`, `PATCH /nurse/availability`, `GET /nurse/dashboard`). Each is reconciled in the task that builds it (Z5, Z6, Z7, Z9). Auth (Z3) and wallet (Z4) were reconciled: the contract names stay (`/auth/code/*`, `/wallet`), because `apps/web` already calls them.
+**Known follow-ups:** the `docs/TASKS.md` screen map uses slightly different names for some routes (`POST /chat`, `PATCH /nurse/availability`, `GET /nurse/dashboard`). Each is reconciled in the task that builds it (Z6, Z7, Z9). Auth (Z3) and wallet (Z4) were reconciled: the contract names stay (`/auth/code/*`, `/wallet`), because `apps/web` already calls them.
+
+**Z5 changes (top-ups):** **`TopupStatus` adds `"paid"`.** `TOPUP_LIMITS_KOBO` added to `@carelayer/shared`. Route names stay `/topups` (the TASKS.md screen map said `/me/topups`).
 
 **Z4 changes (wallet):** **`WalletResponse` adds `status: "pending"|"active"` and `balanceSyncedAt`** (required). **`WalletTransaction` lists confirmed movements only.** `stellarExplorerUrl()` added to `@carelayer/shared`. Hikmah: `getWallet` in `apps/web/src/api/mock/mock-api.ts` needs the two new fields.
 
@@ -160,11 +162,27 @@ There is **no** withdraw endpoint for women.
 
 ## 5. Top-up (Paystack TEST mode)
 
-| Method | Path                 | Auth                                        | Request                            | Response                                                                                        | Errors                           |
-| ------ | -------------------- | ------------------------------------------- | ---------------------------------- | ----------------------------------------------------------------------------------------------- | -------------------------------- |
-| POST   | `/topups`            | woman                                       | `CreateTopupBody` `{ amountKobo }` | 201 `CreateTopupResponse` `{ topupId, reference, authorizationUrl }`                            | 400; 401                         |
-| GET    | `/topups/:id`        | woman                                       | none                               | 200 `Topup` `{ id, status: "pending"\|"credited"\|"failed", amount, stellarTxHash, createdAt }` | 401; 404                         |
-| POST   | `/webhooks/paystack` | Paystack signature (`x-paystack-signature`) | Paystack event                     | 200 (idempotent on `reference`). On `charge.success`, credit test USDC to her wallet.           | 401 `PAYSTACK_SIGNATURE_INVALID` |
+**Built in Z5.** She pays naira on Paystack (test mode: card, bank transfer, USSD); the treasury then sends the same value in test USDC to her wallet at the fixed demo rate.
+
+**Flow**
+
+1. `POST /topups { amountKobo }` (₦100 to ₦100,000, `TOPUP_LIMITS_KOBO`) returns `authorizationUrl`. Redirect her there (full page).
+2. After paying, Paystack sends her back to the wallet screen with `?topupId=...&reference=...` (`PAYSTACK_CALLBACK_URL`).
+3. Poll `GET /topups/:topupId` (every 2-3 s, stop when `credited` or `failed`).
+
+**Statuses:** `pending` (not paid yet), `paid` (Paystack confirmed; USDC on its way, usually seconds), `credited` (in her wallet, `stellarTxHash` set), `failed` (payment failed, abandoned after 24 h, or the paid amount did not match).
+
+**Robustness**
+
+- A payment counts only once Paystack confirms it: either through the signed webhook, or through a server-side verify. Each `GET /topups/:id` and a background loop do the verify, so it works without webhooks (local dev).
+- The paid amount and currency must match the top-up.
+- Credited at most once: duplicate webhooks are ignored, and the Stellar payment carries the top-up id as its memo, so a retry after a crash finds the earlier payment instead of paying twice. If her wallet is still `pending`, it is activated first.
+
+| Method | Path                 | Auth                                                                                         | Request                            | Response                                                                                           | Errors                                                                                                                                       |
+| ------ | -------------------- | -------------------------------------------------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| POST   | `/topups`            | woman                                                                                        | `CreateTopupBody` `{ amountKobo }` | 201 `CreateTopupResponse` `{ topupId, reference, authorizationUrl }`                               | 400 `VALIDATION_FAILED` (`details.field: "amountKobo"`); 401; 403 (not a woman); 503 `SERVICE_UNAVAILABLE` (Paystack not configured or down) |
+| GET    | `/topups/:id`        | woman (own)                                                                                  | none                               | 200 `Topup` `{ id, status: "pending"                                                               | "paid"                                                                                                                                       | "credited" | "failed", amount: Money, stellarTxHash, createdAt }` | 401; 404 |
+| POST   | `/webhooks/paystack` | Paystack signature (`x-paystack-signature`: HMAC-SHA512 of the raw body with the secret key) | Paystack event                     | 200 `{ received: true }` (also for events we ignore). On `charge.success`: mark paid, then credit. | 401 `PAYSTACK_SIGNATURE_INVALID`                                                                                                             |
 
 ## 6. Emergencies
 

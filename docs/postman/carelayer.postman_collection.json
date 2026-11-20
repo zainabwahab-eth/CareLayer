@@ -529,6 +529,228 @@
       ]
     },
     {
+      "name": "Top-up",
+      "description": "Paystack TEST top-ups (Z5). Sign in as a woman first. Pay the authorizationUrl with a Paystack test card, then poll Get top-up.",
+      "item": [
+        {
+          "name": "1. Start top-up (stores topupId, reference)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 checkout created\", () => pm.response.to.have.status(201));",
+                  "const b = pm.response.json();",
+                  "pm.environment.set(\"topupId\", b.topupId);",
+                  "pm.environment.set(\"topupReference\", b.reference);",
+                  "console.log(\"Pay here:\", b.authorizationUrl);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amountKobo\": 200000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/topups",
+              "host": ["{{baseUrl}}"],
+              "path": ["topups"]
+            }
+          },
+          "response": [
+            {
+              "name": "201 checkout created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/topups",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["topups"]
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"topupId\": \"cmwoz63c90003sohr587yvvj9\",\n  \"reference\": \"cltop_ff5ce8d1624e1fbcb43a4797\",\n  \"authorizationUrl\": \"https://checkout.paystack.com/po4d4m8kcn7gke9\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "2. Get top-up",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"known status\", () => pm.expect(pm.response.json().status).to.be.oneOf([\"pending\", \"paid\", \"credited\", \"failed\"]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/topups/{{topupId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["topups", "{{topupId}}"]
+            },
+            "description": "pending -> paid -> credited (or failed). Poll every 2-3 s after paying."
+          },
+          "response": [
+            {
+              "name": "200 pending",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/topups/{{topupId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["topups", "{{topupId}}"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"id\": \"cmwoz63c90003sohr587yvvj9\",\n  \"status\": \"pending\",\n  \"amount\": {\n    \"kobo\": 200000,\n    \"usdc\": \"1.2500000\"\n  },\n  \"stellarTxHash\": null,\n  \"createdAt\": \"2026-11-20T12:48:23.911Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "3. Sample Paystack webhook (signed in pre-request)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const secret = pm.environment.get(\"paystackSecretKey\");",
+                  "if (!secret) throw new Error(\"Set the paystackSecretKey environment variable (your sk_test_ key)\");",
+                  "const body = pm.variables.replaceIn(pm.request.body.raw);",
+                  "pm.request.body.raw = body;",
+                  "const sig = CryptoJS.HmacSHA512(body, secret).toString(CryptoJS.enc.Hex);",
+                  "pm.environment.set(\"paystackSignature\", sig);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 received\", () => pm.expect(pm.response.json()).to.eql({ received: true }));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "x-paystack-signature",
+                "value": "{{paystackSignature}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"event\":\"charge.success\",\"data\":{\"reference\":\"{{topupReference}}\",\"amount\":200000,\"currency\":\"NGN\",\"status\":\"success\",\"paid_at\":\"2026-11-20T12:00:00.000Z\",\"channel\":\"card\"}}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/webhooks/paystack",
+              "host": ["{{baseUrl}}"],
+              "path": ["webhooks", "paystack"]
+            },
+            "description": "Set the secret env var paystackSecretKey (never exported). amount must equal the top-up amountKobo."
+          },
+          "response": [
+            {
+              "name": "200 received",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/webhooks/paystack",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["webhooks", "paystack"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"received\": true\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
       "name": "x402 (Z2 proof)",
       "description": "GET /x402-test, only when X402_TEST_ROUTE=true. Postman cannot sign Stellar payments; to actually pay run `npm run x402:pay -w @carelayer/api`. Paid example: https://stellar.expert/explorer/testnet/tx/b2ce568136e4372c5b5faa5ab963ebeac8ad94afaa661bb2ccbf2f6b09ef30ed",
       "item": [

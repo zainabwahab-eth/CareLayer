@@ -21,11 +21,11 @@ Built for the **EmpowerHer: Building the Agent Economy** hackathon (women-focuse
 
 ## 2. Users
 
-| User           | App                           | What they do                                                                                          |
-| -------------- | ----------------------------- | ----------------------------------------------------------------------------------------------------- |
-| Women          | `apps/web` (mobile-first PWA) | Ask questions, get AI answers free, pay only for health worker answers.                               |
+| User           | App                           | What they do                                                                                              |
+| -------------- | ----------------------------- | --------------------------------------------------------------------------------------------------------- |
+| Women          | `apps/web` (mobile-first PWA) | Ask questions, get AI answers free, pay only for health worker answers.                                   |
 | Health workers | `apps/workers`                | Registered nurses and midwives in Nigeria (no doctors), any gender. Answer questions and earn per answer. |
-| Admin (us)     | Internal page                 | Approve health worker licences.                                                                       |
+| Admin (us)     | Internal page                 | Approve health worker licences.                                                                           |
 
 ## 3. Core flow (women)
 
@@ -82,11 +82,11 @@ Built for the **EmpowerHer: Building the Agent Economy** hackathon (women-focuse
 
 ### x402 pay-on-delivery
 
-| Endpoint                    | Cost               | Purpose                                             |
-| --------------------------- | ------------------ | --------------------------------------------------- |
-| `POST /questions`           | free               | Creates the question, returns id + price.           |
+| Endpoint                    | Cost               | Purpose                                                            |
+| --------------------------- | ------------------ | ------------------------------------------------------------------ |
+| `POST /questions`           | free               | Creates the question, returns id + price.                          |
 | `GET /questions/:id/status` | free               | Returns `open` / `claimed` / `answered` / `expired` / `cancelled`. |
-| `GET /questions/:id/answer` | **x402-protected** | The agent pays when it fetches the finished answer. |
+| `GET /questions/:id/answer` | **x402-protected** | The agent pays when it fetches the finished answer.                |
 
 A **guard runs before the payment middleware** so unanswered questions never request payment.
 

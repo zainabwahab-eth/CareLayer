@@ -50,18 +50,31 @@ export interface WalletTransaction {
   createdAt: IsoDateTime;
 }
 
-// POST /topups
+/** Top-up limits in kobo: ₦100 to ₦100,000. */
+export const TOPUP_LIMITS_KOBO = { min: 10_000, max: 10_000_000 } as const;
+
+// POST /topups  (women)
 export interface CreateTopupBody {
+  /** Integer kobo, TOPUP_LIMITS_KOBO.min..max. */
   amountKobo: number;
 }
 export interface CreateTopupResponse {
   topupId: Id;
   reference: string;
-  /** Paystack TEST checkout URL. */
+  /**
+   * Paystack TEST checkout URL: send her there (full-page redirect). Afterwards Paystack returns her to
+   * the wallet screen with `?topupId=...&reference=...`; poll GET /topups/:topupId until it settles.
+   */
   authorizationUrl: string;
 }
 
-export type TopupStatus = 'pending' | 'credited' | 'failed';
+/**
+ * pending   waiting for her to pay on Paystack
+ * paid      Paystack confirmed the payment; the USDC is being added to her wallet (seconds, retried if Stellar is slow)
+ * credited  the USDC is in her wallet (stellarTxHash)
+ * failed    the payment failed, was abandoned (24 h), or did not match
+ */
+export type TopupStatus = 'pending' | 'paid' | 'credited' | 'failed';
 
 // GET /topups/:id
 export interface Topup {
