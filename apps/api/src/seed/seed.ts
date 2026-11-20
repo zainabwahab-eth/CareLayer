@@ -5,8 +5,8 @@
 // - Emails use example.com.
 // - Wallets are real keypairs (secret encrypted with WALLET_ENCRYPTION_KEY) but start "pending":
 //   the seed never touches Stellar. When the API runs with STELLAR_TREASURY_SECRET, the background
-//   loop activates them on testnet. Tolu's ₦3,500 is only a cached figure: once her wallet is active,
-//   GET /wallet shows the real on-chain balance (0 until she tops up in Z5).
+//   loop activates them on testnet. Every balance starts at ₦0 and there is no seeded top-up: money
+//   only appears through a real Paystack test top-up (Z5), so balances and history always match the chain.
 // - Stellar tx hashes are sha256("carelayer-seed:<label>"): valid-looking, but not on-chain.
 // - Licence numbers start with "SEED-".
 // Times are relative to the moment the seed runs, so open questions are live (inside their windows).
@@ -119,7 +119,6 @@ export async function seed(db: PrismaClient, opts: SeedOptions) {
     email: string;
     displayName: string;
     freeAnswersUsed?: number;
-    balanceKobo?: number;
     createdAt: Date;
   }) {
     return db.user.create({
@@ -136,7 +135,6 @@ export async function seed(db: PrismaClient, opts: SeedOptions) {
         wallet: {
           create: {
             ...newCustodialWallet(opts.walletEncryptionKey),
-            cachedBalanceStroops: koboToStroops(input.balanceKobo ?? 0, opts.ngnPerUsdc),
             balanceSyncedAt: now,
           },
         },
@@ -155,8 +153,7 @@ export async function seed(db: PrismaClient, opts: SeedOptions) {
     role: 'WOMAN',
     email: SEED_EMAILS.tolu,
     displayName: 'Tolu',
-    freeAnswersUsed: 1, // 2 of 3 free answers left
-    balanceKobo: 350_000, // ₦3,500
+    freeAnswersUsed: 1, // 2 of 3 free answers left; balance ₦0 until a real test top-up
     createdAt: at(-21 * DAY),
   });
 
@@ -514,19 +511,8 @@ export async function seed(db: PrismaClient, opts: SeedOptions) {
     cancelledAt: new Date(q8Created.getTime() + 6 * MINUTE),
   });
 
-  // ---------- money and safety ----------
-  await db.topup.create({
-    data: {
-      womanId: tolu.id,
-      paystackReference: 'seed_topup_tolu_1',
-      amountKobo: 350_000,
-      amountStroops: koboToStroops(350_000, opts.ngnPerUsdc),
-      status: 'CONFIRMED',
-      stellarTxHash: seedTxHash('topup:tolu:1'),
-      createdAt: at(-10 * DAY),
-      creditedAt: at(-10 * DAY),
-    },
-  });
+  // ---------- safety ----------
+  // No seeded top-ups: a fake one would show money in her history that is not in her wallet.
   await db.emergencyEvent.create({ data: { source: 'CHAT', createdAt: at(-1 * DAY) } });
 
   for (const nurse of [amaka, funmilayo, hauwa, chiamaka]) await recomputeNurseStats(db, nurse.id);

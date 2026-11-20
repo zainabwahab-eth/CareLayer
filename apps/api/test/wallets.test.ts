@@ -369,9 +369,31 @@ describe('GET /wallet/transactions', () => {
     });
   });
 
-  it('woman: her confirmed top-up; free answers are not listed (she paid nothing)', async () => {
+  it('woman: confirmed top-ups only; free answers and unpaid top-ups are not listed', async () => {
     const app = appWith(null);
     const token = await login(app, SEED_EMAILS.tolu, 'women');
+    const empty = await request(app)
+      .get('/wallet/transactions')
+      .set('Authorization', `Bearer ${token}`);
+    expect(empty.body).toEqual({ items: [], nextCursor: null }); // her free answer cost her nothing
+
+    const tolu = await db.user.findUniqueOrThrow({
+      where: { email_role: { email: SEED_EMAILS.tolu, role: 'WOMAN' } },
+    });
+    const topup = (status: 'CONFIRMED' | 'PENDING', ref: string) =>
+      db.topup.create({
+        data: {
+          womanId: tolu.id,
+          paystackReference: ref,
+          amountKobo: 350_000,
+          amountStroops: koboToStroops(350_000, '1600'),
+          status,
+          stellarTxHash: status === 'CONFIRMED' ? 'e'.repeat(64) : null,
+        },
+      });
+    await topup('CONFIRMED', 'cltop_test_confirmed');
+    await topup('PENDING', 'cltop_test_pending');
+
     const res = await request(app)
       .get('/wallet/transactions')
       .set('Authorization', `Bearer ${token}`);
@@ -380,9 +402,9 @@ describe('GET /wallet/transactions', () => {
     expect(res.body.items[0]).toMatchObject({
       kind: 'topup',
       amount: { kobo: 350_000, usdc: '2.1875000' },
+      stellarTxHash: 'e'.repeat(64),
       questionId: null,
     });
-    expect(res.body.items[0].stellarTxHash).toMatch(/^[0-9a-f]{64}$/);
     expect(res.body.nextCursor).toBeNull();
   });
 

@@ -64,9 +64,12 @@ describe('seed on a freshly migrated database', () => {
     }
   });
 
-  it('Tolu has 2 of 3 free answers left and a cached balance of ₦3,500', () => {
+  it('Tolu has 2 of 3 free answers left and starts at ₦0 with no fake top-ups', async () => {
     expect(summary.tolu.freeAnswersLeft).toBe(2);
-    expect(BigInt(summary.tolu.cachedBalanceStroops)).toBe(koboToStroops(350_000, cfg.ngnPerUsdc));
+    expect(BigInt(summary.tolu.cachedBalanceStroops)).toBe(0n);
+    // Money only appears through a real test top-up, so history always matches the chain.
+    expect(summary.counts.topups).toBe(0);
+    expect(await db.wallet.count({ where: { cachedBalanceStroops: { not: 0n } } })).toBe(0);
   });
 
   it('has questions in every status', () => {

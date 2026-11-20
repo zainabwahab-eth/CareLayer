@@ -225,7 +225,7 @@ The schema draft is approved with the decisions in section 2. Build it.
 
 - Prisma schema covering: users, sessions, refresh tokens, email codes, agent tokens, user settings, notification preferences, wallets, nurse profiles, nurse documents, topics, nurse topics, questions (incl. `femaleOnly`, `ageRange`, `pregnancyWeeks`, selection/chosen nurse window, `expiresAt`), consents (`SharedField` includes `AGE_RANGE`, `PREGNANCY_WEEKS`), claims (partial unique indexes: one active claim per nurse and per question), answers (`recommendSeeSomeoneToday`), feedback, payments, payouts, top-ups, withdrawals, emergency events.
 - Rename `worker` → `nurse` everywhere (DB, shared types, contract routes). List renamed routes and types in the PR description for Hikmah.
-- Seed: one woman "Tolu" (1 free answer used, cached balance ₦3,500), nurses Amaka Okafor (midwife, 9 yrs, English/Igbo), Funmilayo Bello (midwife, 6 yrs, English/Yoruba), Hauwa Musa (nurse-midwife → role MIDWIFE, 11 yrs, English/Hausa), all approved and female; one pending nurse; one admin; questions in every status.
+- Seed: one woman "Tolu" (1 free answer used, balance ₦0: top up for real to get money), nurses Amaka Okafor (midwife, 9 yrs, English/Igbo), Funmilayo Bello (midwife, 6 yrs, English/Yoruba), Hauwa Musa (nurse-midwife → role MIDWIFE, 11 yrs, English/Hausa), all approved and female; one pending nurse; one admin; questions in every status.
 - Skeleton: module folders (auth, users, wallets, chat, questions, nurses, payments, admin), zod env validation, central error handler, request logging, `GET /health` returning `{ status, database }` and 503 when the DB is down.
 - Fix README and brief (no doctors). Update the contract with: expired/cancelled statuses, `nurseSelection` + `chosenNurseId` + `femaleOnly` on create question, `recommendSeeSomeoneToday`, `GET /nurses`, feedback, notification preferences.
 
@@ -258,7 +258,7 @@ Implement everything in "Accounts and auth" (section 2): `POST /auth/code/reques
 - **Decided in Z4:**
   - **Wallet first, chain after.** The wallet row is created in the same write as the user, so every account has an address. Activation on Stellar happens right after sign-up and never blocks it. It is retried in the background with backoff, and on `GET /wallet`. `WalletResponse.status` is `pending` until the account is on-chain.
   - **One activation transaction:** sponsored reserves + 0-XLM account + USDC trustline. The treasury pays every reserve and the fee.
-  - **Seeded wallets** are real keypairs that start pending; the API activates them when it runs with a treasury. Tolu's ₦3,500 is only a cached figure: once her wallet is active she shows the real balance (₦0 until Z5 top-up).
+  - **Seeded wallets** are real keypairs that start pending; the API activates them when it runs with a treasury. Every seeded balance is ₦0 and there are no seeded top-ups (removed in Z5): money only comes from real test top-ups, so balance and history always match the chain.
   - **Z8 note:** payments from a custodial wallet need its secret: `decryptWalletSecret()` in `src/modules/wallets/crypto.ts`. The account holds 0 XLM, which is fine for x402 (the facilitator pays fees). Withdrawals (Z10) need a fee-bump from the treasury.
 
 **Tests:** wallet service unit tests with Stellar mocked; testnet integration test creates an account with a trustline.

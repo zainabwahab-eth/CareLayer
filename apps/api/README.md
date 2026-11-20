@@ -27,7 +27,7 @@ npm test -w @carelayer/api
 
 | Who             | Email                         | State                                                    |
 | --------------- | ----------------------------- | -------------------------------------------------------- |
-| Tolu (woman)    | `tolu@example.com`            | 2 of 3 free answers left, cached balance ₦3,500          |
+| Tolu (woman)    | `tolu@example.com`            | 2 of 3 free answers left, ₦0 (top up with a test card)   |
 | Amaka Okafor    | `amaka.okafor@example.com`    | Midwife, 9 yrs, English/Igbo, approved                   |
 | Funmilayo Bello | `funmilayo.bello@example.com` | Midwife, 6 yrs, English/Yoruba, approved                 |
 | Hauwa Musa      | `hauwa.musa@example.com`      | Midwife (nurse-midwife), 11 yrs, English/Hausa, approved |
