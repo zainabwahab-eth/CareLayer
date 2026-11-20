@@ -1,3 +1,4 @@
+/* No Figma frame (docs/TASKS.md §3 "Women account"): cards like W12, tokens only. */
 .page {
   display: flex;
   flex-direction: column;
@@ -5,12 +6,70 @@
 }
 
 .card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
   padding: var(--space-20);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-lg);
   background: var(--color-bg-surface);
 }
 
+.sectionHead {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.sectionTitle {
+  color: var(--color-text);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+}
+
+.muted {
+  color: var(--color-text-muted);
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+}
+
+/* Live region: keeps its place in the DOM (so changes are announced) but takes no space when empty. */
+.status {
+  color: var(--color-text-muted);
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+}
+
+.status:empty {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.inlineError {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-12);
+}
+
+.inlineButton {
+  align-self: flex-start;
+}
+
+/* ---- Profile ---- */
 .profile {
   display: flex;
   align-items: center;
@@ -19,11 +78,13 @@
 
 .identity {
   display: flex;
+  flex: 1 1 auto;
   flex-direction: column;
   min-width: 0;
 }
 
 .name {
+  overflow-wrap: anywhere;
   color: var(--color-text);
   font-family: var(--text-title-m-family);
   font-size: var(--text-title-m-size);
@@ -39,6 +100,130 @@
   line-height: var(--text-body-s-leading);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.edit {
+  flex: none;
+}
+
+.nameForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+/* ---- Wallet link ---- */
+.linkCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  min-height: var(--size-touch-target-min);
+  padding: var(--space-16) var(--space-20);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.linkCard:hover {
+  border-color: var(--color-primary-text);
+}
+
+.linkCard:focus-visible {
+  outline: 2px solid var(--color-primary-text);
+  outline-offset: 2px;
+}
+
+.linkCardText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.linkCardTitle {
+  color: var(--color-text);
+  font-family: var(--text-title-m-family);
+  font-size: var(--text-title-m-size);
+  line-height: var(--text-title-m-leading);
+  font-weight: var(--text-title-m-weight);
+}
+
+/* ---- Add to Home Screen ---- */
+.details {
+  color: var(--color-text);
+}
+
+.summary {
+  min-height: var(--size-touch-target-min);
+  display: flex;
+  align-items: center;
+  color: var(--color-primary-text);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+  cursor: pointer;
+}
+
+.summary:focus-visible {
+  outline: 2px solid var(--color-primary-text);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.detailsBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding-top: var(--space-8);
+}
+
+.stepTitle {
+  font-family: var(--text-label-s-family);
+  font-size: var(--text-label-s-size);
+  line-height: var(--text-label-s-leading);
+  font-weight: var(--text-label-s-weight);
+}
+
+.steps {
+  margin: 0;
+  padding-left: var(--space-20);
+  color: var(--color-text-muted);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+/* ---- Log out ---- */
+.signOut {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.confirm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: var(--space-16);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface-soft);
+}
+
+.confirmText {
+  color: var(--color-text);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
 }
 
 /* Full width on phones, natural width from tablet up. */

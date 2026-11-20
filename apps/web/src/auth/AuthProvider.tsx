@@ -45,6 +45,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [api]);
 
+  const logoutAll = useCallback(async () => {
+    await api.auth.logoutAll();
+    try {
+      // Clears the refresh cookie; the session itself is already revoked.
+      await api.auth.logout();
+    } catch {
+      // Expected once the session is gone. Nothing else to clean up.
+    }
+    setState({ status: 'unauthenticated', user: null, reason: 'logout' });
+  }, [api]);
+
+  const updateUser = useCallback((user: AuthTokensResponse['user']) => {
+    setState((current) => (current.status === 'authenticated' ? { ...current, user } : current));
+  }, []);
+
   const sessionExpired = useCallback(() => {
     setState((current) =>
       current.status === 'authenticated'
@@ -54,8 +69,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ state, completeSignIn, logout, sessionExpired }),
-    [state, completeSignIn, logout, sessionExpired],
+    () => ({ state, completeSignIn, logout, logoutAll, updateUser, sessionExpired }),
+    [state, completeSignIn, logout, logoutAll, updateUser, sessionExpired],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

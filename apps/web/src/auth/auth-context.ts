@@ -15,6 +15,13 @@ export interface AuthContextValue {
   completeSignIn(tokens: AuthTokensResponse): void;
   /** Ends the session on the server (best effort) and locally. Never rejects. */
   logout(): Promise<void>;
+  /**
+   * Ends every session on the server, then signs out here. Rejects (and stays
+   * signed in) if the server did not confirm, so she is never told "done" when it wasn't.
+   */
+  logoutAll(): Promise<void>;
+  /** Replace the signed-in user after PATCH /me. */
+  updateUser(user: User): void;
   /** An authenticated request failed because the session is gone. */
   sessionExpired(): void;
 }
