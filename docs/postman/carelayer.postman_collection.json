@@ -5,7 +5,7 @@
     "description": "CareLayer backend (apps/api). Contract: docs/API_CONTRACT.md (v1). One folder per module; folders are added by the task that builds each module (Z3 Auth, Z5 Top-up, Z6 Chat + Questions, Z7 Nurse cases, Z9 Nurse profile + Admin). Select the 'CareLayer local' environment ({{baseUrl}} = http://localhost:4000).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "createdAt": "2026-11-18T22:32:09.000Z",
-    "updatedAt": "2026-11-20T20:02:22.000Z",
+    "updatedAt": "2026-11-20T21:05:03.000Z",
     "lastUpdatedBy": "44554019",
     "uid": "44554019-757e009e-9b28-4514-a7f4-6fcbc1c6380e"
   },
@@ -1638,6 +1638,343 @@
       "createdAt": "2026-11-20T20:02:22.000Z",
       "updatedAt": "2026-11-20T20:03:31.000Z",
       "uid": "44554019-81c7eaf2-6deb-4efd-b3e4-f616bc31224a"
+    },
+    {
+      "name": "Settings",
+      "item": [
+        {
+          "name": "Get settings",
+          "id": "676863f0-831e-4b03-8f41-3384ccd3aa97",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["me", "settings"]
+            },
+            "description": "Any role. Defaults for a new account (DEFAULT_USER_SETTINGS)."
+          },
+          "response": [
+            {
+              "id": "ebefd1a3-2d8a-40d7-b29e-97d61e62d8ac",
+              "name": "200 defaults",
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/me/settings",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["me", "settings"]
+                },
+                "description": "Any role. Defaults for a new account (DEFAULT_USER_SETTINGS)."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{ \"appearance\": \"system\", \"quickExitTarget\": \"google\", \"spendingLimitPerAnswerKobo\": 100000, \"mcpSpendingLimitPerAnswerKobo\": 50000, \"mcpAskBeforeEachPayment\": true }",
+              "createdAt": "2026-11-20T21:06:28.000Z",
+              "updatedAt": "2026-11-20T21:06:28.000Z",
+              "uid": "44554019-ebefd1a3-2d8a-40d7-b29e-97d61e62d8ac"
+            }
+          ],
+          "createdAt": "2026-11-20T21:05:14.000Z",
+          "updatedAt": "2026-11-20T21:06:28.000Z",
+          "uid": "44554019-676863f0-831e-4b03-8f41-3384ccd3aa97"
+        },
+        {
+          "name": "Update settings",
+          "id": "a00682b0-c7cd-4a26-a0aa-75422929cdaa",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"appearance\": \"dark\",\n  \"quickExitTarget\": \"weather\",\n  \"spendingLimitPerAnswerKobo\": 50000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/me/settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["me", "settings"]
+            },
+            "description": "Any subset (at least one). Limits are whole kobo, ₦0 to ₦100,000. Nurses/admins: appearance only (other fields → 400)."
+          },
+          "response": [
+            {
+              "id": "5c7eecc4-3ff3-40a9-acf9-86afcc7057b8",
+              "name": "200 updated",
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"appearance\": \"dark\",\n  \"quickExitTarget\": \"weather\",\n  \"spendingLimitPerAnswerKobo\": 50000\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/me/settings",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["me", "settings"]
+                },
+                "description": "Any subset (at least one). Limits are whole kobo, ₦0 to ₦100,000. Nurses/admins: appearance only (other fields → 400)."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{ \"appearance\": \"dark\", \"quickExitTarget\": \"weather\", \"spendingLimitPerAnswerKobo\": 50000, \"mcpSpendingLimitPerAnswerKobo\": 50000, \"mcpAskBeforeEachPayment\": true }",
+              "createdAt": "2026-11-20T21:06:31.000Z",
+              "updatedAt": "2026-11-20T21:06:31.000Z",
+              "uid": "44554019-5c7eecc4-3ff3-40a9-acf9-86afcc7057b8"
+            }
+          ],
+          "createdAt": "2026-11-20T21:05:18.000Z",
+          "updatedAt": "2026-11-20T21:06:31.000Z",
+          "uid": "44554019-a00682b0-c7cd-4a26-a0aa-75422929cdaa"
+        },
+        {
+          "name": "Get notifications",
+          "id": "97b3e970-bdb4-4af8-871f-bed993bdf8e2",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/notifications",
+              "host": ["{{baseUrl}}"],
+              "path": ["me", "notifications"]
+            },
+            "description": "Women only. Email when a nurse answers (on by default)."
+          },
+          "response": [
+            {
+              "id": "c6ccf80a-ac54-435f-ae91-74d2fa8e3fa1",
+              "name": "200",
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/me/notifications",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["me", "notifications"]
+                },
+                "description": "Women only. Email when a nurse answers (on by default)."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{ \"notifyWhenAnswered\": true }",
+              "createdAt": "2026-11-20T21:06:34.000Z",
+              "updatedAt": "2026-11-20T21:06:34.000Z",
+              "uid": "44554019-c6ccf80a-ac54-435f-ae91-74d2fa8e3fa1"
+            }
+          ],
+          "createdAt": "2026-11-20T21:06:16.000Z",
+          "updatedAt": "2026-11-20T21:06:34.000Z",
+          "uid": "44554019-97b3e970-bdb4-4af8-871f-bed993bdf8e2"
+        },
+        {
+          "name": "Update notifications",
+          "id": "532999b8-3c55-4c3c-b1e0-04e5569ed68a",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"notifyWhenAnswered\": false }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/me/notifications",
+              "host": ["{{baseUrl}}"],
+              "path": ["me", "notifications"]
+            },
+            "description": "Women only."
+          },
+          "response": [
+            {
+              "id": "509f1f7f-0125-4697-974e-922309660f74",
+              "name": "200",
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"notifyWhenAnswered\": false }",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/me/notifications",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["me", "notifications"]
+                },
+                "description": "Women only."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{ \"notifyWhenAnswered\": false }",
+              "createdAt": "2026-11-20T21:06:37.000Z",
+              "updatedAt": "2026-11-20T21:06:37.000Z",
+              "uid": "44554019-509f1f7f-0125-4697-974e-922309660f74"
+            }
+          ],
+          "createdAt": "2026-11-20T21:06:19.000Z",
+          "updatedAt": "2026-11-20T21:06:37.000Z",
+          "uid": "44554019-532999b8-3c55-4c3c-b1e0-04e5569ed68a"
+        }
+      ],
+      "id": "be24cf69-d842-4e36-bdbc-fdae5d7d3c75",
+      "createdAt": "2026-11-20T21:05:03.000Z",
+      "updatedAt": "2026-11-20T21:06:19.000Z",
+      "uid": "44554019-be24cf69-d842-4e36-bdbc-fdae5d7d3c75"
     }
   ]
 }
