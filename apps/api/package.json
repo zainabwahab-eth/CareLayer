@@ -22,7 +22,9 @@
     "db:studio": "prisma studio",
     "testnet:setup": "tsx scripts/testnet-setup.ts",
     "x402:pay": "tsx --env-file-if-exists=.env scripts/pay-x402.ts",
-    "test:testnet": "vitest run --config vitest.testnet.config.ts"
+    "test:testnet": "vitest run --config vitest.testnet.config.ts",
+    "email:test": "tsx --env-file-if-exists=.env scripts/send-test-email.ts",
+    "env:sync": "tsx scripts/sync-env.ts"
   },
   "dependencies": {
     "@carelayer/shared": "*",
@@ -35,6 +37,8 @@
     "@x402/stellar": "2.31.0",
     "cors": "^2.8.5",
     "express": "^5.3.0",
+    "google-auth-library": "^11.3.4",
+    "jose": "^6.2.18",
     "zod": "^4.6.7"
   },
   "devDependencies": {

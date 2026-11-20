@@ -2,8 +2,11 @@
 import type { Id, IsoDateTime } from './common.js';
 import type { User } from './users.js';
 
-/** Which app the person is signing into. Accounts are per app. */
-export type AppAudience = 'women' | 'nurses';
+/**
+ * Which app the person is signing into. Accounts are per app (unique on email + role).
+ * `admin` can only log in (admins are created by the seed, never by sign-up).
+ */
+export type AppAudience = 'women' | 'nurses' | 'admin';
 
 export type CodePurpose = 'signup' | 'login' | 'step_up';
 
@@ -11,8 +14,20 @@ export const AUTH_RULES = {
   codeLength: 6,
   codeTtlMinutes: 10,
   codeMaxAttempts: 5,
+  /** A new code can be requested 45 s after the last one... */
+  resendAfterSeconds: 45,
+  /** ...and at most 5 times per hour (per email, app and purpose). */
+  maxCodesPerHour: 5,
   accessTokenTtlMinutes: 15,
-  refreshTtlDays: { women: 90, nurses: 30 },
+  /** Sliding refresh-session lifetime. */
+  refreshTtlDays: { women: 90, nurses: 30, admin: 1 },
+  /**
+   * A refresh token presented again within this many seconds of its first use is treated as a
+   * concurrent refresh (e.g. two tabs), not theft: the session is kept. After it, reuse revokes
+   * the whole session.
+   */
+  refreshReuseGraceSeconds: 10,
+  /** Withdrawals and payout address changes need a code verified this recently. */
   stepUpTtlMinutes: 5,
 } as const;
 
@@ -57,14 +72,16 @@ export interface AuthTokensResponse {
   user: User;
 }
 
-// POST /auth/step-up
+// POST /auth/step-up  (bearer; the code comes from /auth/code/request with purpose "step_up")
 export interface StepUpBody {
   code: string;
 }
+/**
+ * The current session is marked as freshly verified. Withdrawals and payout address changes on
+ * this session are allowed until `freshUntil` (5 minutes). No separate token to send.
+ */
 export interface StepUpResponse {
-  /** Send as header `X-Step-Up-Token` on withdrawals and payout address changes. */
-  stepUpToken: string;
-  expiresAt: IsoDateTime;
+  freshUntil: IsoDateTime;
 }
 
 // GET /auth/sessions

@@ -69,8 +69,68 @@ const EnvSchema = z
     ),
     /** Z2 proof route GET /x402-test. Never enabled in production. */
     X402_TEST_ROUTE: booleanString,
+
+    // ---- Auth (Z3) ----
+    /** Signs 15-minute access tokens (HS256). At least 32 characters. Secret. */
+    JWT_ACCESS_SECRET: z
+      .string({ error: 'JWT_ACCESS_SECRET is required (see .env.example to generate one)' })
+      .min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),
+    /** HMAC key for stored sign-in codes and refresh tokens. At least 32 characters. Secret. */
+    AUTH_PEPPER: z
+      .string({ error: 'AUTH_PEPPER is required (see .env.example to generate one)' })
+      .min(32, 'AUTH_PEPPER must be at least 32 characters'),
+    /** Google sign-in. Unset = POST /auth/google answers 503. */
+    GOOGLE_CLIENT_ID: optionalString,
+    /** Where sign-in codes go: "console" (dev log) or "resend". */
+    EMAIL_TRANSPORT: z.preprocess(
+      emptyToUndefined,
+      z.enum(['console', 'resend']).default('console'),
+    ),
+    /** Sender, e.g. "CareLayer <codes@your-domain>". Must be on a domain verified in Resend. */
+    EMAIL_FROM: optionalString,
+    /** Resend API key (sending access is enough). Secret. */
+    EMAIL_API_KEY: optionalString,
+    /** Refresh cookie flags. Secure defaults to true in production. */
+    AUTH_COOKIE_SECURE: z.preprocess(emptyToUndefined, z.enum(['true', 'false']).optional()),
+    AUTH_COOKIE_SAMESITE: z.preprocess(
+      emptyToUndefined,
+      z.enum(['lax', 'strict', 'none']).default('lax'),
+    ),
   })
   .superRefine((e, ctx) => {
+    if (e.NODE_ENV === 'production' && e.EMAIL_TRANSPORT === 'console') {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['EMAIL_TRANSPORT'],
+        message: 'console email would put sign-in codes in logs; set a real provider in production',
+      });
+    }
+    if (e.EMAIL_TRANSPORT === 'resend') {
+      if (!e.EMAIL_API_KEY) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['EMAIL_API_KEY'],
+          message: 'required when EMAIL_TRANSPORT=resend',
+        });
+      }
+      if (!e.EMAIL_FROM || !/^(.+<)?[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+>?$/.test(e.EMAIL_FROM)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['EMAIL_FROM'],
+          message: 'EMAIL_TRANSPORT=resend needs EMAIL_FROM like "CareLayer <codes@your-domain>"',
+        });
+      }
+    }
+    const secure = e.AUTH_COOKIE_SECURE
+      ? e.AUTH_COOKIE_SECURE === 'true'
+      : e.NODE_ENV === 'production';
+    if (e.AUTH_COOKIE_SAMESITE === 'none' && !secure) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['AUTH_COOKIE_SAMESITE'],
+        message: 'SameSite=None requires AUTH_COOKIE_SECURE=true',
+      });
+    }
     if (!e.X402_TEST_ROUTE) return;
     if (e.NODE_ENV === 'production') {
       ctx.addIssue({
@@ -105,6 +165,16 @@ export type X402Config = {
   testRouteEnabled: boolean;
 };
 
+export type AuthConfig = {
+  jwtAccessSecret: string;
+  pepper: string;
+  googleClientId: string | undefined;
+  emailTransport: 'console' | 'resend';
+  emailFrom: string | undefined;
+  emailApiKey: string | undefined;
+  cookie: { secure: boolean; sameSite: 'lax' | 'strict' | 'none' };
+};
+
 export type Config = {
   nodeEnv: 'development' | 'test' | 'production';
   port: number;
@@ -115,6 +185,7 @@ export type Config = {
   /** Kept as a string so money maths never touches a float. See lib/money.ts. */
   ngnPerUsdc: string;
   x402: X402Config;
+  auth: AuthConfig;
 };
 
 export class ConfigError extends Error {
@@ -148,6 +219,20 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       facilitatorApiKey: e.X402_FACILITATOR_API_KEY,
       payToAddress: e.X402_PAY_TO_ADDRESS,
       testRouteEnabled: e.X402_TEST_ROUTE,
+    },
+    auth: {
+      jwtAccessSecret: e.JWT_ACCESS_SECRET,
+      pepper: e.AUTH_PEPPER,
+      googleClientId: e.GOOGLE_CLIENT_ID,
+      emailTransport: e.EMAIL_TRANSPORT,
+      emailFrom: e.EMAIL_FROM,
+      emailApiKey: e.EMAIL_API_KEY,
+      cookie: {
+        secure: e.AUTH_COOKIE_SECURE
+          ? e.AUTH_COOKIE_SECURE === 'true'
+          : e.NODE_ENV === 'production',
+        sameSite: e.AUTH_COOKIE_SAMESITE,
+      },
     },
   };
 }

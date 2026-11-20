@@ -46,15 +46,28 @@
               "originalRequest": {
                 "method": "GET",
                 "header": [],
-                "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+                "url": {
+                  "raw": "{{baseUrl}}/health",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["health"]
+                }
               },
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
               "header": [
-                { "key": "Content-Type", "value": "application/json; charset=utf-8" },
-                { "key": "Cache-Control", "value": "no-store" },
-                { "key": "X-Request-Id", "value": "f812ec43-ddfa-42f8-90ba-c46a403a18fa" }
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-store"
+                },
+                {
+                  "key": "X-Request-Id",
+                  "value": "f812ec43-ddfa-42f8-90ba-c46a403a18fa"
+                }
               ],
               "cookie": [],
               "body": "{\n  \"status\": \"ok\",\n  \"database\": \"ok\",\n  \"service\": \"carelayer-api\",\n  \"contractVersion\": \"v1\",\n  \"time\": \"2026-11-18T21:25:48.928Z\"\n}"
@@ -64,20 +77,331 @@
               "originalRequest": {
                 "method": "GET",
                 "header": [],
-                "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+                "url": {
+                  "raw": "{{baseUrl}}/health",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["health"]
+                }
               },
               "status": "Service Unavailable",
               "code": 503,
               "_postman_previewlanguage": "json",
               "header": [
-                { "key": "Content-Type", "value": "application/json; charset=utf-8" },
-                { "key": "Cache-Control", "value": "no-store" },
-                { "key": "X-Request-Id", "value": "1e7cb9ef-a297-4c10-a877-486e398ccaaa" }
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-store"
+                },
+                {
+                  "key": "X-Request-Id",
+                  "value": "1e7cb9ef-a297-4c10-a877-486e398ccaaa"
+                }
               ],
               "cookie": [],
               "body": "{\n  \"status\": \"unavailable\",\n  \"database\": \"down\",\n  \"service\": \"carelayer-api\",\n  \"contractVersion\": \"v1\",\n  \"time\": \"2026-11-18T21:25:54.081Z\"\n}"
             }
           ]
+        }
+      ]
+    },
+    {
+      "name": "Auth",
+      "description": "Passwordless auth (Z3). Order: 1 request code -> copy the code from the dev_email_code line in the API log into the `code` environment variable -> 2 verify (stores accessToken; Postman keeps the httpOnly cl_refresh cookie) -> 3-6.",
+      "item": [
+        {
+          "name": "1. Request code (log in)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"202 sent\", () => {",
+                  "  pm.response.to.have.status(202);",
+                  "  pm.expect(pm.response.json().sent).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"tolu@example.com\",\n  \"purpose\": \"login\",\n  \"app\": \"women\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/code/request",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "code", "request"]
+            },
+            "description": "purpose: signup (needs name) | login | step_up (bearer). app: women | nurses | admin (login only). Resend after 45 s, max 5 per hour."
+          },
+          "response": [
+            {
+              "name": "202 code sent",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/code/request",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["auth", "code", "request"]
+                }
+              },
+              "status": "Accepted",
+              "code": 202,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"sent\": true,\n  \"resendAvailableAt\": \"2026-11-20T03:30:36.404Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "2. Verify code (stores accessToken)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 signed in\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "if (body.accessToken) pm.environment.set(\"accessToken\", body.accessToken);",
+                  "pm.test(\"refresh cookie set\", () => pm.expect(pm.cookies.has(\"cl_refresh\")).to.be.true);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"tolu@example.com\",\n  \"code\": \"{{code}}\",\n  \"purpose\": \"login\",\n  \"app\": \"women\",\n  \"deviceName\": \"Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/code/verify",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "code", "verify"]
+            }
+          },
+          "response": [
+            {
+              "name": "200 signed in",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/code/verify",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["auth", "code", "verify"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-store"
+                },
+                {
+                  "key": "Set-Cookie",
+                  "value": "cl_refresh=<opaque>; Max-Age=7776000; Path=/auth; HttpOnly; SameSite=Lax"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.<payload>.<signature>\",\n  \"accessTokenExpiresAt\": \"2026-11-20T03:45:37.000Z\",\n  \"user\": {\n    \"id\": \"cmwmmqfc4000274hretqv38au\",\n    \"role\": \"woman\",\n    \"displayName\": \"Tolu\",\n    \"email\": \"tolu@example.com\",\n    \"createdAt\": \"2026-10-28T21:24:44.053Z\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "3. Get me",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": ["pm.test(\"200 user\", () => pm.response.to.have.status(200));"]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["me"]
+            }
+          },
+          "response": [
+            {
+              "name": "200 user",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/me",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["me"]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"id\": \"cmwmmqfc4000274hretqv38au\",\n  \"role\": \"woman\",\n  \"displayName\": \"Tolu\",\n  \"email\": \"tolu@example.com\",\n  \"createdAt\": \"2026-10-28T21:24:44.053Z\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "4. Refresh (rotates cookie, stores accessToken)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 refreshed\", () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "if (body.accessToken) pm.environment.set(\"accessToken\", body.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh"]
+            },
+            "description": "Uses the cl_refresh cookie. Reusing an old cookie more than 10 s later revokes the session (401 REFRESH_REUSED)."
+          },
+          "response": []
+        },
+        {
+          "name": "5. List sessions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"one current session\", () => pm.expect(pm.response.json().filter((s) => s.current)).to.have.lengthOf(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "sessions"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "6. Log out",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204\", () => pm.response.to.have.status(204));",
+                  "pm.environment.unset(\"accessToken\");"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Works with only the cookie too. Idempotent. POST /auth/logout-all ends every session."
+          },
+          "response": []
         }
       ]
     },
@@ -129,13 +453,23 @@
                   "raw": "{{baseUrl}}/x402-test?ready=false",
                   "host": ["{{baseUrl}}"],
                   "path": ["x402-test"],
-                  "query": [{ "key": "ready", "value": "false" }]
+                  "query": [
+                    {
+                      "key": "ready",
+                      "value": "false"
+                    }
+                  ]
                 }
               },
               "status": "Conflict",
               "code": 409,
               "_postman_previewlanguage": "json",
-              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
               "cookie": [],
               "body": "{\n  \"error\": {\n    \"code\": \"QUESTION_NOT_ANSWERED\",\n    \"message\": \"Not ready yet. No payment was requested.\"\n  }\n}"
             }
@@ -190,7 +524,10 @@
               "code": 402,
               "_postman_previewlanguage": "json",
               "header": [
-                { "key": "Content-Type", "value": "application/json; charset=utf-8" },
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
                 {
                   "key": "PAYMENT-REQUIRED",
                   "value": "eyJ4NDAyVmVyc2lvbiI6MiwiZXJyb3IiOiJQYXltZW50IHJlcXVpcmVkIiwicmVzb3VyY2UiOnsidXJsIjoiaHR0cDovL2xvY2FsaG9zdDo0MDAwL3g0MDItdGVzdCIsImRlc2NyaXB0aW9uIjoiQ2FyZUxheWVyIHg0MDIgcHJvb2Y6IDAuMDEgVVNEQyBvbiBTdGVsbGFyIHRlc3RuZXQiLCJtaW1lVHlwZSI6ImFwcGxpY2F0aW9uL2pzb24ifSwiYWNjZXB0cyI6W3sic2NoZW1lIjoiZXhhY3QiLCJuZXR3b3JrIjoic3RlbGxhcjp0ZXN0bmV0IiwiYW1vdW50IjoiMTAwMDAwIiwiYXNzZXQiOiJDQklFTFRLNllCWkpVNVVQMldXUUVVQ1lLTFBVNkFVTloyQlE0V1dGRUlFM1VTQ0lITVhRREFNQSIsInBheVRvIjoiR0JZMjRSTzUzNlJER0VXSUpFSDNVTTdPV1FPS1M1M09ZUlRCRFVRQTdYTktLSlEyTlhVSUdaNVEiLCJtYXhUaW1lb3V0U2Vjb25kcyI6MTIwLCJleHRyYSI6eyJhcmVGZWVzU3BvbnNvcmVkIjp0cnVlfX1dfQ=="

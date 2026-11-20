@@ -163,7 +163,12 @@ describe('x402 route configuration', () => {
 });
 
 describe('x402 env validation', () => {
-  const base = { DATABASE_URL: 'postgresql://u:p@localhost:5432/x', NGN_PER_USDC: '1600' };
+  const base = {
+    DATABASE_URL: 'postgresql://u:p@localhost:5432/x',
+    NGN_PER_USDC: '1600',
+    JWT_ACCESS_SECRET: 'x'.repeat(32),
+    AUTH_PEPPER: 'y'.repeat(32),
+  };
 
   it('defaults to the OpenZeppelin testnet facilitator with the test route off', () => {
     expect(loadConfig(base).x402).toEqual({
@@ -214,7 +219,7 @@ describe('x402 env validation', () => {
     });
   });
 
-  it('accepts the shipped .env.example as-is', async () => {
+  it('accepts the shipped .env.example once its two required secrets are filled', async () => {
     const { readFileSync } = await import('node:fs');
     const text = readFileSync(new URL('../.env.example', import.meta.url), 'utf8');
     const env = Object.fromEntries(
@@ -223,6 +228,10 @@ describe('x402 env validation', () => {
         .filter((l) => /^[A-Z0-9_]+=/.test(l))
         .map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]),
     );
-    expect(() => loadConfig(env)).not.toThrow();
+    // Shipped empty on purpose (secrets): startup must fail and name them.
+    expect(() => loadConfig(env)).toThrow(/JWT_ACCESS_SECRET[\s\S]*AUTH_PEPPER/);
+    expect(() =>
+      loadConfig({ ...env, JWT_ACCESS_SECRET: 'a'.repeat(48), AUTH_PEPPER: 'b'.repeat(48) }),
+    ).not.toThrow();
   });
 });
