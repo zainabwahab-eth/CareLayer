@@ -1,0 +1,358 @@
+/* Figma W12 (mobile): 14px between header, filters, summary and cards. */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+/* Body/S, ink-muted: "4 consultations this year, ₦1,000 spent". */
+.summary,
+.message {
+  color: var(--color-text-muted);
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+  font-weight: var(--text-body-s-weight);
+}
+
+.message {
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+.retry,
+.more {
+  align-self: flex-start;
+}
+
+/* ---- Empty state (no Figma frame: built from the card pattern) ---- */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-12);
+  padding: var(--space-24) var(--space-20);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+}
+
+.emptyTitle {
+  color: var(--color-text);
+  font-family: var(--text-title-m-family);
+  font-size: var(--text-title-m-size);
+  line-height: var(--text-title-m-leading);
+  font-weight: var(--text-title-m-weight);
+}
+
+.emptyText {
+  color: var(--color-text-muted);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+/* ---- Mobile cards (Figma "Consultation / …"): 16px padding, 8px gap, radius 20 ---- */
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-height: var(--size-touch-target-min);
+  padding: var(--space-16);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  color: inherit;
+  text-decoration: none;
+}
+
+.card:hover {
+  border-color: var(--color-primary-text);
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--color-primary-text);
+  outline-offset: 2px;
+}
+
+.cardTop,
+.cardBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+
+.cardDate {
+  flex: none;
+  color: var(--color-text-muted);
+  font-family: var(--text-caption-family);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-leading);
+  font-weight: var(--text-caption-weight);
+  letter-spacing: var(--text-caption-tracking);
+}
+
+/* Title/M. Her own words can be long: show two lines, the full text is one tap away. */
+.cardTitle {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  color: var(--color-text);
+  font-family: var(--text-title-m-family);
+  font-size: var(--text-title-m-size);
+  line-height: var(--text-title-m-leading);
+  font-weight: var(--text-title-m-weight);
+  overflow-wrap: anywhere;
+}
+
+.cardBottom {
+  font-size: var(--text-body-s-size);
+}
+
+.cardNurse {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-family: var(--text-body-s-family);
+  line-height: var(--text-body-s-leading);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cost,
+.costMuted {
+  flex: none;
+  font-family: var(--text-label-s-family);
+  line-height: var(--text-label-s-leading);
+  font-weight: var(--text-label-s-weight);
+  letter-spacing: var(--text-label-s-tracking);
+}
+
+.cost {
+  color: var(--color-text);
+}
+
+.costMuted {
+  color: var(--color-text-muted);
+}
+
+/* ---- Desktop (Figma D-W12, main gap 24px) ---- */
+@media (min-width: 60rem) {
+  .page {
+    gap: var(--space-24);
+  }
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-20);
+  margin: 0;
+}
+
+/* Value (Display/S) above label (Body/S); the dt comes first in the DOM for screen readers. */
+.stat {
+  display: flex;
+  flex-direction: column-reverse;
+  justify-content: flex-end;
+  gap: var(--space-4);
+  padding: 1.125rem var(--space-20);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+}
+
+.statValue {
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--text-display-s-family);
+  font-size: var(--text-display-s-size);
+  line-height: var(--text-display-s-leading);
+  font-weight: var(--text-display-s-weight);
+  letter-spacing: var(--text-display-s-tracking);
+}
+
+.statLabel {
+  color: var(--color-text-muted);
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-16);
+}
+
+/* Figma "Search": 280px pill, 11px/16px padding, 18px icon, Body/M. */
+.search {
+  position: relative;
+  flex: 0 1 17.5rem;
+}
+
+.searchIcon {
+  position: absolute;
+  top: 50%;
+  left: var(--space-16);
+  color: var(--color-text-muted);
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+
+.searchInput {
+  width: 100%;
+  min-height: var(--size-touch-target-min);
+  padding: 0.6875rem var(--space-16) 0.6875rem 2.625rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-surface);
+  color: var(--color-text);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+.searchInput::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
+}
+
+.searchInput:focus-visible {
+  outline: 2px solid var(--color-primary-text);
+  outline-offset: 1px;
+  border-color: var(--color-primary-text);
+}
+
+/* Figma "Table": card with 24px side padding, rows 18px tall padding, 16px column gap. */
+.tableCard {
+  padding: var(--space-4) var(--space-24);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.table th {
+  padding: 0.875rem var(--space-16) 0.875rem 0;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+  font-family: var(--text-label-s-family);
+  font-size: var(--text-label-s-size);
+  line-height: var(--text-label-s-leading);
+  font-weight: var(--text-label-s-weight);
+  letter-spacing: var(--text-label-s-tracking);
+  text-align: left;
+}
+
+.table td {
+  padding: 1.125rem var(--space-16) 1.125rem 0;
+  border-bottom: 1px solid var(--color-border);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+  vertical-align: middle;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+/* Figma column widths (260 / 140 / 120 / 120) plus the 16px gap each cell carries as right padding. */
+.colNurse {
+  width: 17.25rem;
+}
+
+.colStatus {
+  width: 9.75rem;
+}
+
+.colDate,
+.colCost {
+  width: 8.5rem;
+}
+
+.colChevron {
+  width: 1.125rem;
+}
+
+.table th.colChevron,
+.chevronCell {
+  padding-right: 0;
+}
+
+/* The link covers the row, so the whole row opens the question. */
+.row {
+  position: relative;
+}
+
+.row:hover {
+  background: var(--color-bg-surface-soft);
+}
+
+.titleCell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowLink {
+  color: var(--color-text);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+  text-decoration: none;
+}
+
+.rowLink::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+}
+
+.rowLink:focus-visible {
+  outline: none;
+}
+
+.rowLink:focus-visible::after {
+  outline: 2px solid var(--color-primary-text);
+  outline-offset: -2px;
+  border-radius: var(--radius-sm);
+}
+
+.muted {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevronCell {
+  color: var(--color-text-muted);
+}

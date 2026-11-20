@@ -12,6 +12,7 @@ import { HistoryPage } from '../pages/app/HistoryPage';
 import { HomePage } from '../pages/app/HomePage';
 import { NurseResponsePage } from '../pages/app/NurseResponsePage';
 import { WaitingPage } from '../pages/app/WaitingPage';
+import { WalletPage } from '../pages/app/WalletPage';
 import { EmergencyPage } from '../pages/EmergencyPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
 import { BeforeYouStartPage } from '../pages/public/BeforeYouStartPage';
@@ -71,7 +72,7 @@ export const routes: RouteObject[] = [
         ],
       },
 
-      // Authenticated app (W05-W12 + Account)
+      // Authenticated app (W05-W12, Account, Wallet)
       {
         Component: RequireAuth,
         children: [
@@ -115,6 +116,8 @@ export const routes: RouteObject[] = [
                 Component: AccountPage,
                 handle: handle({ nav: 'account', tabBar: true }),
               },
+              // Sub-screen of Account (top bar with Back on mobile). Paystack returns here.
+              { path: paths.wallet, Component: WalletPage, handle: handle({ nav: 'account' }) },
             ],
           },
         ],

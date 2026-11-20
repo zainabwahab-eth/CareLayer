@@ -13,6 +13,12 @@
  * - New questions are "claimed" by a mock nurse after ~45s and "answered"
  *   after ~2 min, so the waiting and response screens can be built. Pass a
  *   claimAfterMs beyond QUESTION_CLAIMS_CLOSE_MINUTES to see them expire.
+ * - Top-ups skip Paystack: the "checkout" URL sends her straight back to the
+ *   wallet screen with ?topupId=&reference= (like PAYSTACK_CALLBACK_URL). The
+ *   top-up is "paid" after ~1.5s and "credited" after ~3s. That return is a
+ *   full page load, so top-ups (only) are kept in sessionStorage, like Paystack's
+ *   own record of the payment. A top-up of exactly
+ *   MOCK_TOPUP_FAIL_KOBO (₦4,040) fails, so the failure state can be built.
  */
 import {
   AUTH_RULES,
@@ -20,6 +26,7 @@ import {
   FREE_ANSWERS_PER_WOMAN,
   QUESTION_CLAIMS_CLOSE_MINUTES,
   SHARED_FIELDS,
+  TOPUP_LIMITS_KOBO,
   type AnswerResponse,
   type ApiErrorCode,
   type AuthTokensResponse,
@@ -33,6 +40,7 @@ import {
   type Page,
   type PageQuery,
   type QuestionStatus,
+  type Topup,
   type User,
   type UserSettings,
   type WalletTransaction,
@@ -74,7 +82,15 @@ export interface MockApiOptions {
   /** Simulated nurse timings for new questions. */
   claimAfterMs?: number;
   answerAfterMs?: number;
+  /** Simulated Paystack confirmation and USDC credit for top-ups. */
+  topupPaidAfterMs?: number;
+  topupCreditedAfterMs?: number;
 }
+
+/** A mock top-up of exactly this amount fails (₦4,040), to build the failure state. */
+export const MOCK_TOPUP_FAIL_KOBO = 404_000;
+/** Where Paystack sends her back (apps/api PAYSTACK_CALLBACK_URL points at the wallet screen). */
+const MOCK_TOPUP_CALLBACK_PATH = '/account/wallet';
 
 /** Stand-in for the refresh cookie: which mock user is signed in this browser session. */
 const SESSION_KEY = 'carelayer.mock.session';
@@ -92,6 +108,16 @@ interface UserData {
   conversations: Conversation[];
   questions: MockQuestionRecord[];
   transactions: WalletTransaction[];
+  topups: MockTopup[];
+}
+
+interface MockTopup {
+  id: Id;
+  reference: string;
+  amountKobo: number;
+  createdAt: string;
+  stellarTxHash: string | null;
+  credited: boolean;
 }
 
 interface PendingCode {
@@ -127,6 +153,29 @@ function writeSession(value: string) {
   }
 }
 
+/** Paystack's record of mock top-ups. Survives the redirect back to the wallet. */
+const TOPUPS_KEY = 'carelayer.mock.topups';
+
+function readStoredTopups(): Record<Id, MockTopup[]> {
+  try {
+    const raw = window.sessionStorage.getItem(TOPUPS_KEY);
+    return raw ? (JSON.parse(raw) as Record<Id, MockTopup[]>) : {};
+  } catch {
+    return {};
+  }
+}
+
+function writeStoredTopups(userId: Id, topups: MockTopup[]) {
+  try {
+    window.sessionStorage.setItem(
+      TOPUPS_KEY,
+      JSON.stringify({ ...readStoredTopups(), [userId]: topups }),
+    );
+  } catch {
+    // Storage unavailable: a top-up cannot be followed after the redirect.
+  }
+}
+
 function paginate<T>(items: readonly T[], query: PageQuery = {}): Page<T> {
   const limit = Math.min(Math.max(query.limit ?? 20, 1), 100);
   const start = query.cursor ? Number(query.cursor) : 0;
@@ -155,6 +204,8 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
     startSignedIn = true,
     claimAfterMs = 45_000,
     answerAfterMs = 120_000,
+    topupPaidAfterMs = 1_500,
+    topupCreditedAfterMs = 3_000,
   } = options;
 
   let counter = 0;
@@ -174,6 +225,7 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
         conversations: seedConversations(),
         questions: seedQuestions(),
         transactions: seedTransactions(),
+        topups: readStoredTopups()[MOCK_USER.id] ?? [],
       },
     ],
   ]);
@@ -235,6 +287,7 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
       conversations: [],
       questions: [],
       transactions: [],
+      topups: [],
     });
     return user;
   }
@@ -336,6 +389,37 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
     };
   }
 
+  /** Topup status from its age; credits the wallet once, when it first reads as credited. */
+  function settleTopup(data: UserData, topup: MockTopup): Topup {
+    const age = now() - Date.parse(topup.createdAt);
+    const fails = topup.amountKobo === MOCK_TOPUP_FAIL_KOBO;
+    let status: Topup['status'] = 'pending';
+    if (fails && age >= topupPaidAfterMs) status = 'failed';
+    else if (!fails && age >= topupCreditedAfterMs) status = 'credited';
+    else if (!fails && age >= topupPaidAfterMs) status = 'paid';
+
+    if (status === 'credited' && !topup.credited) {
+      topup.credited = true;
+      topup.stellarTxHash = mockStellar('tx', topup.id.replace(/^mock_/, ''));
+      data.wallet.balanceKobo += topup.amountKobo;
+      data.transactions.unshift({
+        id: nextId('tx'),
+        kind: 'topup',
+        amount: mockMoney(topup.amountKobo),
+        stellarTxHash: topup.stellarTxHash,
+        questionId: null,
+        createdAt: iso(),
+      });
+    }
+    return {
+      id: topup.id,
+      status,
+      amount: mockMoney(topup.amountKobo),
+      stellarTxHash: topup.stellarTxHash,
+      createdAt: topup.createdAt,
+    };
+  }
+
   // ---- API -----------------------------------------------------------------
   return {
     mode: 'mock',
@@ -430,6 +514,13 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
           currentUserId = null;
           writeSession(SIGNED_OUT);
         }),
+
+      logoutAll: () =>
+        respond(() => {
+          currentUser();
+          currentUserId = null;
+          writeSession(SIGNED_OUT);
+        }),
     },
 
     me: {
@@ -499,7 +590,9 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
           const { wallet } = currentData();
           return {
             stellarAddress: wallet.stellarAddress,
+            status: 'active' as const,
             balance: mockMoney(wallet.balanceKobo),
+            balanceSyncedAt: iso(),
             freeAnswersRemaining: wallet.freeAnswersRemaining,
           };
         }),
@@ -509,6 +602,51 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
             b.createdAt.localeCompare(a.createdAt),
           );
           return paginate(sorted, query);
+        }),
+    },
+
+    topups: {
+      create: (body) =>
+        respond(() => {
+          const data = currentData();
+          const { amountKobo } = body;
+          if (
+            !Number.isInteger(amountKobo) ||
+            amountKobo < TOPUP_LIMITS_KOBO.min ||
+            amountKobo > TOPUP_LIMITS_KOBO.max
+          ) {
+            fail(400, 'VALIDATION_FAILED', 'Top up between ₦100 and ₦100,000.', {
+              field: 'amountKobo',
+            });
+          }
+          const topup: MockTopup = {
+            id: nextId('topup'),
+            reference: nextId('ref'),
+            amountKobo,
+            createdAt: iso(),
+            stellarTxHash: null,
+            credited: false,
+          };
+          data.topups.push(topup);
+          writeStoredTopups(currentUser().id, data.topups);
+          const url = new URL(MOCK_TOPUP_CALLBACK_PATH, window.location.origin);
+          url.searchParams.set('topupId', topup.id);
+          url.searchParams.set('reference', topup.reference);
+          return {
+            topupId: topup.id,
+            reference: topup.reference,
+            authorizationUrl: url.toString(),
+          };
+        }),
+      get: (id) =>
+        respond(() => {
+          const data = currentData();
+          const topup =
+            data.topups.find((t) => t.id === id) ??
+            fail(404, 'NOT_FOUND', 'We could not find that top-up.');
+          const result = settleTopup(data, topup);
+          writeStoredTopups(currentUser().id, data.topups);
+          return result;
         }),
     },
 

@@ -21,7 +21,8 @@ export const paths = {
   consultation: '/consultations/:consultationId', // W11 Nurse response
   consultationWaiting: '/consultations/:consultationId/waiting', // W10
   history: '/history', // W12
-  account: '/account', // Account tab (no Figma screen yet)
+  account: '/account', // Account tab (no Figma screen; docs/TASKS.md §3 "Women account")
+  wallet: '/account/wallet', // No Figma screen; Paystack returns here (PAYSTACK_CALLBACK_URL)
 
   // Development only
   components: '/dev/components',

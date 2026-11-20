@@ -10,8 +10,18 @@ const options: ReadonlyArray<{ value: ThemePreference; label: string }> = [
   { value: 'dark', label: 'Dark' },
 ];
 
-/** Appearance: System / Light / Dark, built from Chip so it matches the design system. */
-export function ThemeSwitcher({ className }: { className?: string }) {
+/**
+ * Appearance: System / Light / Dark, built from Chip so it matches the design system.
+ * Applies instantly on this device; `onChange` lets a screen also save it elsewhere
+ * (Account saves it with her settings).
+ */
+export function ThemeSwitcher({
+  className,
+  onChange,
+}: {
+  className?: string;
+  onChange?: (preference: ThemePreference) => void;
+}) {
   const { preference, setPreference } = useTheme();
   return (
     <fieldset className={cx(styles.fieldset, className)}>
@@ -21,7 +31,10 @@ export function ThemeSwitcher({ className }: { className?: string }) {
           <Chip
             key={option.value}
             selected={preference === option.value}
-            onClick={() => setPreference(option.value)}
+            onClick={() => {
+              setPreference(option.value);
+              onChange?.(option.value);
+            }}
           >
             {option.label}
           </Chip>

@@ -4,6 +4,8 @@ import type {
   Conversation,
   CreateQuestionBody,
   CreateQuestionResponse,
+  CreateTopupBody,
+  CreateTopupResponse,
   EmergencyResponse,
   FeedbackBody,
   FeedbackResponse,
@@ -21,6 +23,7 @@ import type {
   RequestCodeResponse,
   SendMessageBody,
   SendMessageResponse,
+  Topup,
   UpdateMeBody,
   UpdateNotificationPreferencesBody,
   UpdateSettingsBody,
@@ -47,7 +50,7 @@ export type MyQuestionsQuery = PageQuery & { status?: QuestionStatus };
  * Every method rejects with `ApiError` (see errors.ts) on failure.
  *
  * Not covered yet (no women's screen needs them in this milestone):
- * sessions list, logout-all, step-up, agent tokens, top-ups.
+ * sessions list, step-up, agent tokens.
  */
 export interface CareLayerApi {
   /** Which implementation is active. Use only for diagnostics, never for UI logic. */
@@ -64,6 +67,8 @@ export interface CareLayerApi {
     refresh(): Promise<AuthTokensResponse>;
     /** POST /auth/logout */
     logout(): Promise<void>;
+    /** POST /auth/logout-all. Revokes every session, including this one. */
+    logoutAll(): Promise<void>;
   };
 
   me: {
@@ -86,6 +91,13 @@ export interface CareLayerApi {
     get(): Promise<WalletResponse>;
     /** GET /wallet/transactions */
     listTransactions(query?: PageQuery): Promise<Page<WalletTransaction>>;
+  };
+
+  topups: {
+    /** POST /topups. Returns the Paystack TEST checkout URL to send her to. */
+    create(body: CreateTopupBody): Promise<CreateTopupResponse>;
+    /** GET /topups/:id. Poll after Paystack sends her back, until credited or failed. */
+    get(id: Id): Promise<Topup>;
   };
 
   chat: {
