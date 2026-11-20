@@ -45,6 +45,7 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
       googleClientId: undefined,
       emailTransport: 'console',
       emailFrom: undefined,
+      emailApiKey: undefined,
       cookie: { secure: false, sameSite: 'lax' },
     },
     ...overrides,

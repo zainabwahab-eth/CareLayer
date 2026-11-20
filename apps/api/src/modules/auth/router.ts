@@ -13,7 +13,7 @@ import { Router, type Response } from 'express';
 import { z } from 'zod';
 import type { AppDeps } from '../../deps.js';
 import { clearRefreshCookie, readRefreshCookie, setRefreshCookie } from './cookies.js';
-import { createConsoleEmailSender } from './email.js';
+import { createEmailSender } from './email.js';
 import { createGoogleVerifier } from './google.js';
 import { getAuth, requireAuth, resolveAuth } from './middleware.js';
 import {
@@ -77,7 +77,7 @@ export function createAuthRouter(deps: AppDeps): Router {
   const auth: AuthDeps = {
     db: deps.db,
     config: deps.config.auth,
-    email: deps.emailSender ?? createConsoleEmailSender(deps.logger),
+    email: deps.emailSender ?? createEmailSender(deps.config.auth, deps.logger),
     google:
       deps.googleVerifier ??
       (deps.config.auth.googleClientId
