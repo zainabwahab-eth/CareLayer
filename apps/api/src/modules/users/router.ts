@@ -1,12 +1,25 @@
 // Users module.
-//   GET   /me    the signed-in user (any role)          (Z3)
-//   PATCH /me    { displayName }                         (Z3)
-// Later: GET/PATCH /me/settings, GET/PATCH /me/notifications (Z6/H7).
+//   GET   /me                 the signed-in user (any role)                       (Z3)
+//   PATCH /me                 { displayName }                                      (Z3)
+//   GET   /me/settings        any role                                             (settings)
+//   PATCH /me/settings        any subset; nurses and admins: appearance only       (settings)
+//   GET   /me/notifications   women: { notifyWhenAnswered }                        (settings)
+//   PATCH /me/notifications   women                                                (settings)
 import { Router } from 'express';
 import { z } from 'zod';
 import type { AppDeps } from '../../deps.js';
-import { getAuth, requireAuth } from '../auth/middleware.js';
+import { AppError } from '../../lib/errors.js';
+import { getAuth, requireAuth, requireRole } from '../auth/middleware.js';
 import { toUserDto } from './dto.js';
+import {
+  forbiddenSettingsFor,
+  getNotifications,
+  getSettings,
+  UpdateNotificationsSchema,
+  UpdateSettingsSchema,
+  updateNotifications,
+  updateSettings,
+} from './settings.js';
 
 const UpdateMeSchema = z.object({
   displayName: z
@@ -37,6 +50,38 @@ export function createUsersRouter(deps: AppDeps): Router {
       data: body.displayName ? { displayName: body.displayName } : {},
     });
     res.json(toUserDto(user));
+  });
+
+  router.get('/me/settings', authed, async (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(await getSettings(deps.db, getAuth(res).userId));
+  });
+
+  router.patch('/me/settings', authed, async (req, res) => {
+    const { userId, role } = getAuth(res);
+    const body = UpdateSettingsSchema.parse(req.body);
+    const forbidden = forbiddenSettingsFor(role, body);
+    if (forbidden.length) {
+      throw new AppError(
+        400,
+        'VALIDATION_FAILED',
+        'Only appearance can be changed on this account.',
+        {
+          field: forbidden[0],
+        },
+      );
+    }
+    res.json(await updateSettings(deps.db, userId, body));
+  });
+
+  router.get('/me/notifications', authed, requireRole('woman'), async (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(await getNotifications(deps.db, getAuth(res).userId));
+  });
+
+  router.patch('/me/notifications', authed, requireRole('woman'), async (req, res) => {
+    const body = UpdateNotificationsSchema.parse(req.body);
+    res.json(await updateNotifications(deps.db, getAuth(res).userId, body));
   });
 
   return router;

@@ -35,6 +35,8 @@ Every type named here is exported from `@carelayer/shared` (`packages/shared/src
 
 **Known follow-ups:** the `docs/TASKS.md` screen map uses slightly different names for some routes (`POST /chat`, `PATCH /nurse/availability`, `GET /nurse/dashboard`). Each is reconciled in the task that builds it (Z6, Z7, Z9). Auth (Z3) and wallet (Z4) were reconciled: the contract names stay (`/auth/code/*`, `/wallet`), because `apps/web` already calls them.
 
+**Settings changes:** **`/me/settings` and `/me/notifications` are built.** **A women-only setting sent by a nurse or admin is now a 400, not silently ignored.** Added `SPENDING_LIMIT_KOBO`, `DEFAULT_USER_SETTINGS` and `WOMEN_ONLY_SETTINGS` to `@carelayer/shared`.
+
 **Z5 changes (top-ups):** **`TopupStatus` adds `"paid"`.** `TOPUP_LIMITS_KOBO` added to `@carelayer/shared`. Route names stay `/topups` (the TASKS.md screen map said `/me/topups`).
 
 **Z4 changes (wallet):** **`WalletResponse` adds `status: "pending"|"active"` and `balanceSyncedAt`** (required). **`WalletTransaction` lists confirmed movements only.** `stellarExplorerUrl()` added to `@carelayer/shared`. Hikmah: `getWallet` in `apps/web/src/api/mock/mock-api.ts` needs the two new fields.
@@ -140,7 +142,18 @@ Route names: the contract names below are final. `apps/web` (H5) already calls t
 | GET    | `/me/notifications` | woman | none                                                          | 200 `NotificationPreferences` `{ notifyWhenAnswered }`                                                                                   | 401      |
 | PATCH  | `/me/notifications` | woman | `UpdateNotificationPreferencesBody` `{ notifyWhenAnswered? }` | 200 `NotificationPreferences`                                                                                                            | 400; 401 |
 
-Women-only settings are ignored for nurses. `appearance` is also kept in `localStorage` so the theme applies before sign-in. Notifications are **email only** (no push).
+**Built** (after Z6, for H7's account screen):
+
+- **Defaults** for a new account: `DEFAULT_USER_SETTINGS` (system appearance, Google quick exit, ₦1,000 limit, ₦500 Claude limit, ask before each Claude payment). Notifications are on.
+- **`PATCH /me/settings`:**
+  - Send any subset, at least one field. Unknown fields → 400.
+  - Spending limits are whole kobo, from ₦0 to ₦100,000 (`SPENDING_LIMIT_KOBO`).
+  - **Nurses and admins may change `appearance` only.** Sending a women-only field (`WOMEN_ONLY_SETTINGS`) → 400 `VALIDATION_FAILED` with `details.field`, and nothing is applied. (v1 said those fields would be silently ignored; an explicit error makes a client bug visible instead.)
+- **`/me/notifications`:** nurses and admins get 403.
+- An account with no settings row gets the defaults; these routes never 404.
+- Both GETs send `Cache-Control: no-store`.
+
+`appearance` is also kept in `localStorage` so the theme applies before sign-in. Notifications are **email only** (no push).
 
 ## 4. Wallet
 

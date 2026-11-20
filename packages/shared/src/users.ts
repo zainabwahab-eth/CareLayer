@@ -39,7 +39,27 @@ export interface UpdateMeBody {
   displayName?: string;
 }
 
-// PATCH /me/settings
+/** Allowed range for both per-answer spending limits, in kobo: ₦0 to ₦100,000. */
+export const SPENDING_LIMIT_KOBO = { min: 0, max: 10_000_000 } as const;
+
+/** Defaults for a new account (match the database defaults). */
+export const DEFAULT_USER_SETTINGS: UserSettings = {
+  appearance: 'system',
+  quickExitTarget: 'google',
+  spendingLimitPerAnswerKobo: 100_000,
+  mcpSpendingLimitPerAnswerKobo: 50_000,
+  mcpAskBeforeEachPayment: true,
+};
+
+/** Fields only women can change. A nurse sending them gets 400 VALIDATION_FAILED. */
+export const WOMEN_ONLY_SETTINGS = [
+  'quickExitTarget',
+  'spendingLimitPerAnswerKobo',
+  'mcpSpendingLimitPerAnswerKobo',
+  'mcpAskBeforeEachPayment',
+] as const;
+
+// PATCH /me/settings: any subset; at least one field.
 export type UpdateSettingsBody = Partial<UserSettings>;
 
 /** Email only (push notifications are out of scope). GET/PATCH /me/notifications */
