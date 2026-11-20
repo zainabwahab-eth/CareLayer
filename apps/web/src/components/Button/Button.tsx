@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react';
+import type { AnchorHTMLAttributes, ButtonHTMLAttributes, ReactNode, Ref } from 'react';
 import { Link, type LinkProps } from 'react-router';
 import { cx } from '../cx';
 import styles from './Button.module.css';
@@ -67,6 +67,33 @@ export function Button({
       {leadingIcon}
       <span>{children}</span>
     </button>
+  );
+}
+
+export interface ButtonAnchorProps
+  extends ButtonStyleProps, Omit<AnchorHTMLAttributes<HTMLAnchorElement>, 'children'> {
+  href: string;
+  ref?: Ref<HTMLAnchorElement>;
+}
+
+/**
+ * A plain <a> that looks like a Button, for links that leave the app router:
+ * `tel:` numbers (W13 "Call 112") and external sites (map search).
+ */
+export function ButtonAnchor({
+  variant = 'primary',
+  tone = 'default',
+  fullWidth = false,
+  leadingIcon,
+  className,
+  children,
+  ...rest
+}: ButtonAnchorProps) {
+  return (
+    <a className={classNames(variant, tone, fullWidth, className)} {...rest}>
+      {leadingIcon}
+      <span>{children}</span>
+    </a>
   );
 }
 

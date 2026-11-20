@@ -1,0 +1,129 @@
+/* Figma W06 "Escalation suggestion": surface, 1.5px primary border, radius 20, 18px padding, 10px gap. */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  width: 100%;
+  padding: 1.125rem;
+  border: 1.5px solid var(--color-primary-text);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+}
+
+.iconCircle {
+  display: none;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  min-width: 0;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+/* Blue: a verified professional (tokens rule: blue = verified only). */
+.headIcon,
+.iconCircle {
+  color: var(--color-verified);
+}
+
+.title {
+  color: var(--color-text);
+  font-family: var(--text-title-m-family);
+  font-size: var(--text-title-m-size);
+  line-height: var(--text-title-m-leading);
+  font-weight: var(--text-title-m-weight);
+}
+
+.body,
+.price,
+.limit {
+  color: var(--color-text-muted);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+.price strong {
+  color: var(--color-text);
+  font-weight: var(--text-label-m-weight);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8) var(--space-12);
+}
+
+.meta > .price {
+  flex: 1 1 14rem;
+}
+
+.limit {
+  padding: var(--space-8) var(--space-12);
+  border-radius: var(--radius-sm);
+  background: var(--color-accent-bg-soft);
+  color: var(--color-on-accent-bg);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-8);
+  margin-top: var(--space-4);
+}
+
+.primary {
+  flex: 1 1 0;
+}
+
+/* Desktop (D-W06): one row, 48px verified-soft icon circle, actions stacked on the right. */
+@media (min-width: 60rem) {
+  .card {
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-16);
+    padding: var(--space-20);
+  }
+
+  .iconCircle {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 3rem;
+    border-radius: var(--radius-full);
+    background: var(--color-verified-bg-soft);
+  }
+
+  .text {
+    flex: 1 1 0;
+    gap: var(--space-4);
+  }
+
+  .head .headIcon {
+    display: none;
+  }
+
+  .meta {
+    margin-top: var(--space-4);
+  }
+
+  .actions {
+    flex-direction: column;
+    flex-shrink: 0;
+    gap: 6px;
+    margin-top: 0;
+  }
+
+  .primary {
+    flex: none;
+  }
+}

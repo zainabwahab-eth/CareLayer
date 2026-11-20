@@ -1,6 +1,8 @@
 import alert18 from '../../assets/icons/alert-18.svg';
 import alert20 from '../../assets/icons/alert-20.svg';
 import alert22 from '../../assets/icons/alert-22.svg';
+import alert32 from '../../assets/icons/alert-32.svg';
+import alert36 from '../../assets/icons/alert-36.svg';
 import alert from '../../assets/icons/alert.svg';
 import back from '../../assets/icons/back.svg';
 import bell from '../../assets/icons/bell.svg';
@@ -14,6 +16,7 @@ import lock18 from '../../assets/icons/lock-18.svg';
 import lock22 from '../../assets/icons/lock-22.svg';
 import lock from '../../assets/icons/lock.svg';
 import mail30 from '../../assets/icons/mail-30.svg';
+import send20 from '../../assets/icons/send-20.svg';
 import shield18 from '../../assets/icons/shield-18.svg';
 import shield20 from '../../assets/icons/shield-20.svg';
 import shield22 from '../../assets/icons/shield-22.svg';
@@ -21,6 +24,8 @@ import shield56 from '../../assets/icons/shield-56.svg';
 import shield60 from '../../assets/icons/shield-60.svg';
 import shield84 from '../../assets/icons/shield-84.svg';
 import shield from '../../assets/icons/shield.svg';
+import sparkle16 from '../../assets/icons/sparkle-16.svg';
+import sparkle20 from '../../assets/icons/sparkle-20.svg';
 import user from '../../assets/icons/user.svg';
 
 /*
@@ -54,6 +59,11 @@ export const icons = {
   back: { src: back, frame: 24, x: 7.625, y: 5.125, w: 7.75, h: 13.75 },
   check: { src: check16, frame: 16, x: 2.458, y: 4.125, w: 11.083, h: 8.083 },
   mail: { src: mail30, frame: 30, x: 3.5, y: 6, w: 23, h: 18 },
+  send: { src: send20, frame: 20, x: 4.125, y: 3.708, w: 11.75, h: 13 },
+  sparkle: [
+    { src: sparkle16, frame: 16, x: 2.792, y: 1.792, w: 10.417, h: 10.417 },
+    { src: sparkle20, frame: 20, x: 3.708, y: 2.458, w: 12.583, h: 12.583 },
+  ],
   eyeOff: [
     { src: eyeOff, frame: 18, x: 1.75, y: 2.5, w: 14.5, h: 13 },
     { src: eyeOff22, frame: 22, x: 2.333, y: 3.25, w: 17.334, h: 15.5 },
@@ -77,6 +87,8 @@ export const icons = {
     { src: alert18, frame: 18, x: 1.375, y: 2.125, w: 15.25, h: 13.375 },
     { src: alert20, frame: 20, x: 1.625, y: 2.458, w: 16.75, h: 14.667 },
     { src: alert22, frame: 22, x: 1.875, y: 2.792, w: 18.25, h: 15.958 },
+    { src: alert32, frame: 32, x: 3.125, y: 4.458, w: 25.75, h: 22.417 },
+    { src: alert36, frame: 36, x: 3.625, y: 5.125, w: 28.75, h: 25 },
   ],
 } satisfies Record<string, IconDefinition | readonly IconDefinition[]>;
 

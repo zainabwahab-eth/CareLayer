@@ -18,7 +18,7 @@ import styles from './AppLayout.module.css';
  *   Desktop (>= 960px): 264px sidebar + main column (Figma: Women - Desktop, 1440 frame).
  */
 export function AppLayout() {
-  const { nav, tabBar = false } = useRouteHandle();
+  const { nav, tabBar = false, fullBleed = false } = useRouteHandle();
   // RequireAuth guarantees a signed-in user here; the sign-in response carries her profile.
   const { state, sessionExpired } = useAuth();
   const user = state.user;
@@ -53,9 +53,9 @@ export function AppLayout() {
       <main
         id="main-content"
         tabIndex={-1}
-        className={cx(styles.main, tabBar && styles.withTabBar)}
+        className={cx(styles.main, tabBar && styles.withTabBar, fullBleed && styles.fullBleed)}
       >
-        <div className={styles.content}>
+        <div className={cx(styles.content, fullBleed && styles.fullBleedContent)}>
           <Outlet />
         </div>
       </main>

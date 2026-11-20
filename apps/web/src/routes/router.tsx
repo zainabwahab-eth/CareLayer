@@ -45,14 +45,14 @@ export const routes: RouteObject[] = [
       // Public: W01 landing page. Full-bleed, renders its own header and <main>.
       { path: paths.welcome, Component: WelcomePage },
 
-      // Public: full-screen pages (W13, not found)
+      // Public: W13 emergency. Full-bleed emergency background, renders its own <main>.
+      // Never behind sign-in: emergencies are free and never queued.
+      { path: paths.emergency, Component: EmergencyPage },
+
+      // Public: full-screen pages (not found, dev gallery)
       {
         Component: StandaloneLayout,
-        children: [
-          { path: paths.emergency, Component: EmergencyPage },
-          ...devRoutes,
-          { path: '*', Component: NotFoundPage },
-        ],
+        children: [...devRoutes, { path: '*', Component: NotFoundPage }],
       },
 
       // Public: onboarding / auth (W02-W04 + Log in). Signed-in visitors are sent on.
@@ -83,7 +83,11 @@ export const routes: RouteObject[] = [
                 Component: HomePage,
                 handle: handle({ nav: 'home', tabBar: true }),
               },
-              { path: paths.ask, Component: AskPage, handle: handle({ nav: 'ask' }) },
+              {
+                path: paths.ask,
+                Component: AskPage,
+                handle: handle({ nav: 'ask', fullBleed: true }),
+              },
               { path: paths.askConsent, Component: ConsentPage, handle: handle({ nav: 'ask' }) },
               {
                 path: paths.askChoose,

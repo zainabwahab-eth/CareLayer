@@ -5,7 +5,9 @@ export { BackLink, type BackLinkProps } from './BackLink/BackLink';
 export { Badge, type BadgeProps, type BadgeVariant } from './Badge/Badge';
 export {
   Button,
+  ButtonAnchor,
   ButtonLink,
+  type ButtonAnchorProps,
   type ButtonLinkProps,
   type ButtonProps,
   type ButtonVariant,
