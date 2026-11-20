@@ -280,14 +280,26 @@ model Wallet {
   id                   String    @id @default(cuid())
   userId               String    @unique
   stellarPublicKey     String    @unique
-  /// AES-256-GCM with WALLET_ENCRYPTION_KEY (iv + tag + ciphertext).
+  /// AES-256-GCM with WALLET_ENCRYPTION_KEY: version byte + iv + tag + ciphertext (AAD = public key).
   encryptedSecret      Bytes
   /// The chain is the source of truth. Refreshed after each transaction.
   cachedBalanceStroops BigInt    @default(0)
   balanceSyncedAt      DateTime?
   createdAt            DateTime  @default(now())
+  /// On-chain activation (Z4): the treasury sponsors the account's reserves and adds the USDC
+  /// trustline in one transaction. Null until it succeeds; retried in the background.
+  activatedAt          DateTime?
+  activationTxHash     String?   @unique
+  /// Last attempt start (a claim: only one process activates a wallet at a time).
+  activationAttemptAt  DateTime?
+  activationAttempts   Int       @default(0)
+  /// Last failure reason (no secrets), for the logs and the retry loop.
+  activationError      String?
 
   user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  /// Background retry: pending wallets, oldest attempt first.
+  @@index([activatedAt, activationAttemptAt])
 }
 
 // ============================================================================

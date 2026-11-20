@@ -47,9 +47,14 @@ export function errorHandler(logger: Logger): ErrorRequestHandler {
       return;
     }
     if (err instanceof ZodError) {
+      // `field` + `message` describe the FIRST problem, so a form can show it next to that input.
+      // `issues` lists every problem.
+      const issues = err.issues.map((i) => ({ path: i.path.join('.'), message: i.message }));
+      const first = issues[0];
       res.status(400).json(
-        body('VALIDATION_FAILED', 'Some fields are missing or invalid.', {
-          issues: err.issues.map((i) => ({ path: i.path.join('.'), message: i.message })),
+        body('VALIDATION_FAILED', first?.message ?? 'Some fields are missing or invalid.', {
+          field: first?.path || undefined,
+          issues,
         }),
       );
       return;

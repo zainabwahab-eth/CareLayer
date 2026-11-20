@@ -3,8 +3,10 @@
 //
 // Placeholders (clearly not real):
 // - Emails use example.com.
-// - Wallet public keys start with "GSEED" and have no secret (empty encryptedSecret). Z4 replaces
-//   them with real testnet wallets.
+// - Wallets are real keypairs (secret encrypted with WALLET_ENCRYPTION_KEY) but start "pending":
+//   the seed never touches Stellar. When the API runs with STELLAR_TREASURY_SECRET, the background
+//   loop activates them on testnet. Tolu's ₦3,500 is only a cached figure: once her wallet is active,
+//   GET /wallet shows the real on-chain balance (0 until she tops up in Z5).
 // - Stellar tx hashes are sha256("carelayer-seed:<label>"): valid-looking, but not on-chain.
 // - Licence numbers start with "SEED-".
 // Times are relative to the moment the seed runs, so open questions are live (inside their windows).
@@ -19,11 +21,14 @@ import type {
 } from '../generated/prisma/client.js';
 import { koboToStroops, splitPayout, splitPayoutKobo } from '../lib/money.js';
 import { helpfulRating, recomputeNurseStats } from '../modules/nurses/stats.js';
+import { newCustodialWallet } from '../modules/wallets/crypto.js';
 
 export interface SeedOptions {
   answerPriceKobo: number;
   ngnPerUsdc: string;
   nodeEnv: string;
+  /** WALLET_ENCRYPTION_KEY (32 bytes). */
+  walletEncryptionKey: Buffer;
   now?: Date;
 }
 
@@ -58,9 +63,6 @@ const TOPIC_LABELS: Record<(typeof QUESTION_CATEGORIES)[number], string> = {
 
 export const seedTxHash = (label: string) =>
   createHash('sha256').update(`carelayer-seed:${label}`).digest('hex');
-
-const seedAddress = (name: string) =>
-  `GSEED${name.toUpperCase().replace(/[^A-Z]/g, '')}`.padEnd(56, 'A');
 
 /** Delete everything, children first. */
 async function wipe(db: PrismaClient) {
@@ -133,8 +135,7 @@ export async function seed(db: PrismaClient, opts: SeedOptions) {
         notificationPreference: { create: { notifyWhenAnswered: true } },
         wallet: {
           create: {
-            stellarPublicKey: seedAddress(input.email.split('@')[0]!),
-            encryptedSecret: Buffer.alloc(0),
+            ...newCustodialWallet(opts.walletEncryptionKey),
             cachedBalanceStroops: koboToStroops(input.balanceKobo ?? 0, opts.ngnPerUsdc),
             balanceSyncedAt: now,
           },

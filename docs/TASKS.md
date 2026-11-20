@@ -35,6 +35,7 @@ Claude Code should follow this loop without waiting for new prompts:
 ### When to stop and ask
 
 Stop and write the question to `docs/QUESTIONS.md` (with options and a recommendation), then tell the user, only when:
+
 - a product decision isn't covered by this file, the brief or the designs;
 - something would change the API contract in a way that affects the other person's work;
 - a third-party service (x402, Stellar, Paystack, MCP) behaves differently from what this plan assumes.
@@ -42,6 +43,7 @@ Stop and write the question to `docs/QUESTIONS.md` (with options and a recommend
 For everything else, make a sensible choice, note it in the PR description, and keep going.
 
 ### Testing tools
+
 - **API:** Vitest + Supertest against a test database (`DATABASE_URL_TEST`). Stellar and Paystack calls go through small service wrappers so tests can mock them; one integration test per payment task runs against testnet when `RUN_TESTNET=1`.
 - **Frontend:** Vitest + Testing Library for components and flows, against the mock API.
 - Every PR: `npm run lint`, `npm run typecheck`, `npm test` all pass.
@@ -53,6 +55,7 @@ For everything else, make a sensible choice, note it in the PR description, and 
 These override anything older in other docs. If you change one, update this list in the same PR.
 
 **Product**
+
 - Health workers are **registered nurses and midwives only**. No doctors, no MDCN.
 - Women ask the AI assistant in their own words. AI answers are free.
 - Women never choose a category. The AI assigns one: Pregnancy, Periods, Contraception, Sexual health, General.
@@ -73,14 +76,16 @@ These override anything older in other docs. If you change one, update this list
 - **Chat history:** not stored on the server. Chat lives in the client session. Only questions sent to nurses are stored.
 
 **Accounts and auth**
+
 - Passwordless: Google sign-in, or email + 6-digit code. Separate Sign up and Log in screens.
 - Women sign up with "What should we call you?" + email. Nurses with "Full name, as on your licence" + email.
 - Accounts are per app: unique on (email, role).
 - Code: 6 digits, 10-minute expiry, single use, hashed, max 5 attempts, resend after 45 s and max 5 per hour.
-- Sessions: 15-minute access token; refresh token in an httpOnly, Secure, SameSite cookie; rotated on every use; reuse revokes the session. Women 90 days sliding, nurses 30 days. Logout and logout-all. Fresh code (last 5 minutes) required for withdrawals and payout address changes.
+- Sessions: 15-minute access token; refresh token in an httpOnly, Secure, SameSite cookie; rotated on every use; reuse revokes the session (after a 10 s grace window for concurrent refreshes from two tabs, decided in Z3). Women 90 days sliding, nurses 30 days. Logout and logout-all. Fresh code (last 5 minutes) required for withdrawals and payout address changes.
 - Roles: `WOMAN`, `NURSE`, `ADMIN`. Routes: `/me/*` (women), `/nurse/*`, `/admin/*`. (Renamed from `worker`; tell Hikmah in the Z1 PR.)
 
 **Money and chain**
+
 - Naira as integer kobo (`Int`), USDC as integer stroops (`BigInt`, 7 decimals). No floats.
 - The chain is the source of truth for balances; `Wallet.cachedBalanceStroops` is refreshed after each transaction.
 - Fixed demo exchange rate from `NGN_PER_USDC`.
@@ -90,6 +95,7 @@ These override anything older in other docs. If you change one, update this list
 - Store the Stellar transaction hash on every payment, payout, top-up and withdrawal.
 
 **x402 (decided in Z2, November 2026)**
+
 - **Packages:** the official `@x402/core`, `@x402/express`, `@x402/stellar`, `@x402/fetch`, pinned at 2.31.0, with `@stellar/stellar-sdk` 16 (the version `@x402/stellar` depends on).
 - **Facilitator: OpenZeppelin Channels, hosted** (`https://channels.openzeppelin.com/x402/testnet`, anonymous testnet key from `/testnet/gen`). Why: it is the facilitator the Stellar docs point to for `stellar:testnet`, it sponsors fees (the payer only spends USDC), and there is nothing to host. The Coinbase facilitator does not list Stellar. Self-hosting the OpenZeppelin Relayer plugin is the fallback if the hosted service is down or rate-limited; the code only depends on the `FacilitatorClient` interface, so switching is a URL and key change.
 - **Price and receiving address can be set per request.** `price` and `payTo` both accept a function of the request context (path, headers, query). Z8 prices each answer and can direct `payTo` per question. Proven in `test/payments.x402.test.ts`.
@@ -99,6 +105,7 @@ These override anything older in other docs. If you change one, update this list
 - **For Z8:** a facilitator `settle()` timeout is indeterminate (the payment may still have gone through). Record the attempt before settling and reconcile by tx hash, so a retry never charges twice.
 
 **Privacy and safety UI**
+
 - Quick exit on every women's screen: `window.location.replace()` to Google (or weather/news from settings). Back must not return. Doesn't log out. Next open shows a blank new chat. Esc twice on desktop.
 - Appearance: System (default) / Light / Dark.
 
@@ -117,40 +124,41 @@ Figma file: **"CareLayer – Product design v1"**, key `cCmDYngHpc03VO66FsVUvD`.
 
 ### Screen map
 
-| Frame | Route | App | Data / endpoints |
-|---|---|---|---|
-| W01 Welcome | `/` | web | none |
-| W02 Before you start | `/start` | web | none (agreement stored on sign-up) |
-| W03 Sign up | `/signup` | web | `POST /auth/code`, `POST /auth/google` |
-| W04 Verify email | `/verify` | web | `POST /auth/verify` |
-| *(no design)* Log in | `/login` | web | `POST /auth/code` |
-| W05 Home | `/home` | web | `GET /me`, `GET /me/wallet`, `GET /me/questions?status=active` |
-| W06 Assistant chat | `/ask` | web | `POST /chat` |
-| W07 Consent | `/ask/send/consent` | web | (client state from chat) |
-| W08 Choose who answers | `/ask/send/nurse` | web | `GET /nurses?topic=` |
-| W09 Confirm and pay | `/ask/send/confirm` | web | `POST /questions` |
-| W10 Waiting | `/questions/:id` (status open/claimed) | web | `GET /questions/:id/status` |
-| W11 Nurse response | `/questions/:id` (answered) | web | `GET /questions/:id/answer`, `POST /questions/:id/feedback` |
-| W12 History | `/history` | web | `GET /me/questions` |
-| W13 Emergency | `/emergency` | web | returned by `POST /chat` |
-| *(no design)* Wallet | `/account/wallet` | web | `GET /me/wallet`, `POST /me/topups` |
-| *(no design)* Account / settings | `/account` | web | `GET/PATCH /me/settings`, `POST /auth/logout`, `POST /auth/logout-all` |
-| N01 Join | `/` (workers app) | workers | `POST /auth/code`, `POST /auth/google` |
-| *(no design)* Log in + verify | `/login`, `/verify` | workers | `POST /auth/code`, `POST /auth/verify` |
-| N02 Verify licence | `/onboarding/licence` | workers | `PATCH /nurse/profile` |
-| N03 Documents | `/onboarding/documents` | workers | `POST /nurse/documents`, `POST /nurse/profile/submit` |
-| N04 Under review | `/onboarding/review` | workers | `GET /nurse/profile` |
-| N05 Today | `/today` | workers | `GET /nurse/dashboard`, `PATCH /nurse/availability` |
-| N06 Cases | `/cases` | workers | `GET /nurse/questions?tab=waiting|active|completed`, `POST /nurse/questions/:id/claim` |
-| N07 Respond | `/cases/:id` | workers | `POST /nurse/questions/:id/release`, `POST /nurse/questions/:id/answer` |
-| N08 Answer sent | `/cases/:id/sent` | workers | response of the answer call |
-| N09 Earnings | `/earnings` | workers | `GET /nurse/earnings`, `POST /nurse/withdrawals` |
-| *(no design)* Profile / settings | `/profile` | workers | `GET/PATCH /nurse/profile`, topics, appearance, logout |
-| *(no design)* Admin review | `/admin` (in api, server-rendered or minimal page) | api | `GET /admin/nurses?status=pending`, `POST /admin/nurses/:id/approve|reject` |
+| Frame                            | Route                                              | App     | Data / endpoints                                                        |
+| -------------------------------- | -------------------------------------------------- | ------- | ----------------------------------------------------------------------- |
+| W01 Welcome                      | `/`                                                | web     | none                                                                    |
+| W02 Before you start             | `/start`                                           | web     | none (agreement stored on sign-up)                                      |
+| W03 Sign up                      | `/signup`                                          | web     | `POST /auth/code/request`, `POST /auth/google`                          |
+| W04 Verify email                 | `/verify`                                          | web     | `POST /auth/code/verify`                                                |
+| _(no design)_ Log in             | `/login`                                           | web     | `POST /auth/code/request`                                               |
+| W05 Home                         | `/home`                                            | web     | `GET /me`, `GET /wallet`, `GET /me/questions?status=active`             |
+| W06 Assistant chat               | `/ask`                                             | web     | `POST /chat`                                                            |
+| W07 Consent                      | `/ask/send/consent`                                | web     | (client state from chat)                                                |
+| W08 Choose who answers           | `/ask/send/nurse`                                  | web     | `GET /nurses?topic=`                                                    |
+| W09 Confirm and pay              | `/ask/send/confirm`                                | web     | `POST /questions`                                                       |
+| W10 Waiting                      | `/questions/:id` (status open/claimed)             | web     | `GET /questions/:id/status`                                             |
+| W11 Nurse response               | `/questions/:id` (answered)                        | web     | `GET /questions/:id/answer`, `POST /questions/:id/feedback`             |
+| W12 History                      | `/history`                                         | web     | `GET /me/questions`                                                     |
+| W13 Emergency                    | `/emergency`                                       | web     | returned by `POST /chat`                                                |
+| _(no design)_ Wallet             | `/account/wallet`                                  | web     | `GET /wallet`, `POST /me/topups`                                        |
+| _(no design)_ Account / settings | `/account`                                         | web     | `GET/PATCH /me/settings`, `POST /auth/logout`, `POST /auth/logout-all`  |
+| N01 Join                         | `/` (workers app)                                  | workers | `POST /auth/code/request`, `POST /auth/google`                          |
+| _(no design)_ Log in + verify    | `/login`, `/verify`                                | workers | `POST /auth/code/request`, `POST /auth/code/verify`                     |
+| N02 Verify licence               | `/onboarding/licence`                              | workers | `PATCH /nurse/profile`                                                  |
+| N03 Documents                    | `/onboarding/documents`                            | workers | `POST /nurse/documents`, `POST /nurse/profile/submit`                   |
+| N04 Under review                 | `/onboarding/review`                               | workers | `GET /nurse/profile`                                                    |
+| N05 Today                        | `/today`                                           | workers | `GET /nurse/dashboard`, `PATCH /nurse/availability`                     |
+| N06 Cases                        | `/cases`                                           | workers | `GET /nurse/questions?tab=waiting                                       | active  | completed`, `POST /nurse/questions/:id/claim` |
+| N07 Respond                      | `/cases/:id`                                       | workers | `POST /nurse/questions/:id/release`, `POST /nurse/questions/:id/answer` |
+| N08 Answer sent                  | `/cases/:id/sent`                                  | workers | response of the answer call                                             |
+| N09 Earnings                     | `/earnings`                                        | workers | `GET /nurse/earnings`, `POST /nurse/withdrawals`                        |
+| _(no design)_ Profile / settings | `/profile`                                         | workers | `GET/PATCH /nurse/profile`, topics, appearance, logout                  |
+| _(no design)_ Admin review       | `/admin` (in api, server-rendered or minimal page) | api     | `GET /admin/nurses?status=pending`, `POST /admin/nurses/:id/approve     | reject` |
 
 ### Screens without a design
 
 Build these from the tokens and existing components; match the nearest designed screen.
+
 - **Women log in:** same layout as W03 without the name field. Title "Welcome back", button "Send me a code", footer "New here? Create an account".
 - **Nurse log in:** same as N01's form side. Title "Welcome back", footer "New here? Join as a nurse or midwife". Verify screen reuses W04's layout.
 - **Women wallet:** balance card like the nurse earnings card (balance in naira, "Held as USDC in your own wallet"), Top up button only, free answers left, spending limit per answer, activity list with "View on Stellar" links. Top up opens a sheet (mobile) or modal (desktop): amounts ₦1,000 / ₦2,000 / ₦5,000 / Other, then Paystack.
@@ -164,30 +172,30 @@ Build these from the tokens and existing components; match the nearest designed 
 
 From the Figma variables "CareLayer colour" (Light / Dark). Name CSS variables by role, exactly as below.
 
-| Token | Light | Dark | Use |
-|---|---|---|---|
-| canvas | #F3F5F2 | #131917 | App background |
-| surface | #FFFFFF | #1B2320 | Cards, sheets, inputs |
-| surface-soft | #EAF0EC | #222C28 | Quiet panels, assistant bubbles |
-| ink | #13201D | #EBF0ED | Primary text |
-| ink-muted | #55635F | #A3B0AB | Secondary text |
-| line | #D9E1DC | #2E3935 | Borders, dividers |
-| primary | #0F4A43 | #1F6B60 | Main actions, brand surfaces |
-| primary-soft | #DCEBE6 | #1B332E | Selected states, highlights |
-| primary-text | #0F4A43 | #7CC7B8 | Brand-coloured text, links, icons, selected borders |
-| on-primary | #FFFFFF | #FFFFFF | Text on primary |
-| on-primary-muted | #DCEBE6 | #CFE6DF | Secondary text on primary panels |
-| accent | #D9932E | #E0A040 | Warmth, progress, quick exit |
-| accent-soft | #FAEBD3 | #3A2E1B | Tips, gentle notes |
-| on-accent | #13201D | #1F1606 | Text/icons on accent |
-| rose | #C2766A | #C9847A | Avatars, people |
-| rose-soft | #F6E3DE | #3A2825 | Her chat messages |
-| verified | #1D6FA8 | #7DB8E8 | Verified professionals only |
-| verified-soft | #E1EEF7 | #172A3A | Verified badge background |
-| emergency | #B42318 | #F2938A | Emergencies only |
-| emergency-soft | #FDECEA | #3B1F1C | Emergency background |
-| on-emergency | #FFFFFF | #2A0E0B | Text on emergency buttons |
-| chart-bar | #DCEBE6 | #2F5F56 | Inactive chart bars |
+| Token            | Light   | Dark    | Use                                                 |
+| ---------------- | ------- | ------- | --------------------------------------------------- |
+| canvas           | #F3F5F2 | #131917 | App background                                      |
+| surface          | #FFFFFF | #1B2320 | Cards, sheets, inputs                               |
+| surface-soft     | #EAF0EC | #222C28 | Quiet panels, assistant bubbles                     |
+| ink              | #13201D | #EBF0ED | Primary text                                        |
+| ink-muted        | #55635F | #A3B0AB | Secondary text                                      |
+| line             | #D9E1DC | #2E3935 | Borders, dividers                                   |
+| primary          | #0F4A43 | #1F6B60 | Main actions, brand surfaces                        |
+| primary-soft     | #DCEBE6 | #1B332E | Selected states, highlights                         |
+| primary-text     | #0F4A43 | #7CC7B8 | Brand-coloured text, links, icons, selected borders |
+| on-primary       | #FFFFFF | #FFFFFF | Text on primary                                     |
+| on-primary-muted | #DCEBE6 | #CFE6DF | Secondary text on primary panels                    |
+| accent           | #D9932E | #E0A040 | Warmth, progress, quick exit                        |
+| accent-soft      | #FAEBD3 | #3A2E1B | Tips, gentle notes                                  |
+| on-accent        | #13201D | #1F1606 | Text/icons on accent                                |
+| rose             | #C2766A | #C9847A | Avatars, people                                     |
+| rose-soft        | #F6E3DE | #3A2825 | Her chat messages                                   |
+| verified         | #1D6FA8 | #7DB8E8 | Verified professionals only                         |
+| verified-soft    | #E1EEF7 | #172A3A | Verified badge background                           |
+| emergency        | #B42318 | #F2938A | Emergencies only                                    |
+| emergency-soft   | #FDECEA | #3B1F1C | Emergency background                                |
+| on-emergency     | #FFFFFF | #2A0E0B | Text on emergency buttons                           |
+| chart-bar        | #DCEBE6 | #2F5F56 | Inactive chart bars                                 |
 
 - **Fonts:** Literata Medium (headings), Hanken Grotesk Regular/Medium/SemiBold (everything else).
 - **Type scale (size/line height):** Display XL 56/62 (desktop only), Display L 40/46, Display M 30/36, Display S 24/30 (Literata); Title L 20/28 SemiBold, Title M 17/24 SemiBold, Body L 17/26, Body M 15/22, Body S 13/18, Label M 15/20 SemiBold, Label S 13/16 SemiBold, Caption 12/16 Medium.
@@ -235,18 +243,23 @@ The schema draft is approved with the decisions in section 2. Build it.
 **Tests:** testnet integration test (`RUN_TESTNET=1`) for a successful payment; unit test that the guard returns 409 without a 402.
 **Done when:** a payment link on the Stellar testnet explorer is in the PR.
 
-### Z3. Passwordless auth and sessions
+### Z3. Passwordless auth and sessions (done)
 
-Implement everything in "Accounts and auth" (section 2): `POST /auth/code` (purpose signup/login/step_up, role), `POST /auth/verify`, `POST /auth/google`, `POST /auth/refresh`, `POST /auth/logout`, `POST /auth/logout-all`, `GET /me`; role middleware; email sending behind a wrapper (log to console in dev).
+Implement everything in "Accounts and auth" (section 2): `POST /auth/code/request` (purpose signup/login/step_up, app), `POST /auth/code/verify`, `POST /auth/google`, `POST /auth/refresh`, `POST /auth/logout`, `POST /auth/logout-all`, `GET /me`; role middleware; email sending behind a wrapper (log to console in dev).
 
 **Tests:** expiry, 5-attempt lock, resend limits, refresh rotation, reuse detection revokes the session, logout-all, role guard (woman can't call `/nurse/*`), per-app accounts (same email as woman and nurse).
 **Postman:** Auth folder; a pre-request script or environment variable flow that stores the access token.
 **Done when:** Hikmah's auth screens work against the real API.
 
-### Z4. Wallet for every user
+### Z4. Wallet for every user (done)
 
 - On sign-up, create a keypair, encrypt the secret, have the treasury sponsor the account and add the USDC trustline.
-- `GET /me/wallet` (women) and wallet info in `GET /nurse/earnings`: USDC balance, naira equivalent, free answers left (women).
+- `GET /wallet` (any role; nurses' earnings view comes in Z10): USDC balance, naira equivalent, free answers left (women).
+- **Decided in Z4:**
+  - **Wallet first, chain after.** The wallet row is created in the same write as the user, so every account has an address. Activation on Stellar happens right after sign-up and never blocks it. It is retried in the background with backoff, and on `GET /wallet`. `WalletResponse.status` is `pending` until the account is on-chain.
+  - **One activation transaction:** sponsored reserves + 0-XLM account + USDC trustline. The treasury pays every reserve and the fee.
+  - **Seeded wallets** are real keypairs that start pending; the API activates them when it runs with a treasury. Tolu's ₦3,500 is only a cached figure: once her wallet is active she shows the real balance (₦0 until Z5 top-up).
+  - **Z8 note:** payments from a custodial wallet need its secret: `decryptWalletSecret()` in `src/modules/wallets/crypto.ts`. The account holds 0 XLM, which is fine for x402 (the facilitator pays fees). Withdrawals (Z10) need a fee-bump from the treasury.
 
 **Tests:** wallet service unit tests with Stellar mocked; testnet integration test creates an account with a trustline.
 **Done when:** every new user has a working testnet wallet visible on the explorer.
@@ -325,36 +338,45 @@ Implement everything in "Accounts and auth" (section 2): `POST /auth/code` (purp
 Order: H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8 → H9 → H10. All screens are built against mocks first.
 
 ### H1. Design tokens
+
 - `packages/tokens/tokens.css` from section 4: light on `:root`, dark on `[data-theme="dark"]` and under `prefers-color-scheme: dark` when no theme is set. Load the fonts. A `/tokens` preview page in `apps/web`.
 - **Done when:** no raw colour values in either app.
 
 ### H2. Assistant behaviour
+
 - `apps/api/prompts/assistant.md`: tone, what it answers itself, when to offer a nurse, never diagnose, the clean-up-not-summarise rule, category rules, assistant notes format, extracting age range and pregnancy weeks only when she mentioned them.
 - `apps/api/config/red-flags.json`: red-flag symptoms.
 - `apps/api/prompts/test-set.json`: ~30 questions with expected outcome (answer / offer / emergency) and category. Get a nurse or midwife to review the red flags.
 - **Done when:** the test set passes through Zainab's `/chat`.
 
 ### H3. App shells, theme and mocks
+
 - Routing (section 3 routes), mobile layout with tab bar, desktop layout with sidebar from 1024px, theme provider (System/Light/Dark), typed API client from `packages/shared`, MSW handlers per endpoint with a per-endpoint real/mock switch.
 
 ### H4. Welcome and privacy (W01, W02)
 
 ### H5. Women auth (W03, W04, log in)
+
 - Six-box code input with auto-advance, paste and resend countdown.
 
 ### H6. Women ask flow (W05–W11, W13)
+
 - Home, chat (with "Ask a nurse directly"), consent, choose who answers (with female-only toggle), confirm and pay, waiting (polls status every 5 s), nurse response (feedback, receipt), emergency.
 
 ### H7. History, wallet, account (W12, wallet, account)
+
 - Including Paystack top-up and all settings in section 3.
 
 ### H8. Quick exit and PWA
+
 - Quick exit behaviour from section 2; installable PWA; Android install prompt; iPhone instructions; dismissible banner.
 
 ### H9. Nurse app (N01–N09, log in, profile)
+
 - Onboarding, under review, today, cases (waiting/active/completed tabs), respond (10-minute countdown, release, checklist, "recommend she sees someone today"), answer sent, earnings (chart + withdraw with code), profile.
 
 ### H10. Switch to the real API and test on phones
+
 - Endpoint by endpoint; test on Android and iPhone, including the iPhone home-screen app (may need its own login once).
 
 **Frontend tests (every H task):** each screen renders its states from mocks (loading, empty, error, success); key flows have an interaction test (code entry, consent → send, claim → answer).
@@ -363,15 +385,15 @@ Order: H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8 → H9 → H10. All s
 
 ## 8. Handoffs and status
 
-| Backend task merges | Unlocks for Hikmah |
-|---|---|
-| Z1 (types) | real types in mocks |
-| Z3 | H5 auth on real API |
-| Z4–Z5 | wallet screen on real API |
-| Z6 + Z8 | ask flow on real API |
-| Z7, Z9, Z10 | nurse app on real API |
-| Z11 | phone testing |
-| H2 → Z6 | real assistant prompt and red flags |
+| Backend task merges | Unlocks for Hikmah                  |
+| ------------------- | ----------------------------------- |
+| Z1 (types)          | real types in mocks                 |
+| Z3                  | H5 auth on real API                 |
+| Z4–Z5               | wallet screen on real API           |
+| Z6 + Z8             | ask flow on real API                |
+| Z7, Z9, Z10         | nurse app on real API               |
+| Z11                 | phone testing                       |
+| H2 → Z6             | real assistant prompt and red flags |
 
 ### Status tracker
 
@@ -379,8 +401,8 @@ Tick in the PR that completes the task.
 
 - [x] Z1 Schema and skeleton
 - [x] Z2 x402 proof
-- [ ] Z3 Auth
-- [ ] Z4 Wallets
+- [x] Z3 Auth
+- [x] Z4 Wallets
 - [ ] Z5 Top-up
 - [ ] Z6 Chat and questions
 - [ ] Z9 Nurse onboarding + admin

@@ -37,6 +37,7 @@ beforeEach(async () => {
     answerPriceKobo: cfg.answerPriceKobo,
     ngnPerUsdc: cfg.ngnPerUsdc,
     nodeEnv: 'test',
+    walletEncryptionKey: cfg.wallet.encryptionKey,
   });
 });
 

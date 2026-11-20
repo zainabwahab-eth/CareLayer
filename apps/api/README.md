@@ -38,6 +38,17 @@ Questions cover every status: answered + collected (free, treasury payout to Ama
 
 Placeholders, clearly not real: wallet keys start with `GSEED` (no secret; Z4 creates real testnet wallets), tx hashes are `sha256("carelayer-seed:<label>")` and not on-chain, licence numbers start with `SEED-`.
 
+## Auth (Z3)
+
+- After pulling changes that add env vars, run `npm run env:sync -w @carelayer/api`: it rebuilds `.env` in `.env.example` order, keeps your values, adds new keys with defaults, and moves unknown ones to the bottom (backup in `.env.bak`).
+- Set `JWT_ACCESS_SECRET` and `AUTH_PEPPER` in `apps/api/.env` (32+ chars each; the generate command is in `.env.example`). The API refuses to start without them.
+- Local sign-in: `POST /auth/code/request`, then copy the code from the `dev_email_code` line in the API log (`EMAIL_TRANSPORT=console`; refused in production), then `POST /auth/code/verify`. Postman: the Auth folder.
+- `src/modules/auth/`: `service.ts` (codes, sign-in, sessions, refresh rotation and reuse detection, step-up), `middleware.ts` (`requireAuth`, `requireRole`, `requireFreshCode`), `tokens.ts` (15-min HS256 JWT via `jose`), `crypto.ts` (codes, opaque tokens, peppered HMAC), `cookies.ts` (`cl_refresh`), `email.ts` (`EmailSender`), `google.ts` (`GoogleVerifier`), `router.ts`.
+- `/nurse/*` and `/admin/*` are guarded by role on the prefix, so routes added later are protected by default.
+- Google sign-in needs `GOOGLE_CLIENT_ID`; without it `POST /auth/google` answers 503.
+- Wallets (Z4): `WALLET_ENCRYPTION_KEY` (32 bytes, required; never change it once wallets exist) encrypts wallet secrets. With `STELLAR_TREASURY_SECRET` set, new wallets are activated on testnet right after sign-up and retried every minute while pending; without it they stay `pending`. Code: `src/modules/wallets/` (`crypto.ts`, `chain.ts`, `service.ts`, `router.ts`).
+- Real email: `EMAIL_TRANSPORT=resend` + `EMAIL_API_KEY` + `EMAIL_FROM` (on a domain verified in Resend). Check delivery with `npm run email:test -w @carelayer/api -- you@example.com` (sends a sample code that cannot be used).
+
 ## x402 on Stellar testnet (Z2)
 
 ```bash

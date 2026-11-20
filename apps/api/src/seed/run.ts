@@ -12,6 +12,7 @@ try {
       answerPriceKobo: config.answerPriceKobo,
       ngnPerUsdc: config.ngnPerUsdc,
       nodeEnv: config.nodeEnv,
+      walletEncryptionKey: config.wallet.encryptionKey,
     });
     const balanceNaira =
       stroopsToKobo(BigInt(summary.tolu.cachedBalanceStroops), config.ngnPerUsdc) / 100;

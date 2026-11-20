@@ -4,6 +4,9 @@ import { ConfigError, loadConfig } from '../src/config.js';
 const base = {
   DATABASE_URL: 'postgresql://u:p@localhost:5432/carelayer',
   NGN_PER_USDC: '1600',
+  JWT_ACCESS_SECRET: 'x'.repeat(32),
+  AUTH_PEPPER: 'y'.repeat(32),
+  WALLET_ENCRYPTION_KEY: 'a'.repeat(64),
 };
 
 describe('loadConfig (zod env validation)', () => {

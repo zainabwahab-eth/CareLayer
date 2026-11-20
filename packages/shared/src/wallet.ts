@@ -9,17 +9,36 @@ export const PAYOUT_SPLIT = { nurseBps: 8000, platformBps: 2000 } as const;
 /** ₦500 per answer. The server reads ANSWER_PRICE_KOBO; this is the agreed default. */
 export const DEFAULT_ANSWER_PRICE_KOBO = 50_000;
 
+/**
+ * pending: created at sign-up, not yet on-chain (activation runs right after sign-up and is retried
+ *          in the background). It can already be shown; it cannot receive money yet.
+ * active:  on Stellar testnet, reserves sponsored by the treasury, USDC trustline in place.
+ */
+export type WalletStatus = 'pending' | 'active';
+
 // GET /wallet
 export interface WalletResponse {
   /** Stellar public key (G...). Secret keys never leave the server. */
   stellarAddress: string;
+  status: WalletStatus;
+  /** USDC balance (shown in naira at the fixed demo rate). */
   balance: Money;
+  /**
+   * When `balance` was last read from the chain. Older than the request means Stellar was
+   * unreachable and the last known balance is shown. Null if never read.
+   */
+  balanceSyncedAt: IsoDateTime | null;
   /** Women only, otherwise null. */
   freeAnswersRemaining: number | null;
 }
 
+/** Stellar Expert link for a testnet account or transaction. */
+export const stellarExplorerUrl = (kind: 'account' | 'tx', id: string) =>
+  `https://stellar.expert/explorer/testnet/${kind}/${id}`;
+
 export type WalletTxKind = 'topup' | 'answer_payment' | 'answer_earning' | 'withdrawal';
 
+/** Confirmed money movements only (pending and failed ones are not listed). */
 export interface WalletTransaction {
   id: Id;
   kind: WalletTxKind;
