@@ -81,3 +81,52 @@ Matches the decisions log (nothing stored), keeps one discriminant across the AP
 **What W13 does now:** a number with `verified: false` is never shown as the main red "Call" button. It appears as a secondary button marked "Not verified", with a note to go to the nearest hospital if the call does not connect. If no number is verified, "Find the nearest hospital" becomes the main action.
 
 **Ask:** confirm the real numbers and set `verified: true` only after someone has checked them (who, and when?). Recommendation: keep the `verified` flag in the contract permanently, so a number that has not been checked can never look like a checked one.
+
+---
+
+## Q3. H7 History, Wallet and Account: API gaps
+
+**Raised by:** Hikmah (H7), November 2026. **For:** Zainab. **Blocks:** H7 on the real API (History and Account), H10.
+
+H7 uses only endpoints in the contract: `GET /me/questions`, `GET /wallet`, `GET /wallet/transactions`, `POST /topups`, `GET /topups/:id`, `GET/PATCH /me`, `GET/PATCH /me/settings`, `GET/PATCH /me/notifications`, `POST /auth/logout`, `POST /auth/logout-all`. Wallet, top-ups, `/me` and logout work against the backend today.
+
+### 3a. Routes in the contract that the backend does not serve yet
+
+| Route                                    | Contract | Backend today | Who builds it?                                         |
+| ---------------------------------------- | -------- | ------------- | ------------------------------------------------------ |
+| `GET /me/questions`, `/me/questions/:id` | §8.4     | 404           | Z6 (listed in the task)                                |
+| `GET/PATCH /me/settings`                 | §3       | 404           | **No Z task lists it.** Z3 built only `GET/PATCH /me`. |
+| `GET/PATCH /me/notifications`            | §3       | 404           | **No Z task lists it.**                                |
+
+**What the web app does meanwhile:** each section shows "We could not load these settings" with Try again. Appearance and Quick exit still work, because both are kept on the device. Quick exit says "Saved on this device only" when the save fails.
+
+**Ask:** add `/me/settings` and `/me/notifications` to a Z task (suggest Z6, since `POST /questions` already needs `spendingLimitPerAnswerKobo`).
+
+### 3b. `MyQuestion` is missing what W12 shows
+
+Figma W12 shows a nurse on "In review" rows and a short title per question.
+
+1. **Nurse while claimed or answered but not opened.** `chosenNurse` is set only for "chosen nurse" questions, and `answer.nurse` only after she opens the answer. For first-available questions the app shows "A nurse is reviewing it" / "Answer ready to open". **Option A (recommended):** add `nurse: PublicNurse | null` to `MyQuestion` (the claiming or answering nurse). PublicNurse has no contact details, so privacy is unchanged. **Option B:** keep the generic text.
+2. **Title.** No short title field. The app shows `cleanedText` (her own words, spelling fixed), cut to two lines on mobile and one on desktop. **Recommendation:** keep it that way. A generated title would be a summary, and the decisions log keeps her words unsummarised.
+3. **What she actually paid.** `isFree` is "a quote" (§8.1 point 9). History shows "Free" / "₦500" from `isFree` + `price` once `answer` is present, which is wrong if the final charge differed. **Option A (recommended):** add `payment: { amount, paidFromTreasury, stellarTxHash } | null` to `MyQuestion` (same shape as `AnswerResponse.payment`). **Option B:** guarantee in the contract that `isFree` and `price` are final once `answer` is set.
+4. **`answeredAt` before she opens it.** Only in `answer.answeredAt`. Needed for "Average time to answer", which today uses opened answers only. Covered by `status` + a top-level `answeredAt` if you prefer.
+
+### 3c. History stats need her whole list
+
+D-W12 shows "Consultations this year", "Spent on answers", "Average time to answer", "Free answer(s) used"; mobile shows "4 consultations this year, ₦1,000 spent". The app works these out from `GET /me/questions?limit=100` and **hides them if `nextCursor` is set** (rather than show a partial count). **Option A:** accept this (few women will pass 100). **Option B:** `GET /me/questions/summary` returning those four numbers. **Recommendation:** A for the hackathon.
+
+Also: the "In review" filter means `open` + `claimed`, but `?status=` takes one value. The app filters on the client. Supporting `?status=open,claimed` would be nice to have, not a blocker.
+
+### 3d. Top-ups
+
+1. **Paystack callback.** `PAYSTACK_CALLBACK_URL` defaults to `http://localhost:5173/account/wallet`. The web wallet route is `/account/wallet`, so this matches. The production value must point at the deployed web app (Z11).
+2. **Unfinished top-ups are invisible.** `GET /wallet/transactions` lists confirmed movements only, and there is no `GET /topups`. If she leaves Paystack without coming back, a `pending`/`paid` top-up cannot be shown anywhere. **Option A:** `GET /topups?status=pending,paid`. **Option B:** leave it (it credits anyway and then appears in activity). **Recommendation:** B for now.
+3. **Checkout URL check.** The app only follows an `https:` `authorizationUrl` (or same-origin in the mock) and refuses anything else. If Paystack test mode can ever return a non-https URL, tell me.
+
+### 3e. Use CareLayer in Claude (Z12)
+
+The Account screen saves `mcpSpendingLimitPerAnswerKobo` and `mcpAskBeforeEachPayment`, and says "Connecting to Claude is not available yet". Not defined anywhere yet: **how she connects** (connector URL? an agent token from `POST /auth/agent-tokens`, which is in the contract but not built? OAuth?) and **the connection steps** to show. I have not shown a URL or created tokens. Please decide in Z12 and I will add the steps.
+
+### 3f. Appearance: which copy wins?
+
+Contract §3: `appearance` is saved with her settings and also in `localStorage`. The app applies the device copy (before sign-in, no flash) and saves her choice to the account when she changes it. It does **not** apply the account value on another device. Quick exit is the reverse: the account value replaces the device copy when settings load, so every device exits to the same place. **Ask:** confirm that is fine, or say if appearance should follow the account too.
