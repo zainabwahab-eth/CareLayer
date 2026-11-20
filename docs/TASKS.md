@@ -1,0 +1,411 @@
+# CareLayer task guide
+
+This file is the working plan for Claude Code. Read it together with `CLAUDE.md`, `docs/PROJECT_BRIEF.md` and `docs/API_CONTRACT.md` at the start of every session.
+
+- **Zainab:** backend, payments, AI integration, MCP (tasks Z1–Z12)
+- **Hikmah:** design tokens, frontend, AI behaviour (tasks H1–H10)
+
+Nothing here is fixed: change the order if something works better, but record the change in the decisions log (section 2).
+
+### Who owns what
+
+Each person runs their own Claude Code sessions and works only on their own tasks.
+
+- **Zainab's sessions:** only Z tasks. Edit `apps/api`, `apps/mcp`, `packages/shared`, `docs/` and Postman. Never edit `apps/web`, `apps/workers`, `packages/tokens`, `apps/api/prompts/` or `apps/api/config/red-flags.json` (Hikmah owns those). If an H task needs a backend change, do it as part of the matching Z task.
+- **Hikmah's sessions:** only H tasks. Edit `apps/web`, `apps/workers`, `packages/tokens`, `apps/api/prompts/`, `apps/api/config/red-flags.json`. Never edit backend code; if the API needs to change, write it to `docs/QUESTIONS.md` for Zainab.
+- Shared files (`packages/shared`, `docs/API_CONTRACT.md`): changed only by Zainab, in backend PRs. Hikmah reviews those PRs.
+
+To start a session, tell Claude Code who you are: "I'm Zainab. Read CLAUDE.md and docs/TASKS.md, then continue the next unticked Z task."
+
+---
+
+## 1. How to work (every task)
+
+Claude Code should follow this loop without waiting for new prompts:
+
+1. **Start:** pull `main`, create a branch named after the task (`z3-auth`, `h6-chat-flow`).
+2. **Read:** this file's section for the task, the decisions log, and the relevant API contract sections.
+3. **Plan:** write a short plan in the session (files to touch, endpoints, tests). Go ahead unless the plan needs a decision that isn't in this file (see "When to stop and ask").
+4. **Build:** small commits on the branch.
+5. **Test:** write the tests listed for the task and make them pass. Run lint and typecheck.
+6. **Postman (backend tasks):** add or update requests in the Postman collection **"CareLayer API"** (folder per module), with an example response for each request. Export it to `docs/postman/carelayer.postman_collection.json` and the environment to `docs/postman/carelayer.local.postman_environment.json` (no secrets in the export).
+7. **Docs:** update `docs/API_CONTRACT.md` and `packages/shared` if any endpoint or type changed. Tick the task in the status tracker (section 8).
+8. **PR:** open a pull request into `main` with: what changed, how to test it, any contract changes (in bold), and screenshots for frontend work. The other person approves. Squash and merge.
+
+### When to stop and ask
+
+Stop and write the question to `docs/QUESTIONS.md` (with options and a recommendation), then tell the user, only when:
+- a product decision isn't covered by this file, the brief or the designs;
+- something would change the API contract in a way that affects the other person's work;
+- a third-party service (x402, Stellar, Paystack, MCP) behaves differently from what this plan assumes.
+
+For everything else, make a sensible choice, note it in the PR description, and keep going.
+
+### Testing tools
+- **API:** Vitest + Supertest against a test database (`DATABASE_URL_TEST`). Stellar and Paystack calls go through small service wrappers so tests can mock them; one integration test per payment task runs against testnet when `RUN_TESTNET=1`.
+- **Frontend:** Vitest + Testing Library for components and flows, against the mock API.
+- Every PR: `npm run lint`, `npm run typecheck`, `npm test` all pass.
+
+---
+
+## 2. Decisions log (locked)
+
+These override anything older in other docs. If you change one, update this list in the same PR.
+
+**Product**
+- Health workers are **registered nurses and midwives only**. No doctors, no MDCN.
+- Women ask the AI assistant in their own words. AI answers are free.
+- Women never choose a category. The AI assigns one: Pregnancy, Periods, Contraception, Sexual health, General.
+- The question sent to a nurse is the woman's own words with spelling and grammar fixed, **never shortened or summarised**. Store `originalText` and `cleanedText`. Assistant notes are stored separately.
+- Shared with the nurse, with consent: cleaned question, assistant notes, category, age range (`UNDER_18 | AGE_18_24 | AGE_25_34 | AGE_35_44 | AGE_45_PLUS`), pregnancy weeks if relevant. Never her name, email, phone or location. Consent is recorded per question (fields shared, consent text version, time).
+- **Nurse selection:** "First available" (default) or a specific nurse. A chosen nurse has 10 minutes to claim; after that, or if she releases or her claim expires, the question opens to everyone.
+- **"Only female health workers"** toggle on the selection screen: `Question.femaleOnly` filters by `NurseProfile.gender = FEMALE`.
+- **Claims:** one active claim per nurse, 10-minute lock with countdown, Release button.
+- **Expiry:** no new claims after 30 minutes. An active claim may finish its 10-minute lock (max wait 40 minutes). Unanswered question → expired, she pays nothing. UI wording: "If no nurse picks it up within 30 minutes, you pay nothing."
+- **Price:** ₦500 per answer (`ANSWER_PRICE_KOBO=50000`). Nurse gets 80% (₦400), platform 20%.
+- **Free answers:** first 3 per woman. The nurse is still paid ₦400 from the treasury.
+- **Pay on delivery:** nothing is charged until the answer is ready.
+- **Feedback:** helpful / not helpful on each answer. Nurse rating shown as **% helpful + count**, e.g. "96% helpful (212)". No stars.
+- Nurses can tick **"Recommend she sees someone today"** on an answer.
+- Nurse profile: full name as on licence, role (nurse or midwife), gender (optional), years of practice, short bio (280 chars), languages (fixed list: English, Pidgin, Yoruba, Hausa, Igbo), topics, available toggle, average response time, % helpful.
+- **Emergencies:** fixed red-flag list + LLM check on every message. Triggered → free emergency screen, nothing queued. Logged as `EmergencyEvent` with source + timestamp only (no user id, no text, no red-flag id).
+- **Notifications:** "Notify me when answered" by email only.
+- **Chat history:** not stored on the server. Chat lives in the client session. Only questions sent to nurses are stored.
+
+**Accounts and auth**
+- Passwordless: Google sign-in, or email + 6-digit code. Separate Sign up and Log in screens.
+- Women sign up with "What should we call you?" + email. Nurses with "Full name, as on your licence" + email.
+- Accounts are per app: unique on (email, role).
+- Code: 6 digits, 10-minute expiry, single use, hashed, max 5 attempts, resend after 45 s and max 5 per hour.
+- Sessions: 15-minute access token; refresh token in an httpOnly, Secure, SameSite cookie; rotated on every use; reuse revokes the session. Women 90 days sliding, nurses 30 days. Logout and logout-all. Fresh code (last 5 minutes) required for withdrawals and payout address changes.
+- Roles: `WOMAN`, `NURSE`, `ADMIN`. Routes: `/me/*` (women), `/nurse/*`, `/admin/*`. (Renamed from `worker`; tell Hikmah in the Z1 PR.)
+
+**Money and chain**
+- Naira as integer kobo (`Int`), USDC as integer stroops (`BigInt`, 7 decimals). No floats.
+- The chain is the source of truth for balances; `Wallet.cachedBalanceStroops` is refreshed after each transaction.
+- Fixed demo exchange rate from `NGN_PER_USDC`.
+- Every user gets a custodial Stellar testnet wallet at sign-up; secrets encrypted with `WALLET_ENCRYPTION_KEY`; the treasury sponsors reserves and adds the USDC trustline.
+- Top-up: Paystack test mode → test USDC from the treasury.
+- Women: **no withdrawals** for now. Nurses: withdraw to a Stellar address; bank withdrawal shown as "Coming soon".
+- Store the Stellar transaction hash on every payment, payout, top-up and withdrawal.
+
+**x402 (decided in Z2, November 2026)**
+- **Packages:** the official `@x402/core`, `@x402/express`, `@x402/stellar`, `@x402/fetch`, pinned at 2.31.0, with `@stellar/stellar-sdk` 16 (the version `@x402/stellar` depends on).
+- **Facilitator: OpenZeppelin Channels, hosted** (`https://channels.openzeppelin.com/x402/testnet`, anonymous testnet key from `/testnet/gen`). Why: it is the facilitator the Stellar docs point to for `stellar:testnet`, it sponsors fees (the payer only spends USDC), and there is nothing to host. The Coinbase facilitator does not list Stellar. Self-hosting the OpenZeppelin Relayer plugin is the fallback if the hosted service is down or rate-limited; the code only depends on the `FacilitatorClient` interface, so switching is a URL and key change.
+- **Price and receiving address can be set per request.** `price` and `payTo` both accept a function of the request context (path, headers, query). Z8 prices each answer and can direct `payTo` per question. Proven in `test/payments.x402.test.ts`.
+- **Pay-on-delivery guard is our own Express middleware**, mounted before `paymentMiddleware`. x402's built-in `onProtectedRequest` hook can only deny with a 403, and the contract needs 409 `QUESTION_NOT_ANSWERED`.
+- **Prices are explicit USDC stroop amounts** (`{ asset: USDC SAC, amount: "100000" }`), never `"$0.01"` strings.
+- **Payers are classic accounts with a USDC trustline.** The client signs a Soroban auth entry with `createEd25519Signer(secret)`, so custodial wallets need no smart account. Test USDC comes from the testnet DEX (XLM → USDC path payment), not a faucet.
+- **For Z8:** a facilitator `settle()` timeout is indeterminate (the payment may still have gone through). Record the attempt before settling and reconcile by tx hash, so a retry never charges twice.
+
+**Privacy and safety UI**
+- Quick exit on every women's screen: `window.location.replace()` to Google (or weather/news from settings). Back must not return. Doesn't log out. Next open shows a blank new chat. Esc twice on desktop.
+- Appearance: System (default) / Light / Dark.
+
+**Out of scope:** real licence verification APIs, mainnet, real naira on/off-ramp, bank withdrawals, women's withdrawals, passwords, native apps, push notifications, weekly availability hours.
+
+---
+
+## 3. Designs
+
+Figma file: **"CareLayer – Product design v1"**, key `cCmDYngHpc03VO66FsVUvD`.
+
+- Pages: `Design system`, `Women -mobile`, `Nurse -mobile`, `Women — Desktop`, `Nurse — Desktop`. Each app page has a dark mode section below the light screens.
+- **Mobile pages are the source of truth.** Desktop and dark versions use the same components and data.
+- Figma calls are limited. Read each screen once with `get_design_context` when you build it, never re-read a screen you've already built, and use the tokens (section 4) for everything else. Never read the dark mode sections; dark mode comes from the tokens.
+- The designs say "Lafiya" nowhere; the product is CareLayer.
+
+### Screen map
+
+| Frame | Route | App | Data / endpoints |
+|---|---|---|---|
+| W01 Welcome | `/` | web | none |
+| W02 Before you start | `/start` | web | none (agreement stored on sign-up) |
+| W03 Sign up | `/signup` | web | `POST /auth/code`, `POST /auth/google` |
+| W04 Verify email | `/verify` | web | `POST /auth/verify` |
+| *(no design)* Log in | `/login` | web | `POST /auth/code` |
+| W05 Home | `/home` | web | `GET /me`, `GET /me/wallet`, `GET /me/questions?status=active` |
+| W06 Assistant chat | `/ask` | web | `POST /chat` |
+| W07 Consent | `/ask/send/consent` | web | (client state from chat) |
+| W08 Choose who answers | `/ask/send/nurse` | web | `GET /nurses?topic=` |
+| W09 Confirm and pay | `/ask/send/confirm` | web | `POST /questions` |
+| W10 Waiting | `/questions/:id` (status open/claimed) | web | `GET /questions/:id/status` |
+| W11 Nurse response | `/questions/:id` (answered) | web | `GET /questions/:id/answer`, `POST /questions/:id/feedback` |
+| W12 History | `/history` | web | `GET /me/questions` |
+| W13 Emergency | `/emergency` | web | returned by `POST /chat` |
+| *(no design)* Wallet | `/account/wallet` | web | `GET /me/wallet`, `POST /me/topups` |
+| *(no design)* Account / settings | `/account` | web | `GET/PATCH /me/settings`, `POST /auth/logout`, `POST /auth/logout-all` |
+| N01 Join | `/` (workers app) | workers | `POST /auth/code`, `POST /auth/google` |
+| *(no design)* Log in + verify | `/login`, `/verify` | workers | `POST /auth/code`, `POST /auth/verify` |
+| N02 Verify licence | `/onboarding/licence` | workers | `PATCH /nurse/profile` |
+| N03 Documents | `/onboarding/documents` | workers | `POST /nurse/documents`, `POST /nurse/profile/submit` |
+| N04 Under review | `/onboarding/review` | workers | `GET /nurse/profile` |
+| N05 Today | `/today` | workers | `GET /nurse/dashboard`, `PATCH /nurse/availability` |
+| N06 Cases | `/cases` | workers | `GET /nurse/questions?tab=waiting|active|completed`, `POST /nurse/questions/:id/claim` |
+| N07 Respond | `/cases/:id` | workers | `POST /nurse/questions/:id/release`, `POST /nurse/questions/:id/answer` |
+| N08 Answer sent | `/cases/:id/sent` | workers | response of the answer call |
+| N09 Earnings | `/earnings` | workers | `GET /nurse/earnings`, `POST /nurse/withdrawals` |
+| *(no design)* Profile / settings | `/profile` | workers | `GET/PATCH /nurse/profile`, topics, appearance, logout |
+| *(no design)* Admin review | `/admin` (in api, server-rendered or minimal page) | api | `GET /admin/nurses?status=pending`, `POST /admin/nurses/:id/approve|reject` |
+
+### Screens without a design
+
+Build these from the tokens and existing components; match the nearest designed screen.
+- **Women log in:** same layout as W03 without the name field. Title "Welcome back", button "Send me a code", footer "New here? Create an account".
+- **Nurse log in:** same as N01's form side. Title "Welcome back", footer "New here? Join as a nurse or midwife". Verify screen reuses W04's layout.
+- **Women wallet:** balance card like the nurse earnings card (balance in naira, "Held as USDC in your own wallet"), Top up button only, free answers left, spending limit per answer, activity list with "View on Stellar" links. Top up opens a sheet (mobile) or modal (desktop): amounts ₦1,000 / ₦2,000 / ₦5,000 / Other, then Paystack.
+- **Women account:** name and email; Appearance (System/Light/Dark); Quick exit opens (Google/Weather/News, with "Try it now"); spending limit per answer; notify me when answered; Use CareLayer in Claude (connection steps, connector URL, separate Claude limit, ask before each payment); Add to Home Screen; Log out; Log out of all devices.
+- **Nurse profile:** profile card with verified badge; bio, languages, years; Topics I answer (checkbox list, at least one; alerts only for chosen topics); payout wallet (change requires fresh code); Appearance; Log out; Log out of all devices.
+- **Admin:** a plain table of pending nurses with documents (signed short-lived links), Approve / Reject with reason. Admin-only.
+
+---
+
+## 4. Design tokens (for H1)
+
+From the Figma variables "CareLayer colour" (Light / Dark). Name CSS variables by role, exactly as below.
+
+| Token | Light | Dark | Use |
+|---|---|---|---|
+| canvas | #F3F5F2 | #131917 | App background |
+| surface | #FFFFFF | #1B2320 | Cards, sheets, inputs |
+| surface-soft | #EAF0EC | #222C28 | Quiet panels, assistant bubbles |
+| ink | #13201D | #EBF0ED | Primary text |
+| ink-muted | #55635F | #A3B0AB | Secondary text |
+| line | #D9E1DC | #2E3935 | Borders, dividers |
+| primary | #0F4A43 | #1F6B60 | Main actions, brand surfaces |
+| primary-soft | #DCEBE6 | #1B332E | Selected states, highlights |
+| primary-text | #0F4A43 | #7CC7B8 | Brand-coloured text, links, icons, selected borders |
+| on-primary | #FFFFFF | #FFFFFF | Text on primary |
+| on-primary-muted | #DCEBE6 | #CFE6DF | Secondary text on primary panels |
+| accent | #D9932E | #E0A040 | Warmth, progress, quick exit |
+| accent-soft | #FAEBD3 | #3A2E1B | Tips, gentle notes |
+| on-accent | #13201D | #1F1606 | Text/icons on accent |
+| rose | #C2766A | #C9847A | Avatars, people |
+| rose-soft | #F6E3DE | #3A2825 | Her chat messages |
+| verified | #1D6FA8 | #7DB8E8 | Verified professionals only |
+| verified-soft | #E1EEF7 | #172A3A | Verified badge background |
+| emergency | #B42318 | #F2938A | Emergencies only |
+| emergency-soft | #FDECEA | #3B1F1C | Emergency background |
+| on-emergency | #FFFFFF | #2A0E0B | Text on emergency buttons |
+| chart-bar | #DCEBE6 | #2F5F56 | Inactive chart bars |
+
+- **Fonts:** Literata Medium (headings), Hanken Grotesk Regular/Medium/SemiBold (everything else).
+- **Type scale (size/line height):** Display XL 56/62 (desktop only), Display L 40/46, Display M 30/36, Display S 24/30 (Literata); Title L 20/28 SemiBold, Title M 17/24 SemiBold, Body L 17/26, Body M 15/22, Body S 13/18, Label M 15/20 SemiBold, Label S 13/16 SemiBold, Caption 12/16 Medium.
+- **Spacing:** 4, 8, 12, 16, 20, 24, 32, 40. Mobile side margin 20px; desktop main padding 48px.
+- **Radius:** 10 / 14 (buttons, inputs) / 20 (cards) / 28 / full (badges, chips).
+- **Rules:** blue = verified only, red = emergency only. Touch targets ≥ 48px.
+- **Responsive:** under 1024px use the mobile layouts (content max 640px on tablets); from 1024px the tab bar becomes the 264px left sidebar shown in the desktop frames.
+
+---
+
+## 5. Shared setup (both, first)
+
+1. Agree `docs/API_CONTRACT.md` v1 after Z1 lands (Hikmah reviews the Z1 PR).
+2. Keys in local `.env` files only: Stellar testnet treasury, Paystack test keys, LLM API key, Google OAuth client ID, email sending key.
+3. Hikmah's frontend uses mock handlers (Mock Service Worker) generated from `packages/shared` types; each endpoint switches from mock to real when its backend task merges.
+4. Daily 15-minute check-in: done, next, blocked. Mention any change to `packages/shared` or the contract.
+
+---
+
+## 6. Zainab: backend, payments, AI integration, MCP
+
+Order: Z1 → Z2 → Z3 → Z4 → Z5 → Z6 → Z9 → Z7 → Z8 → Z10 → Z11 → Z12.
+
+### Z1. Database schema and API skeleton (done, PR #6)
+
+The schema draft is approved with the decisions in section 2. Build it.
+
+- Prisma schema covering: users, sessions, refresh tokens, email codes, agent tokens, user settings, notification preferences, wallets, nurse profiles, nurse documents, topics, nurse topics, questions (incl. `femaleOnly`, `ageRange`, `pregnancyWeeks`, selection/chosen nurse window, `expiresAt`), consents (`SharedField` includes `AGE_RANGE`, `PREGNANCY_WEEKS`), claims (partial unique indexes: one active claim per nurse and per question), answers (`recommendSeeSomeoneToday`), feedback, payments, payouts, top-ups, withdrawals, emergency events.
+- Rename `worker` → `nurse` everywhere (DB, shared types, contract routes). List renamed routes and types in the PR description for Hikmah.
+- Seed: one woman "Tolu" (1 free answer used, cached balance ₦3,500), nurses Amaka Okafor (midwife, 9 yrs, English/Igbo), Funmilayo Bello (midwife, 6 yrs, English/Yoruba), Hauwa Musa (nurse-midwife → role MIDWIFE, 11 yrs, English/Hausa), all approved and female; one pending nurse; one admin; questions in every status.
+- Skeleton: module folders (auth, users, wallets, chat, questions, nurses, payments, admin), zod env validation, central error handler, request logging, `GET /health` returning `{ status, database }` and 503 when the DB is down.
+- Fix README and brief (no doctors). Update the contract with: expired/cancelled statuses, `nurseSelection` + `chosenNurseId` + `femaleOnly` on create question, `recommendSeeSomeoneToday`, `GET /nurses`, feedback, notification preferences.
+
+**Tests:** migrate fresh DB + seed succeeds; `/health` 200 and 503 (DB down); partial unique indexes reject a second active claim.
+**Postman:** Health request; collection and environment created.
+**Done when:** merged, and Hikmah's mocks use the shared types.
+
+### Z2. Prove an x402 payment on Stellar testnet (done: [paid tx](https://stellar.expert/explorer/testnet/tx/b2ce568136e4372c5b5faa5ab963ebeac8ad94afaa661bb2ccbf2f6b09ef30ed))
+
+- Read the current x402 Stellar docs first. Choose the facilitator (Coinbase x402 facilitator or the OpenZeppelin relayer x402 plugin) and record why in the decisions log.
+- Test route `GET /x402-test` priced 0.01 USDC to the treasury; script `scripts/pay-x402.ts` pays it as a client with a test wallet and prints the tx hash.
+- Prove the pay-on-delivery guard: a check before the payment middleware returns 409 and requests no payment when a condition is false.
+- Find out whether price and receiving address can be set per request; write the answer in the decisions log (affects Z8).
+
+**Tests:** testnet integration test (`RUN_TESTNET=1`) for a successful payment; unit test that the guard returns 409 without a 402.
+**Done when:** a payment link on the Stellar testnet explorer is in the PR.
+
+### Z3. Passwordless auth and sessions
+
+Implement everything in "Accounts and auth" (section 2): `POST /auth/code` (purpose signup/login/step_up, role), `POST /auth/verify`, `POST /auth/google`, `POST /auth/refresh`, `POST /auth/logout`, `POST /auth/logout-all`, `GET /me`; role middleware; email sending behind a wrapper (log to console in dev).
+
+**Tests:** expiry, 5-attempt lock, resend limits, refresh rotation, reuse detection revokes the session, logout-all, role guard (woman can't call `/nurse/*`), per-app accounts (same email as woman and nurse).
+**Postman:** Auth folder; a pre-request script or environment variable flow that stores the access token.
+**Done when:** Hikmah's auth screens work against the real API.
+
+### Z4. Wallet for every user
+
+- On sign-up, create a keypair, encrypt the secret, have the treasury sponsor the account and add the USDC trustline.
+- `GET /me/wallet` (women) and wallet info in `GET /nurse/earnings`: USDC balance, naira equivalent, free answers left (women).
+
+**Tests:** wallet service unit tests with Stellar mocked; testnet integration test creates an account with a trustline.
+**Done when:** every new user has a working testnet wallet visible on the explorer.
+
+### Z5. Top-up with Paystack test mode
+
+- `POST /me/topups` initialises a Paystack test transaction; webhook verifies the signature, then sends test USDC from the treasury; idempotent on the Paystack reference; records the Stellar hash.
+
+**Tests:** signature check; duplicate webhook credits once; failed payment credits nothing.
+**Postman:** Top-up folder, including a sample webhook body.
+**Done when:** a test-card top-up updates the balance from the real wallet screen.
+
+### Z6. Chat, emergencies and sending questions
+
+- `POST /chat`: red-flag check first (fixed list in `apps/api/config/red-flags.json` + LLM); emergency → `{ type: "emergency" }`, log `EmergencyEvent`, nothing queued. Otherwise call the LLM with `apps/api/prompts/assistant.md` (Hikmah owns it) and return `{ type: "answer" }` or `{ type: "offer", draft: { cleanedText, assistantNotes, category, ageRange?, pregnancyWeeks? }, price, freeAnswersLeft }`. Chat history comes from the client in the request; nothing is stored.
+- `GET /nurses?topic=&femaleOnly=`: available, approved nurses with public profile fields only.
+- `POST /questions`: requires consent fields; stores original + cleaned text, notes, category, age range, pregnancy weeks, selection, chosen nurse window (10 min), `expiresAt` (30 min), price, free flag; checks her spending limit. Alerts nurses for the topic (email, behind a wrapper).
+- `GET /questions/:id/status`, `GET /me/questions`.
+- Use a placeholder prompt until H2 lands.
+
+**Tests:** emergency creates no question; consent required; cleaned text stored separately from original; spending limit enforced; chosen-nurse visibility rule.
+**Postman:** Chat and Questions folders.
+
+### Z9. Nurse onboarding and admin approval
+
+- `GET/PATCH /nurse/profile`, `POST /nurse/documents` (private storage, never public URLs), `POST /nurse/profile/submit`, topics with role defaults (midwives: Pregnancy + Periods; nurses: all), `PATCH /nurse/availability`.
+- Admin: `GET /admin/nurses?status=`, `POST /admin/nurses/:id/approve`, `POST /admin/nurses/:id/reject`, signed short-lived document links, and a minimal admin page.
+
+**Tests:** unapproved nurse can't see questions; at least one topic required; documents not publicly reachable.
+**Postman:** Nurse profile and Admin folders.
+
+### Z7. Claiming and answering
+
+- `GET /nurse/questions?tab=waiting|active|completed` (waiting = visible to her by topic, selection window and `femaleOnly`), `POST /nurse/questions/:id/claim` (atomic; one active claim; no claims after 30 min), `POST /nurse/questions/:id/release`, `POST /nurse/questions/:id/answer` (with `recommendSeeSomeoneToday`), `GET /nurse/dashboard`.
+- Background sweeper (every 30 s): expire claims → reopen; open chosen-nurse questions after 10 min; expire questions after 30 min with no active claim.
+
+**Tests:** two simultaneous claims → exactly one wins; second active claim refused; release reopens; claim after 30 min refused; sweeper transitions.
+**Postman:** Nurse cases folder.
+
+### Z8. Pay on delivery and nurse payouts
+
+- `GET /questions/:id/answer` is x402-protected; the guard before the middleware returns 409 (no payment requested) unless the question is answered.
+- An internal agent service acts as the x402 client with the woman's custodial wallet, after checking her spending limit and free answers. Free answers skip her payment.
+- After settlement, pay the nurse 80% from the treasury (also for free answers); record both hashes; idempotent (never charge or pay twice).
+- `POST /questions/:id/feedback` updates the nurse's % helpful cache.
+- **Hard requirement: the answer is never returned unless settlement succeeds.** Z2 found that x402's Express `paymentMiddleware` runs the route handler before it settles. Check whether it withholds the handler's body when settlement fails. If it can return the body before or without a successful settle, do not use `paymentMiddleware` for this route: use a manual flow instead (verify the payment → settle with the facilitator → only then load and return the answer).
+- **Facilitator resilience (from Z2):** the facilitator URL and key are env vars (`X402_FACILITATOR_URL`, `X402_FACILITATOR_API_KEY`). Map facilitator 429 and 5xx (and timeouts) to a clear error (`503`, retryable, nothing charged or recorded as paid). A `settle()` timeout is indeterminate: record the attempt first and reconcile by tx hash before any retry.
+
+**Tests:** unanswered → 409 and no charge; paid answer creates payment + payout; free answer charges nothing and pays the nurse; repeated fetch doesn't charge again; **a test that forces settlement to fail and asserts no answer text is returned and nothing is recorded as paid**; facilitator 429/5xx returns the clear error; testnet integration test end to end.
+**Done when:** one full question flow shows both transactions on the explorer.
+
+### Z10. Earnings and withdrawals
+
+- `GET /nurse/earnings` (balance, this week, this month, daily totals for the chart, payments list with explorer links), `POST /nurse/withdrawals` (fresh code required; Stellar address only).
+
+**Tests:** withdrawal without fresh code refused; insufficient balance refused; success records the hash.
+
+### Z11. Deploy
+
+- Deploy API + Postgres (Cloud Run or similar), set env vars, run migrations and seed, share the URL. Add a Postman environment for the deployed API.
+- **Before the demo:** the hosted OpenZeppelin facilitator key from Z2 is anonymous with undocumented rate limits. Get a non-anonymous key, or stand up the self-hosted OpenZeppelin Relayer x402 plugin as a fallback (switching is only `X402_FACILITATOR_URL` + `X402_FACILITATOR_API_KEY`).
+
+**Done when:** both frontends work against the deployed API on a phone.
+
+### Z12. MCP server for Claude
+
+- `apps/mcp` with the official TypeScript MCP SDK. Tools: `ask_health_worker` (returns the price and requires explicit confirmation before sending), `get_answer`, `get_balance`. Authenticates with an agent token linked to her account; separate Claude spending limit and "ask before each payment"; emergencies return the same free guidance.
+- Document how to add it to Claude as a custom connector.
+
+**Done when:** a question from Claude and one from the web app go to the same nurse queue and are both paid via x402 (the two-agent demo).
+
+---
+
+## 7. Hikmah: tokens, frontend, AI behaviour
+
+Order: H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8 → H9 → H10. All screens are built against mocks first.
+
+### H1. Design tokens
+- `packages/tokens/tokens.css` from section 4: light on `:root`, dark on `[data-theme="dark"]` and under `prefers-color-scheme: dark` when no theme is set. Load the fonts. A `/tokens` preview page in `apps/web`.
+- **Done when:** no raw colour values in either app.
+
+### H2. Assistant behaviour
+- `apps/api/prompts/assistant.md`: tone, what it answers itself, when to offer a nurse, never diagnose, the clean-up-not-summarise rule, category rules, assistant notes format, extracting age range and pregnancy weeks only when she mentioned them.
+- `apps/api/config/red-flags.json`: red-flag symptoms.
+- `apps/api/prompts/test-set.json`: ~30 questions with expected outcome (answer / offer / emergency) and category. Get a nurse or midwife to review the red flags.
+- **Done when:** the test set passes through Zainab's `/chat`.
+
+### H3. App shells, theme and mocks
+- Routing (section 3 routes), mobile layout with tab bar, desktop layout with sidebar from 1024px, theme provider (System/Light/Dark), typed API client from `packages/shared`, MSW handlers per endpoint with a per-endpoint real/mock switch.
+
+### H4. Welcome and privacy (W01, W02)
+
+### H5. Women auth (W03, W04, log in)
+- Six-box code input with auto-advance, paste and resend countdown.
+
+### H6. Women ask flow (W05–W11, W13)
+- Home, chat (with "Ask a nurse directly"), consent, choose who answers (with female-only toggle), confirm and pay, waiting (polls status every 5 s), nurse response (feedback, receipt), emergency.
+
+### H7. History, wallet, account (W12, wallet, account)
+- Including Paystack top-up and all settings in section 3.
+
+### H8. Quick exit and PWA
+- Quick exit behaviour from section 2; installable PWA; Android install prompt; iPhone instructions; dismissible banner.
+
+### H9. Nurse app (N01–N09, log in, profile)
+- Onboarding, under review, today, cases (waiting/active/completed tabs), respond (10-minute countdown, release, checklist, "recommend she sees someone today"), answer sent, earnings (chart + withdraw with code), profile.
+
+### H10. Switch to the real API and test on phones
+- Endpoint by endpoint; test on Android and iPhone, including the iPhone home-screen app (may need its own login once).
+
+**Frontend tests (every H task):** each screen renders its states from mocks (loading, empty, error, success); key flows have an interaction test (code entry, consent → send, claim → answer).
+
+---
+
+## 8. Handoffs and status
+
+| Backend task merges | Unlocks for Hikmah |
+|---|---|
+| Z1 (types) | real types in mocks |
+| Z3 | H5 auth on real API |
+| Z4–Z5 | wallet screen on real API |
+| Z6 + Z8 | ask flow on real API |
+| Z7, Z9, Z10 | nurse app on real API |
+| Z11 | phone testing |
+| H2 → Z6 | real assistant prompt and red flags |
+
+### Status tracker
+
+Tick in the PR that completes the task.
+
+- [x] Z1 Schema and skeleton
+- [x] Z2 x402 proof
+- [ ] Z3 Auth
+- [ ] Z4 Wallets
+- [ ] Z5 Top-up
+- [ ] Z6 Chat and questions
+- [ ] Z9 Nurse onboarding + admin
+- [ ] Z7 Claiming and answering
+- [ ] Z8 Pay on delivery + payouts
+- [ ] Z10 Earnings and withdrawals
+- [ ] Z11 Deploy
+- [ ] Z12 MCP server
+- [ ] H1 Tokens
+- [ ] H2 Assistant behaviour
+- [ ] H3 Shells, theme, mocks
+- [ ] H4 Welcome and privacy
+- [ ] H5 Women auth
+- [ ] H6 Ask flow
+- [ ] H7 History, wallet, account
+- [ ] H8 Quick exit and PWA
+- [ ] H9 Nurse app
+- [ ] H10 Real API + phones
+
+---
+
+## 9. Finish together
+
+**End-to-end check (deployed, on a phone):** sign up → wallet created → top up → free AI answer → consent and send → nurse claims and answers → payment and 80% payout on the explorer → red flag shows emergency and creates no question → quick exit can't go Back → same flow from Claude via MCP.
+
+**Demo:** 3-minute script, seeded accounts, rehearse (one as the woman, one as the nurse), record a backup video.
+
+**Submission:** public repo with README, live link and test accounts, demo video, pitch slides, short x402/Stellar write-up, submitted a day early.

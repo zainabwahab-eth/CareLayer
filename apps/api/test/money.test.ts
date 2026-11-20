@@ -6,6 +6,7 @@ import {
   splitPayoutKobo,
   stroopsToKobo,
   stroopsToUsdcString,
+  usdcStringToStroops,
 } from '../src/lib/money.js';
 
 describe('money (kobo Int, stroops BigInt, no floats)', () => {
@@ -39,6 +40,19 @@ describe('money (kobo Int, stroops BigInt, no floats)', () => {
     expect(stroopsToUsdcString(1n)).toBe('0.0000001');
     expect(stroopsToUsdcString(12_345_678_901n)).toBe('1234.5678901');
     expect(stroopsToUsdcString(-5n)).toBe('-0.0000005');
+  });
+
+  it('parses Horizon USDC strings into stroops exactly and round-trips', () => {
+    expect(usdcStringToStroops('35.6955043')).toBe(356_955_043n);
+    expect(usdcStringToStroops('0.01')).toBe(100_000n);
+    expect(usdcStringToStroops('7')).toBe(70_000_000n);
+    expect(usdcStringToStroops('-0.0000001')).toBe(-1n);
+    for (const s of [0n, 1n, 100_000n, 356_955_043n]) {
+      expect(usdcStringToStroops(stroopsToUsdcString(s))).toBe(s);
+    }
+    for (const bad of ['', '1e-7', '0.00000001', '1,000', 'abc', '.5']) {
+      expect(() => usdcStringToStroops(bad)).toThrow();
+    }
   });
 
   it('splits 80/20 and the parts always sum to the whole', () => {

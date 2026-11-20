@@ -11,9 +11,7 @@ try {
 export function testDatabaseUrl(): string {
   const url = process.env.DATABASE_URL_TEST;
   if (!url) {
-    throw new Error(
-      'DATABASE_URL_TEST is not set. Add it to apps/api/.env (see .env.example).',
-    );
+    throw new Error('DATABASE_URL_TEST is not set. Add it to apps/api/.env (see .env.example).');
   }
   const dbName = new URL(url).pathname.replace(/^\//, '');
   if (!dbName.endsWith('_test')) {
@@ -33,6 +31,13 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
     databaseUrl: testDatabaseUrl(),
     answerPriceKobo: 50_000,
     ngnPerUsdc: '1600',
+    x402: {
+      network: 'stellar:testnet',
+      facilitatorUrl: 'https://facilitator.invalid',
+      facilitatorApiKey: undefined,
+      payToAddress: undefined,
+      testRouteEnabled: false,
+    },
     ...overrides,
   };
 }

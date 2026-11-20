@@ -25,18 +25,33 @@ npm test -w @carelayer/api
 
 ### Seed data
 
-| Who               | Email                         | State                                                         |
-| ----------------- | ----------------------------- | ------------------------------------------------------------- |
-| Tolu (woman)      | `tolu@example.com`            | 2 of 3 free answers left, cached balance ₦3,500               |
-| Amaka Okafor      | `amaka.okafor@example.com`    | Midwife, 9 yrs, English/Igbo, approved                        |
-| Funmilayo Bello   | `funmilayo.bello@example.com` | Midwife, 6 yrs, English/Yoruba, approved                      |
-| Hauwa Musa        | `hauwa.musa@example.com`      | Midwife (nurse-midwife), 11 yrs, English/Hausa, approved      |
-| Chiamaka Eze      | `chiamaka.eze@example.com`    | Nurse, pending admin review                                   |
-| Admin             | `admin@example.com`           | Admin                                                         |
+| Who             | Email                         | State                                                    |
+| --------------- | ----------------------------- | -------------------------------------------------------- |
+| Tolu (woman)    | `tolu@example.com`            | 2 of 3 free answers left, cached balance ₦3,500          |
+| Amaka Okafor    | `amaka.okafor@example.com`    | Midwife, 9 yrs, English/Igbo, approved                   |
+| Funmilayo Bello | `funmilayo.bello@example.com` | Midwife, 6 yrs, English/Yoruba, approved                 |
+| Hauwa Musa      | `hauwa.musa@example.com`      | Midwife (nurse-midwife), 11 yrs, English/Hausa, approved |
+| Chiamaka Eze    | `chiamaka.eze@example.com`    | Nurse, pending admin review                              |
+| Admin           | `admin@example.com`           | Admin                                                    |
 
 Questions cover every status: answered + collected (free, treasury payout to Amaka), answered not collected, claimed (Hauwa's active lock), open inside a chosen-nurse window, open female-only, open after fallback, expired, cancelled. Times are relative to when the seed runs, so re-seed before a demo.
 
 Placeholders, clearly not real: wallet keys start with `GSEED` (no secret; Z4 creates real testnet wallets), tx hashes are `sha256("carelayer-seed:<label>")` and not on-chain, licence numbers start with `SEED-`.
+
+## x402 on Stellar testnet (Z2)
+
+```bash
+npm run testnet:setup -w @carelayer/api   # once: treasury + test payer wallets, USDC, facilitator key -> .env
+# set X402_TEST_ROUTE=true in apps/api/.env, then:
+npm run dev:api
+npm run x402:pay -w @carelayer/api        # 409 guard check, then pays 0.01 USDC and prints the tx link
+npm run test:testnet -w @carelayer/api    # same, as assertions (real testnet, not part of npm test)
+```
+
+- Packages: official `@x402/core`, `@x402/express`, `@x402/stellar`, `@x402/fetch` (2.31.0). Facilitator: OpenZeppelin Channels (fees sponsored). Why: decisions log in `docs/TASKS.md`.
+- `src/modules/payments/`: `guard.ts` (pay-on-delivery guard, 409 before any 402), `x402.ts` (facilitator client, resource server, USDC prices in stroops), `x402-client.ts` (paying agent: `createPayingFetch`, `readSettlement`), `stellar-testnet.ts` (Friendbot, trustline, XLM to USDC on the testnet DEX, balances), `router.ts` (`GET /x402-test`).
+- `testnet:setup` only fills empty `.env` values and never prints secrets. Re-running it is safe.
+- First proof payment: https://stellar.expert/explorer/testnet/tx/b2ce568136e4372c5b5faa5ab963ebeac8ad94afaa661bb2ccbf2f6b09ef30ed
 
 ## Layout
 

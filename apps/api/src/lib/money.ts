@@ -44,6 +44,14 @@ export function stroopsToUsdcString(stroops: bigint): string {
   return `${negative ? '-' : ''}${whole}.${fraction}`;
 }
 
+/** "12.3456789" (Horizon balance / amount strings) -> 123456789n stroops. Exact; no float. */
+export function usdcStringToStroops(usdc: string): bigint {
+  const match = /^(-)?(\d+)(?:\.(\d{1,7}))?$/.exec(usdc.trim());
+  if (!match) throw new Error(`Invalid USDC amount: "${usdc}"`);
+  const value = BigInt(match[2]!) * STROOPS_PER_USDC + BigInt((match[3] ?? '').padEnd(7, '0'));
+  return match[1] ? -value : value;
+}
+
 /** Nurse gets 80% (rounded down), platform keeps the remainder, so the parts always sum to the whole. */
 export function splitPayout(amount: bigint): { nurse: bigint; platform: bigint } {
   if (amount < 0n) throw new Error('amount must be non-negative');

@@ -1,0 +1,207 @@
+{
+  "info": {
+    "_postman_id": "757e009e-9b28-4514-a7f4-6fcbc1c6380e",
+    "name": "CareLayer API",
+    "description": "CareLayer backend (apps/api). Contract: docs/API_CONTRACT.md (v1). One folder per module; folders are added by the task that builds each module (Z3 Auth, Z5 Top-up, Z6 Chat + Questions, Z7 Nurse cases, Z9 Nurse profile + Admin). Select the 'CareLayer local' environment ({{baseUrl}} = http://localhost:4000).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "description": "GET /health: 200 when Postgres answers, 503 when it does not (docs/API_CONTRACT.md §1).",
+      "item": [
+        {
+          "name": "Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('status is 200 (or 503 when the database is down)', () => pm.expect([200, 503]).to.include(pm.response.code));",
+                  "const body = pm.response.json();",
+                  "pm.test('reports the database', () => pm.expect(body.database).to.be.oneOf(['ok', 'down']));",
+                  "pm.test('service and contract version', () => {",
+                  "  pm.expect(body.service).to.eql('carelayer-api');",
+                  "  pm.expect(body.contractVersion).to.eql('v1');",
+                  "});",
+                  "pm.test('status matches database', () => pm.expect(body.status).to.eql(body.database === 'ok' ? 'ok' : 'unavailable'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            },
+            "description": "Public. Pings Postgres with a 2 s timeout. Cache-Control: no-store."
+          },
+          "response": [
+            {
+              "name": "200 database ok",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json; charset=utf-8" },
+                { "key": "Cache-Control", "value": "no-store" },
+                { "key": "X-Request-Id", "value": "f812ec43-ddfa-42f8-90ba-c46a403a18fa" }
+              ],
+              "cookie": [],
+              "body": "{\n  \"status\": \"ok\",\n  \"database\": \"ok\",\n  \"service\": \"carelayer-api\",\n  \"contractVersion\": \"v1\",\n  \"time\": \"2026-11-18T21:25:48.928Z\"\n}"
+            },
+            {
+              "name": "503 database down",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] }
+              },
+              "status": "Service Unavailable",
+              "code": 503,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json; charset=utf-8" },
+                { "key": "Cache-Control", "value": "no-store" },
+                { "key": "X-Request-Id", "value": "1e7cb9ef-a297-4c10-a877-486e398ccaaa" }
+              ],
+              "cookie": [],
+              "body": "{\n  \"status\": \"unavailable\",\n  \"database\": \"down\",\n  \"service\": \"carelayer-api\",\n  \"contractVersion\": \"v1\",\n  \"time\": \"2026-11-18T21:25:54.081Z\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "x402 (Z2 proof)",
+      "description": "GET /x402-test, only when X402_TEST_ROUTE=true. Postman cannot sign Stellar payments; to actually pay run `npm run x402:pay -w @carelayer/api`. Paid example: https://stellar.expert/explorer/testnet/tx/b2ce568136e4372c5b5faa5ab963ebeac8ad94afaa661bb2ccbf2f6b09ef30ed",
+      "item": [
+        {
+          "name": "x402 test: guard (not ready, 409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 QUESTION_NOT_ANSWERED', () => {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.json().error.code).to.eql('QUESTION_NOT_ANSWERED');",
+                  "});",
+                  "pm.test('no payment requested', () => pm.expect(pm.response.headers.has('PAYMENT-REQUIRED')).to.be.false);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/x402-test?ready=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["x402-test"],
+              "query": [
+                {
+                  "key": "ready",
+                  "value": "false",
+                  "description": "Simulates an unanswered question: the pay-on-delivery guard returns 409 before x402 runs."
+                }
+              ]
+            },
+            "description": "Pay-on-delivery guard. Returns 409 QUESTION_NOT_ANSWERED with NO PAYMENT-REQUIRED header: no payment is ever requested for an unanswered question."
+          },
+          "response": [
+            {
+              "name": "409 not ready (no payment requested)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/x402-test?ready=false",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["x402-test"],
+                  "query": [{ "key": "ready", "value": "false" }]
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [{ "key": "Content-Type", "value": "application/json; charset=utf-8" }],
+              "cookie": [],
+              "body": "{\n  \"error\": {\n    \"code\": \"QUESTION_NOT_ANSWERED\",\n    \"message\": \"Not ready yet. No payment was requested.\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "x402 test: payment required (402)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('402 Payment Required', () => pm.response.to.have.status(402));",
+                  "const raw = pm.response.headers.get('PAYMENT-REQUIRED');",
+                  "pm.test('PAYMENT-REQUIRED header present', () => pm.expect(raw).to.be.a('string'));",
+                  "const req = JSON.parse(atob(raw));",
+                  "const accept = req.accepts[0];",
+                  "pm.test('0.01 USDC on stellar:testnet', () => {",
+                  "  pm.expect(accept.scheme).to.eql('exact');",
+                  "  pm.expect(accept.network).to.eql('stellar:testnet');",
+                  "  pm.expect(accept.amount).to.eql('100000');",
+                  "  pm.expect(accept.asset).to.eql('CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/x402-test",
+              "host": ["{{baseUrl}}"],
+              "path": ["x402-test"]
+            },
+            "description": "Without a PAYMENT-SIGNATURE header the API answers 402 with a base64 JSON PAYMENT-REQUIRED header: exact scheme, stellar:testnet, 0.01 USDC (amount 100000 stroops) to the treasury, fees sponsored by the facilitator."
+          },
+          "response": [
+            {
+              "name": "402 payment required (0.01 USDC)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/x402-test",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["x402-test"]
+                }
+              },
+              "status": "Payment Required",
+              "code": 402,
+              "_postman_previewlanguage": "json",
+              "header": [
+                { "key": "Content-Type", "value": "application/json; charset=utf-8" },
+                {
+                  "key": "PAYMENT-REQUIRED",
+                  "value": "eyJ4NDAyVmVyc2lvbiI6MiwiZXJyb3IiOiJQYXltZW50IHJlcXVpcmVkIiwicmVzb3VyY2UiOnsidXJsIjoiaHR0cDovL2xvY2FsaG9zdDo0MDAwL3g0MDItdGVzdCIsImRlc2NyaXB0aW9uIjoiQ2FyZUxheWVyIHg0MDIgcHJvb2Y6IDAuMDEgVVNEQyBvbiBTdGVsbGFyIHRlc3RuZXQiLCJtaW1lVHlwZSI6ImFwcGxpY2F0aW9uL2pzb24ifSwiYWNjZXB0cyI6W3sic2NoZW1lIjoiZXhhY3QiLCJuZXR3b3JrIjoic3RlbGxhcjp0ZXN0bmV0IiwiYW1vdW50IjoiMTAwMDAwIiwiYXNzZXQiOiJDQklFTFRLNllCWkpVNVVQMldXUUVVQ1lLTFBVNkFVTloyQlE0V1dGRUlFM1VTQ0lITVhRREFNQSIsInBheVRvIjoiR0JZMjRSTzUzNlJER0VXSUpFSDNVTTdPV1FPS1M1M09ZUlRCRFVRQTdYTktLSlEyTlhVSUdaNVEiLCJtYXhUaW1lb3V0U2Vjb25kcyI6MTIwLCJleHRyYSI6eyJhcmVGZWVzU3BvbnNvcmVkIjp0cnVlfX1dfQ=="
+                }
+              ],
+              "cookie": [],
+              "body": "{\n  \"error\": \"Payment required\"\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
