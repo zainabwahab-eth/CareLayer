@@ -30,6 +30,15 @@
   margin: 0 auto;
 }
 
+/* Full-bleed screens (W06 chat) lay out their own padding, width and height. */
+.fullBleed {
+  padding: 0;
+}
+
+.fullBleedContent {
+  max-width: none;
+}
+
 @media (min-width: 60rem) {
   .shell {
     display: grid;
@@ -53,5 +62,13 @@
   /* Figma content column is 1080px inside a 1176px main. */
   .content {
     max-width: 67.5rem;
+  }
+
+  .main.fullBleed {
+    padding: 0;
+  }
+
+  .content.fullBleedContent {
+    max-width: none;
   }
 }

@@ -1,0 +1,195 @@
+/*
+ * Mobile (Figma W06 Composer): surface bar with a top line, 10/16/28 padding,
+ * chip row above a canvas pill field and a 46px send button. Sticks to the
+ * bottom of the screen.
+ */
+.wrap {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+  padding: 0.625rem var(--space-16) calc(1.75rem + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
+}
+
+.composer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'chip chip'
+    'field send';
+  align-items: end;
+  gap: 0.625rem;
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+.askNurse {
+  grid-area: chip;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-self: start;
+  gap: 6px;
+  padding: 6px var(--space-12);
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--color-verified-bg-soft);
+  color: var(--color-verified);
+  font-family: var(--text-label-s-family);
+  font-size: var(--text-label-s-size);
+  line-height: var(--text-label-s-leading);
+  font-weight: var(--text-label-s-weight);
+  letter-spacing: var(--text-label-s-tracking);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .askNurse:hover span {
+    text-decoration: underline;
+  }
+}
+
+/* 28px tall visually; extend the hit area to the 48px touch target. */
+.askNurse::after {
+  content: '';
+  position: absolute;
+  inset: -10px 0;
+}
+
+.field {
+  grid-area: field;
+  display: block;
+  width: 100%;
+  min-height: 3rem;
+  max-height: 8.5rem; /* about five lines */
+  padding: 0.8125rem var(--space-16); /* 13px 16px */
+  border: 1.5px solid transparent;
+  border-radius: 1.5rem;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--text-body-m-family);
+  font-size: max(16px, var(--text-body-m-size)); /* 16px+ stops iOS zooming in */
+  line-height: var(--text-body-m-leading);
+  resize: none;
+  overflow-y: auto;
+}
+
+.field::placeholder {
+  color: var(--color-text-muted);
+  opacity: 1;
+}
+
+.field:focus-visible {
+  border-color: var(--color-primary-text);
+  outline: none;
+}
+
+.field[aria-invalid='true'] {
+  border-color: var(--color-error-bg);
+}
+
+.send {
+  grid-area: send;
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-touch-target-min);
+  height: var(--size-touch-target-min);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-bg);
+  color: var(--color-on-primary-bg);
+  cursor: pointer;
+}
+
+.send:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+@media (hover: hover) {
+  .send:hover:not(:disabled) {
+    filter: brightness(1.08);
+  }
+}
+
+/* Full-width rows under the field; only take space when rendered. */
+.note,
+.noteError,
+.counter {
+  grid-column: 1 / -1;
+  color: var(--color-text-muted);
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+}
+
+.noteError {
+  color: var(--color-error-bg);
+}
+
+/* Desktop (D-W06): one 720px surface pill, centred under the messages. */
+@media (min-width: 60rem) {
+  .wrap {
+    position: static;
+    padding: var(--space-12) var(--space-40) 1.75rem;
+    border-top: 0;
+    background: transparent;
+  }
+
+  .composer {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas: 'field chip send';
+    align-items: center;
+    max-width: 45rem;
+    padding: 0.625rem 0.625rem 0.625rem 1.375rem;
+    border: 1px solid var(--color-border);
+    border-radius: 1.875rem;
+    background: var(--color-bg-surface);
+  }
+
+  /* The field has no border of its own here: show its focus and error on the pill. */
+  .composer:has(.field:focus-visible) {
+    border-color: var(--color-primary-text);
+    box-shadow: 0 0 0 1px var(--color-primary-text);
+  }
+
+  .composer:has(.field[aria-invalid='true']) {
+    border-color: var(--color-error-bg);
+    box-shadow: 0 0 0 1px var(--color-error-bg);
+  }
+
+  .askNurse {
+    align-self: center;
+    padding: var(--space-8) var(--space-12);
+  }
+
+  .askNurse::after {
+    inset: -6px 0;
+  }
+
+  .field {
+    min-height: 2.875rem;
+    padding: 0.625rem 0;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    font-family: var(--text-body-l-family);
+    font-size: var(--text-body-l-size);
+    line-height: var(--text-body-l-leading);
+  }
+
+  .field:focus-visible {
+    outline: none;
+  }
+
+  .note,
+  .noteError,
+  .counter {
+    padding: 0 var(--space-8) var(--space-4) 0;
+  }
+}

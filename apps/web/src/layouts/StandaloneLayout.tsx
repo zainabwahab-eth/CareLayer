@@ -2,8 +2,8 @@ import { Outlet } from 'react-router';
 import styles from './StandaloneLayout.module.css';
 
 /*
- * Full-screen pages with their own top area and no app navigation:
- * W13 Emergency, Not found. (W01 Welcome is full-bleed and has its own layout.)
+ * Full-screen pages with their own top area and no app navigation: Not found.
+ * (W01 Welcome and W13 Emergency are full-bleed and render their own <main>.)
  */
 export function StandaloneLayout() {
   return (

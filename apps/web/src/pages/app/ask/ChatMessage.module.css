@@ -1,0 +1,184 @@
+/* Figma W06: bubbles 12/16 padding, radius 20 with a 6px corner by the speaker; Body/M. */
+.row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.user {
+  align-items: flex-end;
+}
+
+.assistant {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.625rem; /* 10px */
+}
+
+.bubble {
+  max-width: min(85%, 28.5rem);
+  padding: var(--space-12) var(--space-16);
+  color: var(--color-text);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+  font-weight: var(--text-body-m-weight);
+}
+
+.userBubble {
+  border-radius: var(--radius-lg) var(--radius-lg) 6px var(--radius-lg);
+  background: var(--color-rose-bg-soft);
+}
+
+.assistantBubble {
+  max-width: min(calc(100% - 2.5rem), 32.25rem);
+  border-radius: 6px var(--radius-lg) var(--radius-lg) var(--radius-lg);
+  background: var(--color-bg-surface);
+}
+
+/* Not sent: keep her words visible, dashed edge so it reads as unsent. */
+.failedBubble {
+  outline: 1.5px dashed var(--color-border);
+  outline-offset: -1.5px;
+}
+
+.text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.avatar {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 1.875rem; /* 30px */
+  height: 1.875rem;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-bg-soft);
+  color: var(--color-primary-text);
+}
+
+.avatarLarge {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.failure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-4) var(--space-8);
+  max-width: 85%;
+  color: var(--color-text-muted);
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+  text-align: right;
+}
+
+.failureIcon {
+  color: var(--color-text-muted);
+}
+
+/* Text button with a 48px touch target. */
+.retry {
+  min-height: var(--size-touch-target-min);
+  margin-block: calc(-1 * var(--space-12));
+  padding: 0 var(--space-4);
+  border: 0;
+  background: none;
+  color: var(--color-primary-text);
+  font-family: var(--text-label-s-family);
+  font-size: var(--text-label-s-size);
+  line-height: var(--text-label-s-leading);
+  font-weight: var(--text-label-s-weight);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.retry:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.typing {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 2.875rem; /* one line of Body/M + padding */
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: var(--radius-full);
+  background: var(--color-text-muted);
+  opacity: 0.35;
+  animation: pulse 1.2s ease-in-out infinite;
+}
+
+.dot:nth-child(3) {
+  animation-delay: 0.15s;
+}
+
+.dot:nth-child(4) {
+  animation-delay: 0.3s;
+}
+
+@keyframes pulse {
+  0%,
+  80%,
+  100% {
+    opacity: 0.35;
+  }
+
+  40% {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dot {
+    animation: none;
+    opacity: 0.6;
+  }
+}
+
+/* Desktop (D-W06): 14/18 padding, radius 22, Body/L, 32px avatar. */
+@media (min-width: 60rem) {
+  .assistant {
+    gap: var(--space-12);
+  }
+
+  .bubble {
+    padding: 0.875rem 1.125rem;
+    font-family: var(--text-body-l-family);
+    font-size: var(--text-body-l-size);
+    line-height: var(--text-body-l-leading);
+    font-weight: var(--text-body-l-weight);
+  }
+
+  .userBubble {
+    border-radius: 22px 22px 6px 22px;
+  }
+
+  .assistantBubble {
+    border-radius: 6px 22px 22px 22px;
+  }
+
+  .avatar {
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .avatarLarge {
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+
+  .typing {
+    min-height: 3.375rem;
+  }
+}
