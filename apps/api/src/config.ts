@@ -11,6 +11,16 @@ const integerString = (name: string) =>
     .transform((v) => Number(v))
     .refine((v) => Number.isSafeInteger(v) && v > 0, `${name} must be a positive integer`);
 
+/** A 32-byte key from base64/base64url (43-44 chars) or hex (64 chars), else null. */
+export function decodeKey32(value: string): Buffer | null {
+  const buf = /^[0-9a-fA-F]{64}$/.test(value)
+    ? Buffer.from(value, 'hex')
+    : /^[A-Za-z0-9+/_-]{43}=?$/.test(value)
+      ? Buffer.from(value.replace(/-/g, '+').replace(/_/g, '/'), 'base64')
+      : null;
+  return buf && buf.length === 32 ? buf : null;
+}
+
 const emptyToUndefined = (v: unknown) => (typeof v === 'string' && v.trim() === '' ? undefined : v);
 
 /** Empty strings in .env mean "not set". */
@@ -96,6 +106,31 @@ const EnvSchema = z
       emptyToUndefined,
       z.enum(['lax', 'strict', 'none']).default('lax'),
     ),
+
+    // ---- Custodial wallets (Z4) ----
+    /** 32-byte key (base64 or hex) that encrypts wallet secrets at rest. Secret. Never change it once wallets exist. */
+    WALLET_ENCRYPTION_KEY: z
+      .string({ error: 'WALLET_ENCRYPTION_KEY is required (see .env.example to generate one)' })
+      .transform((v, ctx) => {
+        const key = decodeKey32(v.trim());
+        if (!key) {
+          ctx.addIssue({
+            code: 'custom',
+            message: 'WALLET_ENCRYPTION_KEY must be 32 bytes, base64 (44 chars) or hex (64 chars)',
+          });
+          return z.NEVER;
+        }
+        return key;
+      }),
+    /** Treasury secret (S...). Sponsors new wallets. Unset = wallets stay "pending". Secret. */
+    STELLAR_TREASURY_SECRET: optionalString.refine(
+      (v) => v === undefined || /^S[A-Z2-7]{55}$/.test(v),
+      'STELLAR_TREASURY_SECRET must be a Stellar secret key (S..., 56 chars)',
+    ),
+    STELLAR_HORIZON_URL: z.preprocess(
+      emptyToUndefined,
+      z.url().default('https://horizon-testnet.stellar.org'),
+    ),
   })
   .superRefine((e, ctx) => {
     if (e.NODE_ENV === 'production' && e.EMAIL_TRANSPORT === 'console') {
@@ -175,6 +210,13 @@ export type AuthConfig = {
   cookie: { secure: boolean; sameSite: 'lax' | 'strict' | 'none' };
 };
 
+export type WalletConfig = {
+  /** 32 bytes. */
+  encryptionKey: Buffer;
+  treasurySecret: string | undefined;
+  horizonUrl: string;
+};
+
 export type Config = {
   nodeEnv: 'development' | 'test' | 'production';
   port: number;
@@ -186,6 +228,7 @@ export type Config = {
   ngnPerUsdc: string;
   x402: X402Config;
   auth: AuthConfig;
+  wallet: WalletConfig;
 };
 
 export class ConfigError extends Error {
@@ -233,6 +276,11 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
           : e.NODE_ENV === 'production',
         sameSite: e.AUTH_COOKIE_SAMESITE,
       },
+    },
+    wallet: {
+      encryptionKey: e.WALLET_ENCRYPTION_KEY,
+      treasurySecret: e.STELLAR_TREASURY_SECRET,
+      horizonUrl: e.STELLAR_HORIZON_URL,
     },
   };
 }

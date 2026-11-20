@@ -131,7 +131,7 @@ Figma file: **"CareLayer – Product design v1"**, key `cCmDYngHpc03VO66FsVUvD`.
 | W03 Sign up                      | `/signup`                                          | web     | `POST /auth/code/request`, `POST /auth/google`                          |
 | W04 Verify email                 | `/verify`                                          | web     | `POST /auth/code/verify`                                                |
 | _(no design)_ Log in             | `/login`                                           | web     | `POST /auth/code/request`                                               |
-| W05 Home                         | `/home`                                            | web     | `GET /me`, `GET /me/wallet`, `GET /me/questions?status=active`          |
+| W05 Home                         | `/home`                                            | web     | `GET /me`, `GET /wallet`, `GET /me/questions?status=active`             |
 | W06 Assistant chat               | `/ask`                                             | web     | `POST /chat`                                                            |
 | W07 Consent                      | `/ask/send/consent`                                | web     | (client state from chat)                                                |
 | W08 Choose who answers           | `/ask/send/nurse`                                  | web     | `GET /nurses?topic=`                                                    |
@@ -140,7 +140,7 @@ Figma file: **"CareLayer – Product design v1"**, key `cCmDYngHpc03VO66FsVUvD`.
 | W11 Nurse response               | `/questions/:id` (answered)                        | web     | `GET /questions/:id/answer`, `POST /questions/:id/feedback`             |
 | W12 History                      | `/history`                                         | web     | `GET /me/questions`                                                     |
 | W13 Emergency                    | `/emergency`                                       | web     | returned by `POST /chat`                                                |
-| _(no design)_ Wallet             | `/account/wallet`                                  | web     | `GET /me/wallet`, `POST /me/topups`                                     |
+| _(no design)_ Wallet             | `/account/wallet`                                  | web     | `GET /wallet`, `POST /me/topups`                                        |
 | _(no design)_ Account / settings | `/account`                                         | web     | `GET/PATCH /me/settings`, `POST /auth/logout`, `POST /auth/logout-all`  |
 | N01 Join                         | `/` (workers app)                                  | workers | `POST /auth/code/request`, `POST /auth/google`                          |
 | _(no design)_ Log in + verify    | `/login`, `/verify`                                | workers | `POST /auth/code/request`, `POST /auth/code/verify`                     |
@@ -251,10 +251,15 @@ Implement everything in "Accounts and auth" (section 2): `POST /auth/code/reques
 **Postman:** Auth folder; a pre-request script or environment variable flow that stores the access token.
 **Done when:** Hikmah's auth screens work against the real API.
 
-### Z4. Wallet for every user
+### Z4. Wallet for every user (done)
 
 - On sign-up, create a keypair, encrypt the secret, have the treasury sponsor the account and add the USDC trustline.
-- `GET /me/wallet` (women) and wallet info in `GET /nurse/earnings`: USDC balance, naira equivalent, free answers left (women).
+- `GET /wallet` (any role; nurses' earnings view comes in Z10): USDC balance, naira equivalent, free answers left (women).
+- **Decided in Z4:**
+  - **Wallet first, chain after.** The wallet row is created in the same write as the user, so every account has an address. Activation on Stellar happens right after sign-up and never blocks it. It is retried in the background with backoff, and on `GET /wallet`. `WalletResponse.status` is `pending` until the account is on-chain.
+  - **One activation transaction:** sponsored reserves + 0-XLM account + USDC trustline. The treasury pays every reserve and the fee.
+  - **Seeded wallets** are real keypairs that start pending; the API activates them when it runs with a treasury. Tolu's ₦3,500 is only a cached figure: once her wallet is active she shows the real balance (₦0 until Z5 top-up).
+  - **Z8 note:** payments from a custodial wallet need its secret: `decryptWalletSecret()` in `src/modules/wallets/crypto.ts`. The account holds 0 XLM, which is fine for x402 (the facilitator pays fees). Withdrawals (Z10) need a fee-bump from the treasury.
 
 **Tests:** wallet service unit tests with Stellar mocked; testnet integration test creates an account with a trustline.
 **Done when:** every new user has a working testnet wallet visible on the explorer.
@@ -397,7 +402,7 @@ Tick in the PR that completes the task.
 - [x] Z1 Schema and skeleton
 - [x] Z2 x402 proof
 - [x] Z3 Auth
-- [ ] Z4 Wallets
+- [x] Z4 Wallets
 - [ ] Z5 Top-up
 - [ ] Z6 Chat and questions
 - [ ] Z9 Nurse onboarding + admin

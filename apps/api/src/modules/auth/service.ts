@@ -34,6 +34,10 @@ export interface AuthDeps {
   google: GoogleVerifier | undefined;
   logger: Logger;
   now: () => Date;
+  /** Builds a custodial wallet (keypair + encrypted secret) stored with every new user (Z4). */
+  newWallet: () => { stellarPublicKey: string; encryptedSecret: Uint8Array<ArrayBuffer> };
+  /** Called after a user is created (starts on-chain wallet activation). Must not throw. */
+  onUserCreated: (userId: string) => void;
 }
 
 /** Signed in: the access token goes in the body, the refresh token in the httpOnly cookie. */
@@ -247,7 +251,7 @@ async function createUser(
 ): Promise<User> {
   const now = d.now();
   try {
-    return await d.db.user.create({
+    const user = await d.db.user.create({
       data: {
         role: input.role,
         email: input.email,
@@ -256,9 +260,13 @@ async function createUser(
         createdAt: now,
         settings: { create: {} },
         notificationPreference: { create: {} },
+        // Same write as the user: every account always has a wallet address.
+        wallet: { create: d.newWallet() },
         ...(input.role === 'NURSE' ? { nurseProfile: { create: { fullName: input.name } } } : {}),
       },
     });
+    d.onUserCreated(user.id);
+    return user;
   } catch (err) {
     if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
       throw new AppError(409, 'ACCOUNT_EXISTS', 'You already have an account. Log in instead.');

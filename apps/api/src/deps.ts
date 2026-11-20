@@ -5,6 +5,7 @@ import type { Db } from './db.js';
 import type { Logger } from './lib/logger.js';
 import type { EmailSender } from './modules/auth/email.js';
 import type { GoogleVerifier } from './modules/auth/google.js';
+import type { WalletChain } from './modules/wallets/chain.js';
 
 export interface AppDeps {
   config: Config;
@@ -21,4 +22,6 @@ export interface AppDeps {
   emailSender?: EmailSender;
   /** Google ID token verifier. Default: built from GOOGLE_CLIENT_ID, or none (503). */
   googleVerifier?: GoogleVerifier;
+  /** Stellar side of wallets. Default: Horizon with the treasury, or none (wallets stay pending). */
+  walletChain?: WalletChain;
 }

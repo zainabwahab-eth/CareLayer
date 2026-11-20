@@ -12,6 +12,8 @@ import { AUTH_RULES } from '@carelayer/shared';
 import { Router, type Response } from 'express';
 import { z } from 'zod';
 import type { AppDeps } from '../../deps.js';
+import { newCustodialWallet } from '../wallets/crypto.js';
+import type { WalletService } from '../wallets/service.js';
 import { clearRefreshCookie, readRefreshCookie, setRefreshCookie } from './cookies.js';
 import { createEmailSender } from './email.js';
 import { createGoogleVerifier } from './google.js';
@@ -71,7 +73,7 @@ const GoogleSchema = z.object({
 });
 const StepUpSchema = z.object({ code });
 
-export function createAuthRouter(deps: AppDeps): Router {
+export function createAuthRouter(deps: AppDeps, wallets: WalletService): Router {
   const router = Router();
   const now = deps.clock ?? (() => new Date());
   const auth: AuthDeps = {
@@ -85,6 +87,8 @@ export function createAuthRouter(deps: AppDeps): Router {
         : undefined),
     logger: deps.logger,
     now,
+    newWallet: () => newCustodialWallet(deps.config.wallet.encryptionKey),
+    onUserCreated: (userId) => wallets.activateInBackground(userId),
   };
   const guard = { db: deps.db, jwtAccessSecret: deps.config.auth.jwtAccessSecret, now };
   const cookie = deps.config.auth.cookie;

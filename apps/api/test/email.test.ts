@@ -104,6 +104,7 @@ describe('email config', () => {
     NGN_PER_USDC: '1600',
     JWT_ACCESS_SECRET: 'x'.repeat(32),
     AUTH_PEPPER: 'y'.repeat(32),
+    WALLET_ENCRYPTION_KEY: 'a'.repeat(64),
   };
 
   it('resend needs an API key and a valid sender', () => {

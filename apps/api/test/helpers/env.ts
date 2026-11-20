@@ -48,6 +48,12 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
       emailApiKey: undefined,
       cookie: { secure: false, sameSite: 'lax' },
     },
+    wallet: {
+      // Test-only key. No treasury: tests inject a fake WalletChain when they need one.
+      encryptionKey: Buffer.alloc(32, 7),
+      treasurySecret: undefined,
+      horizonUrl: 'https://horizon.invalid',
+    },
     ...overrides,
   };
 }

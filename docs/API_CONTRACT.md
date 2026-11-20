@@ -33,7 +33,9 @@ Every type named here is exported from `@carelayer/shared` (`packages/shared/src
 
 **Added:** `QuestionStatus` `expired` and `cancelled`; `CreateQuestionBody.consent`, `nurseSelection`, `chosenNurseId`; `Answer.recommendSeeSomeoneToday`; `GET /nurses` + `NursePublicProfile`; `POST /questions/:id/feedback`; `GET/PATCH /me/notifications`; `NurseQuestionView.ageRange`, `pregnancyWeeks`, `chosenForYou`, `claimsCloseAt`; nurse `bio`, `languages`, `helpful`, `avgResponseMinutes`; `/health` reports the database and returns 503 when it is down; error codes `CONSENT_REQUIRED`, `CHOSEN_NURSE_UNAVAILABLE`, `QUESTION_EXPIRED`, `CLAIMS_CLOSED`.
 
-**Known follow-ups:** the `docs/TASKS.md` screen map uses slightly different names for some routes (`/me/wallet`, `/me/topups`, `POST /chat`, `PATCH /nurse/availability`, `GET /nurse/dashboard`). Each is reconciled in the task that builds it (Z4, Z5, Z6, Z7, Z9). Auth was reconciled in Z3: the contract names stay (see §2).
+**Known follow-ups:** the `docs/TASKS.md` screen map uses slightly different names for some routes (`/me/topups`, `POST /chat`, `PATCH /nurse/availability`, `GET /nurse/dashboard`). Each is reconciled in the task that builds it (Z5, Z6, Z7, Z9). Auth (Z3) and wallet (Z4) were reconciled: the contract names stay (`/auth/code/*`, `/wallet`), because `apps/web` already calls them.
+
+**Z4 changes (wallet):** **`WalletResponse` adds `status: "pending"|"active"` and `balanceSyncedAt`** (required). **`WalletTransaction` lists confirmed movements only.** `stellarExplorerUrl()` added to `@carelayer/shared`. Hikmah: `getWallet` in `apps/web/src/api/mock/mock-api.ts` needs the two new fields.
 
 **Z3 changes (auth):** **`POST /auth/step-up` now returns `{ freshUntil }`** (the session is marked fresh; no `X-Step-Up-Token` header). **`AppAudience` adds `"admin"`** (log in only). **`VALIDATION_FAILED` adds `details.field`.** **New error `SERVICE_UNAVAILABLE` (503).** `AUTH_RULES` adds `resendAfterSeconds`, `maxCodesPerHour`, `refreshTtlDays.admin`, `refreshReuseGraceSeconds`. `/auth/logout` accepts the refresh cookie alone. `WRONG_APP` is no longer used (accounts are per app, so a woman's email in the nurse app is `ACCOUNT_NOT_FOUND`).
 
@@ -140,12 +142,19 @@ Women-only settings are ignored for nurses. `appearance` is also kept in `localS
 
 ## 4. Wallet
 
-Custodial Stellar testnet wallet created at sign-up for every user. Keys never leave the server. Shown in naira. The chain is the source of truth; the server caches the balance after each transaction.
+**Built in Z4.** Every user gets a custodial Stellar testnet wallet in the same write as their account. The secret is encrypted at rest (AES-256-GCM) and never leaves the server. Balances are shown in naira at the fixed demo rate.
 
-| Method | Path                   | Auth | Request     | Response                                                                        | Errors |
-| ------ | ---------------------- | ---- | ----------- | ------------------------------------------------------------------------------- | ------ |
-| GET    | `/wallet`              | any  | none        | 200 `WalletResponse` `{ stellarAddress, balance: Money, freeAnswersRemaining }` | 401    |
-| GET    | `/wallet/transactions` | any  | `PageQuery` | 200 `Page<WalletTransaction>`                                                   | 401    |
+- **Activation:** one transaction from the treasury sponsors the account's reserves, creates it with 0 XLM, and adds the USDC trustline. The user never needs XLM.
+- **When:** activation runs right after sign-up. Sign-up never waits for or fails because of Stellar. Failed attempts are retried in the background (backoff 1, 2, 4… up to 30 minutes), and also when she opens her wallet.
+- **`status`:** `pending` until the account exists on-chain, then `active`. A pending wallet shows its address and a 0 balance, and cannot receive money yet.
+- **Balance:** the chain is the source of truth. `GET /wallet` reads it live (4 s limit). If Stellar does not answer, it returns the last known balance, and `balanceSyncedAt` says when that was read.
+
+| Method | Path                   | Auth | Request     | Response                                                                                                                                                                                                                         | Errors                                             |
+| ------ | ---------------------- | ---- | ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| GET    | `/wallet`              | any  | none        | 200 `WalletResponse` `{ stellarAddress, status: "pending"\|"active", balance: Money, balanceSyncedAt, freeAnswersRemaining }` (null for nurses and admins). `Cache-Control: no-store`.                                           | 401                                                |
+| GET    | `/wallet/transactions` | any  | `PageQuery` | 200 `Page<WalletTransaction>`, newest first. Confirmed movements only. **Women:** top-ups (+), answers paid from her wallet (−); free answers are not listed. **Nurses:** earnings (+), withdrawals (−). `nextCursor` is opaque. | 400 `VALIDATION_FAILED` (bad cursor or limit); 401 |
+
+`WalletTransaction = { id, kind: "topup"|"answer_payment"|"answer_earning"|"withdrawal", amount: Money (negative for money out, on both fields), stellarTxHash, questionId, createdAt }`. Explorer links: `stellarExplorerUrl("tx", hash)` / `stellarExplorerUrl("account", address)` from `@carelayer/shared`.
 
 There is **no** withdraw endpoint for women.
 

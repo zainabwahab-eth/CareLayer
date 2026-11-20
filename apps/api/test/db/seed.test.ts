@@ -8,7 +8,12 @@ import { testConfig, testDatabaseUrl } from '../helpers/env.js';
 
 const db = createDb(testDatabaseUrl());
 const cfg = testConfig();
-const opts = { answerPriceKobo: cfg.answerPriceKobo, ngnPerUsdc: cfg.ngnPerUsdc, nodeEnv: 'test' };
+const opts = {
+  answerPriceKobo: cfg.answerPriceKobo,
+  ngnPerUsdc: cfg.ngnPerUsdc,
+  nodeEnv: 'test',
+  walletEncryptionKey: cfg.wallet.encryptionKey,
+};
 let summary: Awaited<ReturnType<typeof seed>>;
 
 beforeAll(async () => {

@@ -168,6 +168,7 @@ describe('x402 env validation', () => {
     NGN_PER_USDC: '1600',
     JWT_ACCESS_SECRET: 'x'.repeat(32),
     AUTH_PEPPER: 'y'.repeat(32),
+    WALLET_ENCRYPTION_KEY: 'a'.repeat(64),
   };
 
   it('defaults to the OpenZeppelin testnet facilitator with the test route off', () => {
@@ -229,9 +230,16 @@ describe('x402 env validation', () => {
         .map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1)]),
     );
     // Shipped empty on purpose (secrets): startup must fail and name them.
-    expect(() => loadConfig(env)).toThrow(/JWT_ACCESS_SECRET[\s\S]*AUTH_PEPPER/);
+    expect(() => loadConfig(env)).toThrow(
+      /JWT_ACCESS_SECRET[\s\S]*AUTH_PEPPER[\s\S]*WALLET_ENCRYPTION_KEY/,
+    );
     expect(() =>
-      loadConfig({ ...env, JWT_ACCESS_SECRET: 'a'.repeat(48), AUTH_PEPPER: 'b'.repeat(48) }),
+      loadConfig({
+        ...env,
+        JWT_ACCESS_SECRET: 'a'.repeat(48),
+        AUTH_PEPPER: 'b'.repeat(48),
+        WALLET_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'),
+      }),
     ).not.toThrow();
   });
 });

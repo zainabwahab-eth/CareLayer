@@ -13,8 +13,31 @@ import { createPaymentsRouter } from './modules/payments/router.js';
 import { createQuestionsRouter } from './modules/questions/router.js';
 import { createUsersRouter } from './modules/users/router.js';
 import { createWalletsRouter } from './modules/wallets/router.js';
+import { createWalletService, type WalletService } from './modules/wallets/service.js';
+import { createHorizonWalletChain } from './modules/wallets/chain.js';
 
-export function createApp(deps: AppDeps) {
+/** One wallet service per app: shared by auth (create + activate at sign-up) and /wallet. */
+export function buildWalletService(deps: AppDeps): WalletService {
+  const { config } = deps;
+  const chain =
+    deps.walletChain ??
+    (config.wallet.treasurySecret
+      ? createHorizonWalletChain({
+          horizonUrl: config.wallet.horizonUrl,
+          treasurySecret: config.wallet.treasurySecret,
+        })
+      : undefined);
+  return createWalletService({
+    db: deps.db,
+    config: config.wallet,
+    ngnPerUsdc: config.ngnPerUsdc,
+    chain,
+    logger: deps.logger,
+    now: deps.clock ?? (() => new Date()),
+  });
+}
+
+export function createApp(deps: AppDeps, wallets: WalletService = buildWalletService(deps)) {
   const app = express();
 
   app.disable('x-powered-by');
@@ -24,9 +47,9 @@ export function createApp(deps: AppDeps) {
   app.use(express.json({ limit: '100kb' }));
 
   app.use(createHealthRouter(deps));
-  app.use(createAuthRouter(deps));
+  app.use(createAuthRouter(deps, wallets));
   app.use(createUsersRouter(deps));
-  app.use(createWalletsRouter(deps));
+  app.use(createWalletsRouter(deps, wallets));
   app.use(createChatRouter(deps));
   app.use(createQuestionsRouter(deps));
   app.use(createNursesRouter(deps));
