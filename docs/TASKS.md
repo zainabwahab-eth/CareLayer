@@ -433,7 +433,7 @@ Implement everything in "Accounts and auth" (section 2): `POST /auth/code/reques
   - **Send Zainab both final frontend URLs.** They go in `CORS_ORIGINS`, `WEB_APP_URL`, `NURSE_APP_URL` and `PAYSTACK_CALLBACK_URL` (`<web>/account/wallet`). Until then the browser blocks calls (CORS).
   - **Google sign-in:** the Google OAuth client needs both frontend origins as authorised JavaScript origins.
 - Deploy API + Postgres (Cloud Run or similar), set env vars, run migrations and seed, share the URL. Add a Postman environment for the deployed API.
-- **Before the demo:** the hosted OpenZeppelin facilitator key from Z2 is anonymous with undocumented rate limits. Get a non-anonymous key, or stand up the self-hosted OpenZeppelin Relayer x402 plugin as a fallback (switching is only `X402_FACILITATOR_URL` + `X402_FACILITATOR_API_KEY`).
+- **Before the demo:** the hosted OpenZeppelin facilitator key is anonymous with undocumented rate limits. Checked in Z11: the GitHub-login keys (`channels.openzeppelin.com/gen`) are for the **mainnet** facilitator only; testnet keys are always anonymous (`/testnet/gen`). So for the testnet demo, keep a spare testnet key ready, or stand up the self-hosted OpenZeppelin Relayer x402 plugin as a fallback. Switching is only `X402_FACILITATOR_URL` + `X402_FACILITATOR_API_KEY`.
 
 **Done when:** both frontends work against the deployed API on a phone.
 
