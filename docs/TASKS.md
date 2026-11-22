@@ -412,6 +412,21 @@ Implement everything in "Accounts and auth" (section 2): `POST /auth/code/reques
   - **Production seed:** the seed wipes every table, so in production it needs `CARELAYER_SEED_PRODUCTION=wipe-and-seed`, and it refuses once any real account (not `@example.com`) exists. The admin's email comes from `SEED_ADMIN_EMAIL`, because `/admin-console` codes are emailed.
   - **Cookies across domains:** the frontends and the API are on different domains, so `AUTH_COOKIE_SAMESITE=none` + `Secure`.
   - **Logs** carry a Cloud Logging `severity`.
+  - **Production LLM: OpenAI `gpt-4.1`** (Zainab's paid key), not NVIDIA's free tier. NVIDIA took 9–12 s per reply and is limited to about 40 requests a minute shared by everyone. No code change: `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`. Chosen by `npm run eval:assistant` (November 2026):
+
+    | Model          | Result   | Emergency recall | Action | Category | Invalid replies | Latency   |
+    | -------------- | -------- | ---------------- | ------ | -------- | --------------- | --------- |
+    | `gpt-4o-mini`  | pass     | 100%             | 87.9%  | 91.3%    | 2 / 33          | 1.7–4.4 s |
+    | `gpt-4.1-mini` | **fail** | 100%             | 69.7%  | 100%     | 0               |           |
+    | `gpt-4.1`      | pass     | 100%             | 81.8%  | 100%     | 0               | 1.7–1.8 s |
+    - `gpt-4.1` has no invalid replies and 100% categories.
+    - Its misses are safe-side: it offers a nurse where a direct answer was expected (the known over-offering, H2), and q02 (32 weeks, baby moving less) goes to emergency, which midwives would also say.
+    - `gpt-4o-mini` is about 13x cheaper, but 1 question in about 16 gets a "try again" error.
+    - Cost is about 3,170 tokens in and 180 out per call, roughly $0.008 at list price, less with OpenAI's automatic prompt caching.
+    - The key's account should have a spending limit.
+    - Newer models (`gpt-5.x`, `gpt-6.x`, o-series) reject `max_tokens`, so they would need the client to send `max_completion_tokens` (and no `temperature`).
+
+  - **Privacy:** OpenAI does not train on API data by default but keeps requests up to 30 days for abuse monitoring. Questions contain no name, email or phone (decisions log), but the woman's own words are sent.
   - Runbook: `apps/api/README.md` → "Deploy". Postman environment: "CareLayer Cloud Run".
 - **For Hikmah (deploying the frontends):**
   - **API URL:** `apps/api/deploy/cloudrun.sh url` (Zainab shares it). The frontends call it directly, with `credentials: 'include'` so the refresh cookie (`SameSite=None; Secure`) is sent.
