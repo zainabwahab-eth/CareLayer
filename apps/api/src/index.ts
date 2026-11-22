@@ -32,7 +32,7 @@ if (!facilitator) {
 }
 const deps = { config, db, logger, facilitator };
 const services = buildServices(deps);
-const { wallets, topups, cases, payouts } = services;
+const { wallets, topups, cases, payouts, earnings } = services;
 const app = createApp(deps, services);
 
 const server = app.listen(config.port, () => {
@@ -43,6 +43,7 @@ const server = app.listen(config.port, () => {
 //   Z4 wallets (every minute): activate pending wallets whose backoff has passed.
 //   Z5 top-ups (every minute): credit paid ones, check unpaid ones with Paystack, close abandoned ones.
 //   Z8 payouts (every minute): send nurse payouts not confirmed yet.
+//   Z10 withdrawals (every minute): settle withdrawals whose outcome was unknown.
 //   Z7 sweeper (every 30 s): expire claims, open chosen-nurse questions after 10 min, expire
 //   questions after 30 min. (Requests also apply these lazily, so a late tick is never wrong.)
 function every(name: string, ms: number, run: () => Promise<Record<string, number>>) {
@@ -76,6 +77,8 @@ if (config.paystack.secretKey) {
 // Z8 payouts (every minute): send nurses' 80% that is not confirmed yet (retries with backoff).
 if (config.wallet.treasurySecret) {
   every('payout_loop', 60_000, () => payouts.processPending());
+  // Z10: settle withdrawals whose outcome was unknown (Stellar slow): found by memo, or failed.
+  every('withdrawal_loop', 60_000, () => earnings.processPending());
 } else {
   logger.warn('payouts_disabled', { reason: 'STELLAR_TREASURY_SECRET is not set' });
 }

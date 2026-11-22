@@ -56,6 +56,21 @@ Every type named here is exported from `@carelayer/shared` (`packages/shared/src
 - **Waiting is not paged** (bounded: only questions under 30 minutes old are open).
 - The "answer is ready" email to women is sent when the nurse answers.
 
+**Z10 changes (earnings and withdrawals). Hikmah: N09 can use the real API.**
+
+- §12 is built.
+- **`EarningsResponse` is reshaped for N09:**
+  - Adds `available`, `balanceSyncedAt`, `stellarAddress`, `payoutAddress`, `thisWeek` (with 7 `days` for the chart) and `thisMonth`.
+  - `recent` is now `EarningsActivity[]` (earnings and withdrawals, with a `kind` field).
+  - **`EarningEntry` adds `kind`, `id`, `title` and `status`.**
+- **`Withdrawal` adds `failureReason` and `confirmedAt`.** **`POST /nurse/withdrawals` can return 201 with `status: "submitted"`** (outcome not known yet).
+- **New errors on `POST /nurse/withdrawals`:**
+  - 409 `CONFLICT` (one withdrawal at a time).
+  - 503 `SERVICE_UNAVAILABLE`.
+  - 400 `VALIDATION_FAILED` for less than ₦100.
+  - `STELLAR_ADDRESS_INVALID` now also covers her own wallet, an address with no account, and an address with no USDC trustline.
+- Added `EarningsActivity`, `WithdrawalEntry`, `EarningsPeriod`, `EarningsDay` and `MIN_WITHDRAWAL_KOBO` to `@carelayer/shared`.
+
 **Z8 changes (pay on delivery, payouts, feedback). Hikmah: the ask flow can use the real API.**
 
 - §8.3 and §8.4 collect/feedback are built.
@@ -450,11 +465,24 @@ Roles: `nurse` or `midwife` only. All are registered with the Nursing and Midwif
 
 ## 12. Earnings and withdrawals (nurses)
 
-| Method | Path                 | Auth            | Request                                                                            | Response                                                                                                       | Errors                                                                                                         |
-| ------ | -------------------- | --------------- | ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| GET    | `/nurse/earnings`    | nurse           | none                                                                               | 200 `EarningsResponse` `{ balance, totalEarned, answersCount, recent: EarningEntry[] }`                        | 401                                                                                                            |
-| GET    | `/nurse/withdrawals` | nurse           | `PageQuery`                                                                        | 200 `Page<Withdrawal>`                                                                                         | 401                                                                                                            |
-| POST   | `/nurse/withdrawals` | nurse + step-up | `CreateWithdrawalBody` `{ amountKobo, destination: { kind: "stellar", address } }` | 201 `Withdrawal` `{ id, status, amount, destinationAddress, stellarTxHash, createdAt }` (real testnet payment) | 400 `STELLAR_ADDRESS_INVALID`; 403 `STEP_UP_REQUIRED`; 409 `INSUFFICIENT_BALANCE`; 502 `STELLAR_SUBMIT_FAILED` |
+Built in Z10. Any signed-in nurse, whatever her verification status: earned money stays hers. Screen: N09 Earnings.
+
+| Method | Path                 | Auth            | Request                                                                            | Response                                                                                                                                                                                                                                                        | Errors                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| ------ | -------------------- | --------------- | ---------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/nurse/earnings`    | nurse           | none                                                                               | 200 `EarningsResponse` `{ available, balance, balanceSyncedAt, stellarAddress, payoutAddress, totalEarned, answersCount, thisWeek: { from, total, answersCount, days[7] }, thisMonth: { from, total, answersCount }, recent[≤10] }`. `Cache-Control: no-store`. | 401; 403 (not a nurse)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| GET    | `/nurse/withdrawals` | nurse           | `PageQuery`                                                                        | 200 `Page<Withdrawal>`, newest first                                                                                                                                                                                                                            | 400 (bad cursor or limit); 401                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| POST   | `/nurse/withdrawals` | nurse + step-up | `CreateWithdrawalBody` `{ amountKobo, destination: { kind: "stellar", address } }` | 201 `Withdrawal` `{ id, status: "confirmed" \| "submitted", amount, destinationAddress, stellarTxHash, failureReason, createdAt, confirmedAt }` (real testnet payment)                                                                                          | 400 `STELLAR_ADDRESS_INVALID` (`details.field: "destination.address"`: not a G… address, her own CareLayer wallet, no account there, or no USDC trustline); 400 `VALIDATION_FAILED` (`amountKobo` below ₦100, or not Stellar); 403 `STEP_UP_REQUIRED`; 409 `INSUFFICIENT_BALANCE` (`details: { available, requested }`); 409 `CONFLICT` (a withdrawal is already in progress); 502 `STELLAR_SUBMIT_FAILED` (Stellar refused it: nothing left her wallet); 503 `SERVICE_UNAVAILABLE` (Stellar not answering, or no treasury configured) |
+
+- **Earnings** are her payouts (§8.3): the 80% of every collected answer, free answers included. Days and weeks are Lagos time; weeks start on Monday. `thisWeek.days` always has 7 entries (Mon–Sun, `isToday` marks today) for the N09 chart.
+- **`recent`** mixes `EarningEntry` (`kind: "earning"`, `title` = the start of the question she answered, `status: "pending" | "confirmed"`) and `WithdrawalEntry` (`kind: "withdrawal"`, negative amount), newest first, at most 10. Failed withdrawals are not listed there. "See all": `GET /wallet/transactions` (confirmed movements) or `GET /nurse/withdrawals`.
+- **`available`** = `balance` (USDC in her CareLayer wallet, read from Stellar) minus withdrawals still in progress. `payoutAddress` is set when she chose her own payout wallet (§10): payouts then go there, so they do not add to `balance`.
+- **Withdrawal:**
+  - Needs a code verified on this session in the last 5 minutes (`POST /auth/step-up`).
+  - Minimum ₦100 (`MIN_WITHDRAWAL_KOBO`), at most `available`.
+  - Stellar address only. The destination must exist and trust testnet USDC, so the money can always land.
+  - The payment is signed by her CareLayer wallet. The fee is paid by the platform (her wallet holds no XLM).
+  - One withdrawal at a time.
+- **`status: "submitted"`** means Stellar did not answer in time. The payment may still land. Within about 3 minutes it becomes `confirmed` (found on Stellar, hash recorded) or `failed` (nothing left her wallet). It is never sent twice. Show "Processing" and refresh `GET /nurse/withdrawals`.
 
 Bank withdrawal: UI shows "Coming soon". No endpoint.
 

@@ -11,6 +11,7 @@ import type { PaystackClient } from './modules/topups/paystack.js';
 import type { WalletChain } from './modules/wallets/chain.js';
 import type { AnswerPaymentChain } from './modules/payments/chain.js';
 import type { AnswerPayer } from './modules/payments/x402-client.js';
+import type { WithdrawalChain } from './modules/payments/withdrawal-chain.js';
 
 export interface AppDeps {
   config: Config;
@@ -39,6 +40,8 @@ export interface AppDeps {
   answerChain?: AnswerPaymentChain;
   /** Signs x402 payments for the API's own agent (Z8). Default: @x402/stellar exact client. */
   answerPayer?: AnswerPayer;
+  /** Nurse withdrawals: her custodial key signs, the treasury pays the fee (Z10). Default: Horizon. */
+  withdrawalChain?: WithdrawalChain;
   /** The assistant's LLM. Default: OpenAI-compatible client from LLM_* (no key = chat answers 503). */
   llm?: LlmClient;
 }

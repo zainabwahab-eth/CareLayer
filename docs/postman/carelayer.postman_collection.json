@@ -2604,6 +2604,207 @@
           "createdAt": "2026-11-21T23:51:52.000Z",
           "updatedAt": "2026-11-21T23:51:52.000Z",
           "uid": "44554019-fd04e1ae-4f6d-4069-92da-cbe9555a8370"
+        },
+        {
+          "name": "Earnings: N09 overview",
+          "id": "1ac55d49-5fc8-46e7-ac5c-8ce9e8a0ddce",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/nurse/earnings",
+              "host": ["{{baseUrl}}"],
+              "path": ["nurse", "earnings"]
+            },
+            "description": "Z10. N09 Earnings: available (chain balance minus withdrawals in progress), Mon–Sun chart (Lagos), this week, this month, all time, recent earnings and withdrawals."
+          },
+          "response": [
+            {
+              "id": "373975a6-c930-4b34-863f-305bb0b3f987",
+              "name": "200 Earnings (N09)",
+              "code": 200,
+              "status": "OK",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"available\": {\n    \"kobo\": 4520000,\n    \"usdc\": \"28.2500000\"\n  },\n  \"balance\": {\n    \"kobo\": 4520000,\n    \"usdc\": \"28.2500000\"\n  },\n  \"balanceSyncedAt\": \"2026-11-21T13:05:10.000Z\",\n  \"stellarAddress\": \"GBNURSECUSTODIALWALLETXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\",\n  \"payoutAddress\": null,\n  \"totalEarned\": {\n    \"kobo\": 6520000,\n    \"usdc\": \"40.7500000\"\n  },\n  \"answersCount\": 163,\n  \"thisWeek\": {\n    \"from\": \"2026-11-16\",\n    \"total\": {\n      \"kobo\": 1240000,\n      \"usdc\": \"7.7500000\"\n    },\n    \"answersCount\": 31,\n    \"days\": [\n      {\n        \"date\": \"2026-11-16\",\n        \"weekday\": \"mon\",\n        \"total\": {\n          \"kobo\": 160000,\n          \"usdc\": \"1.0000000\"\n        },\n        \"answersCount\": 4,\n        \"isToday\": false\n      },\n      {\n        \"date\": \"2026-11-17\",\n        \"weekday\": \"tue\",\n        \"total\": {\n          \"kobo\": 240000,\n          \"usdc\": \"1.5000000\"\n        },\n        \"answersCount\": 6,\n        \"isToday\": false\n      },\n      {\n        \"date\": \"2026-11-18\",\n        \"weekday\": \"wed\",\n        \"total\": {\n          \"kobo\": 80000,\n          \"usdc\": \"0.5000000\"\n        },\n        \"answersCount\": 2,\n        \"isToday\": false\n      },\n      {\n        \"date\": \"2026-11-19\",\n        \"weekday\": \"thu\",\n        \"total\": {\n          \"kobo\": 200000,\n          \"usdc\": \"1.2500000\"\n        },\n        \"answersCount\": 5,\n        \"isToday\": false\n      },\n      {\n        \"date\": \"2026-11-20\",\n        \"weekday\": \"fri\",\n        \"total\": {\n          \"kobo\": 240000,\n          \"usdc\": \"1.5000000\"\n        },\n        \"answersCount\": 6,\n        \"isToday\": false\n      },\n      {\n        \"date\": \"2026-11-21\",\n        \"weekday\": \"sat\",\n        \"total\": {\n          \"kobo\": 320000,\n          \"usdc\": \"2.0000000\"\n        },\n        \"answersCount\": 8,\n        \"isToday\": true\n      },\n      {\n        \"date\": \"2026-11-22\",\n        \"weekday\": \"sun\",\n        \"total\": {\n          \"kobo\": 0,\n          \"usdc\": \"0.0000000\"\n        },\n        \"answersCount\": 0,\n        \"isToday\": false\n      }\n    ]\n  },\n  \"thisMonth\": {\n    \"from\": \"2026-11-01\",\n    \"total\": {\n      \"kobo\": 3600000,\n      \"usdc\": \"22.5000000\"\n    },\n    \"answersCount\": 90\n  },\n  \"recent\": [\n    {\n      \"kind\": \"earning\",\n      \"id\": \"cmiab12cd0001s6l1payout001\",\n      \"questionId\": \"cmi9q2x0f0003s6l1a2b3c4d5\",\n      \"category\": \"pregnancy\",\n      \"title\": \"Swollen feet at 24 weeks\",\n      \"amount\": {\n        \"kobo\": 40000,\n        \"usdc\": \"0.2500000\"\n      },\n      \"paidFromTreasury\": false,\n      \"status\": \"confirmed\",\n      \"stellarTxHash\": \"4e0d8988a6a94eddcb7fcb06f1cc9340ea27787abed83ebbd8b52da0819a39b9\",\n      \"earnedAt\": \"2026-11-21T21:50:00.000Z\"\n    },\n    {\n      \"kind\": \"withdrawal\",\n      \"id\": \"cmiab12cd0003s6l1withdr01\",\n      \"amount\": {\n        \"kobo\": -2000000,\n        \"usdc\": \"-12.5000000\"\n      },\n      \"destinationAddress\": \"GAMR6SLMHBSOBKZVBMAN2OIKN2J5XOIB65VPZMIWACOJXRSJ42A4GCAI\",\n      \"status\": \"confirmed\",\n      \"stellarTxHash\": \"0e6497925afd3313b464ea446ca97f45cca3e536603f2f12760d4976c6f8eba6\",\n      \"createdAt\": \"2026-11-05T10:00:00.000Z\"\n    }\n  ]\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Earnings: withdraw to Stellar (fresh code)",
+          "id": "6e1f9337-dd91-4615-9ad4-1347896bc442",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amountKobo\": 20000,\n  \"destination\": { \"kind\": \"stellar\", \"address\": \"{{withdrawalAddress}}\" }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/nurse/withdrawals",
+              "host": ["{{baseUrl}}"],
+              "path": ["nurse", "withdrawals"]
+            },
+            "description": "Z10. Needs POST /auth/step-up first (5 minutes). Stellar only, ≥ ₦100, ≤ available, one at a time; destination must exist and trust USDC. Her wallet signs, the platform pays the fee. 201 confirmed or submitted; 502 = Stellar refused, nothing moved."
+          },
+          "response": [
+            {
+              "id": "b273886c-d090-488c-a4ce-639a612cca05",
+              "name": "201 Withdrawal confirmed",
+              "code": 201,
+              "status": "Created",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"id\": \"cmiab12cd0003s6l1withdr01\",\n  \"status\": \"confirmed\",\n  \"amount\": {\n    \"kobo\": 10000,\n    \"usdc\": \"0.0625000\"\n  },\n  \"destinationAddress\": \"GAMR6SLMHBSOBKZVBMAN2OIKN2J5XOIB65VPZMIWACOJXRSJ42A4GCAI\",\n  \"stellarTxHash\": \"0e6497925afd3313b464ea446ca97f45cca3e536603f2f12760d4976c6f8eba6\",\n  \"failureReason\": null,\n  \"createdAt\": \"2026-11-22T15:02:11.000Z\",\n  \"confirmedAt\": \"2026-11-22T15:02:16.000Z\"\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "bd054168-7cc4-4f6a-8225-e1ae9bad634c",
+              "name": "403 Fresh code required",
+              "code": 403,
+              "status": "Forbidden",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"STEP_UP_REQUIRED\",\n    \"message\": \"Confirm it is you with a new code first.\",\n    \"details\": {\n      \"stepUpTtlMinutes\": 5\n    }\n  }\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "6d4f69cd-d377-40be-8408-87f82b3b89f2",
+              "name": "409 Insufficient balance",
+              "code": 409,
+              "status": "Conflict",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"INSUFFICIENT_BALANCE\",\n    \"message\": \"You cannot withdraw more than you have.\",\n    \"details\": {\n      \"available\": {\n        \"kobo\": 160000,\n        \"usdc\": \"1.0000000\"\n      },\n      \"requested\": {\n        \"kobo\": 200000,\n        \"usdc\": \"1.2500000\"\n      }\n    }\n  }\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "b037d72f-7330-4b5d-9712-e8b8e4d9047f",
+              "name": "400 Wallet cannot receive USDC",
+              "code": 400,
+              "status": "Bad Request",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"STELLAR_ADDRESS_INVALID\",\n    \"message\": \"That wallet cannot receive USDC yet. Add a USDC trustline to it first.\",\n    \"details\": {\n      \"field\": \"destination.address\"\n    }\n  }\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "c9c0cfd2-214c-43df-96da-21713d8a8640",
+              "name": "502 Stellar refused (nothing moved)",
+              "code": 502,
+              "status": "Bad Gateway",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"STELLAR_SUBMIT_FAILED\",\n    \"message\": \"Stellar did not accept the payment. Nothing left your wallet.\",\n    \"details\": {\n      \"withdrawalId\": \"cmiab12cd0004s6l1withdr02\",\n      \"reason\": \"stellar: tx_failed [op_underfunded]\"\n    }\n  }\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Earnings: list withdrawals",
+          "id": "5643dc28-b3f4-4d22-b541-6f478bdde002",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/nurse/withdrawals?limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["nurse", "withdrawals"],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Z10. Her withdrawals, newest first (all statuses). Reading this also settles a 'submitted' withdrawal whose outcome is now known."
+          },
+          "response": [
+            {
+              "id": "2acf5b72-2486-4b3c-975e-2f072361176e",
+              "name": "200 Withdrawals page",
+              "code": 200,
+              "status": "OK",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"items\": [\n    {\n      \"id\": \"cmiab12cd0003s6l1withdr01\",\n      \"status\": \"confirmed\",\n      \"amount\": {\n        \"kobo\": 10000,\n        \"usdc\": \"0.0625000\"\n      },\n      \"destinationAddress\": \"GAMR6SLMHBSOBKZVBMAN2OIKN2J5XOIB65VPZMIWACOJXRSJ42A4GCAI\",\n      \"stellarTxHash\": \"0e6497925afd3313b464ea446ca97f45cca3e536603f2f12760d4976c6f8eba6\",\n      \"failureReason\": null,\n      \"createdAt\": \"2026-11-22T15:02:11.000Z\",\n      \"confirmedAt\": \"2026-11-22T15:02:16.000Z\"\n    }\n  ],\n  \"nextCursor\": null\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
         }
       ],
       "id": "1babd808-14b8-4241-83e7-57de86b10f41",

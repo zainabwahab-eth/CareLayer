@@ -16,7 +16,9 @@
 //   POST   /nurse/questions/:id/claim     approved nurse                                  (Z7)
 //   POST   /nurse/questions/:id/release   approved nurse                                  (Z7)
 //   POST   /nurse/questions/:id/answer    approved nurse: { text, recommendSeeSomeoneToday }(Z7)
-// Later: /nurse/earnings, /nurse/withdrawals (Z10).
+//   GET    /nurse/earnings                nurse: N09 (balance, week chart, month, recent)  (Z10)
+//   GET    /nurse/withdrawals             nurse: ?cursor=&limit=                           (Z10)
+//   POST   /nurse/withdrawals             nurse + fresh code: Stellar address only         (Z10)
 //
 // Everything under /nurse/* requires a signed-in NURSE (guard on the prefix). /nurse/questions*
 // and /nurse/claim also require an APPROVED nurse, mounted now so Z7's routes are protected by
@@ -35,6 +37,7 @@ import type { AppDeps } from '../../deps.js';
 import { AppError } from '../../lib/errors.js';
 import { getAuth, requireAuth, requireFreshCode, requireRole } from '../auth/middleware.js';
 import type { CaseService } from './cases.js';
+import type { EarningsService } from './earnings.js';
 import { listNurseDirectory } from './directory.js';
 import { readDocumentFile, verifyDocumentLink } from './documents.js';
 import {
@@ -63,6 +66,32 @@ const AnswerSchema = z
       .min(1, 'Write your answer.')
       .max(ANSWER_TEXT_MAX_LENGTH, `Answers can be up to ${ANSWER_TEXT_MAX_LENGTH} characters.`),
     recommendSeeSomeoneToday: z.boolean().optional(),
+  })
+  .strict();
+
+const PageSchema = z.object({
+  cursor: z.string().max(200).optional(),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1, 'limit must be 1-100')
+    .max(100, 'limit must be 1-100')
+    .default(20),
+});
+
+const WithdrawalSchema = z
+  .object({
+    amountKobo: z
+      .number({ error: 'amountKobo must be a whole number of kobo.' })
+      .int('amountKobo must be a whole number of kobo.')
+      .positive('amountKobo must be positive.')
+      .max(Number.MAX_SAFE_INTEGER),
+    destination: z
+      .object({
+        kind: z.literal('stellar', { error: 'Only Stellar withdrawals are available for now.' }),
+        address: z.string({ error: 'Enter a Stellar address.' }).trim().min(1).max(100),
+      })
+      .strict(),
   })
   .strict();
 
@@ -108,6 +137,7 @@ export function createNursesRouter(
   deps: AppDeps,
   profiles: NurseProfileService,
   cases: CaseService,
+  earnings: EarningsService,
 ): Router {
   const router = Router();
   const now = deps.clock ?? (() => new Date());
@@ -221,6 +251,27 @@ export function createNursesRouter(
   router.put('/nurse/payout-address', requireFreshCode(now), async (req, res) => {
     const { stellarAddress } = PayoutAddressSchema.parse(req.body);
     res.json(await profiles.setPayoutAddress(getAuth(res).userId, stellarAddress || null));
+  });
+
+  // ---- Earnings and withdrawals (Z10): any nurse (earned money stays hers whatever her status) ----
+  router.get('/nurse/earnings', async (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(await earnings.earnings(getAuth(res).userId));
+  });
+
+  router.get('/nurse/withdrawals', async (req, res) => {
+    const page = PageSchema.parse(req.query);
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(await earnings.list(getAuth(res).userId, page));
+  });
+
+  router.post('/nurse/withdrawals', requireFreshCode(now), async (req, res) => {
+    const body = WithdrawalSchema.parse(req.body);
+    const result = await earnings.withdraw(getAuth(res).userId, {
+      amountKobo: body.amountKobo,
+      address: body.destination.address,
+    });
+    res.status(result.status).json(result.body);
   });
 
   // ---- Cases (Z7) ----

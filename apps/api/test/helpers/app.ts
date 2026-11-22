@@ -21,6 +21,7 @@ import type { PaystackClient } from '../../src/modules/topups/paystack.js';
 import type { WalletChain } from '../../src/modules/wallets/chain.js';
 import type { AnswerPaymentChain } from '../../src/modules/payments/chain.js';
 import type { AnswerPayer } from '../../src/modules/payments/x402-client.js';
+import type { WithdrawalChain } from '../../src/modules/payments/withdrawal-chain.js';
 import { testConfig } from './env.js';
 
 export function buildTestApp(
@@ -38,6 +39,7 @@ export function buildTestApp(
     payoutChain?: TopupChain;
     answerChain?: AnswerPaymentChain;
     answerPayer?: AnswerPayer;
+    withdrawalChain?: WithdrawalChain;
     llm?: LlmClient;
   } = {},
 ) {
@@ -56,6 +58,7 @@ export function buildTestApp(
     // Never Horizon in gate tests: a chain that finds nothing unless the test passes one.
     answerChain: opts.answerChain ?? { findTransfer: async () => null },
     answerPayer: opts.answerPayer,
+    withdrawalChain: opts.withdrawalChain,
     // Never the real provider in gate tests: a fake that fails like an unconfigured key.
     llm: opts.llm ?? unconfiguredLlm(),
   });
