@@ -67,6 +67,17 @@ Placeholders, clearly not real: wallet keys start with `GSEED` (no secret; Z4 cr
   - `src/modules/questions/`: `service.ts`, `pricing.ts`, `draft-token.ts`, `router.ts`.
   - `src/modules/nurses/directory.ts`.
 
+## Nurse onboarding and admin verification (Z9)
+
+- **Nurse:** `PATCH /nurse/profile` → upload the 4 documents (`POST /nurse/documents`, multipart `type` + `file`) → `POST /nurse/profile/submit`. Licence fields and documents lock while under review and once approved.
+- **Admin:** open **http://localhost:4000/admin-console** and sign in as `admin@example.com`. Take the code from the `dev_email_code` line in the API log. Review pending nurses, open their documents and approve or reject. The API version is `GET/POST /admin/nurses*`.
+- **Documents live in Postgres** (`NurseDocumentFile`). They are only readable through signed 10-minute links from `GET /admin/nurses/:id`, and the type is detected from the bytes. Code: `src/modules/nurses/documents.ts`.
+- **Unapproved nurses** get 403 `NURSE_NOT_APPROVED` on `/nurse/questions*` and `/nurse/claim`.
+- **Trace:** log lines `nurse_document_uploaded`, `nurse_submitted`, `admin_viewed_nurse`, `nurse_document_viewed` (with the admin id), `nurse_reviewed`, `nurse_payout_address_changed`.
+- **Code:**
+  - `src/modules/nurses/`: `profile.ts`, `documents.ts`, `router.ts`.
+  - `src/modules/admin/`: `service.ts`, `router.ts`, `console.ts`.
+
 ## x402 on Stellar testnet (Z2)
 
 ```bash

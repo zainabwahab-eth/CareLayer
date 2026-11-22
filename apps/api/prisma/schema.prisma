@@ -369,6 +369,16 @@ model NurseDocument {
   @@unique([nurseId, type])
 }
 
+/// The bytes of an uploaded document, kept in Postgres (Z9 decision): private by design (no file
+/// URL exists), survives redeploys, backed up with the database. A separate table so listing
+/// documents never loads file contents. Read only through src/modules/nurses/documents.ts.
+model NurseDocumentFile {
+  /// Same value as NurseDocument.storageKey.
+  storageKey String   @id
+  bytes      Bytes
+  createdAt  DateTime @default(now())
+}
+
 /// Question categories. Assigned by the AI; women never choose.
 model Topic {
   /// pregnancy | periods | contraception | sexual_health | general (matches QuestionCategory in packages/shared)

@@ -65,6 +65,30 @@ const TOPIC_LABELS: Record<(typeof QUESTION_CATEGORIES)[number], string> = {
 export const seedTxHash = (label: string) =>
   createHash('sha256').update(`carelayer-seed:${label}`).digest('hex');
 
+/** A tiny valid one-page PDF showing `text` (ASCII), for seeded nurse documents. */
+export function placeholderPdf(text: string): Buffer {
+  const safe = text.replace(/[^\x20-\x7e]/g, '?').replace(/([()\\])/g, '\\$1');
+  const stream = `BT /F1 14 Tf 40 760 Td (${safe}) Tj ET`;
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Contents 4 0 R /Resources << /Font << /F1 5 0 R >> >> >>',
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+  ];
+  let out = '%PDF-1.4\n';
+  const offsets: number[] = [];
+  objects.forEach((body, i) => {
+    offsets.push(out.length);
+    out += `${i + 1} 0 obj\n${body}\nendobj\n`;
+  });
+  const xref = out.length;
+  out += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  for (const o of offsets) out += `${String(o).padStart(10, '0')} 00000 n \n`;
+  out += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`;
+  return Buffer.from(out, 'latin1');
+}
+
 /** Delete everything, children first. */
 async function wipe(db: PrismaClient) {
   await db.$transaction([
@@ -79,6 +103,7 @@ async function wipe(db: PrismaClient) {
     db.topup.deleteMany(),
     db.nurseTopic.deleteMany(),
     db.nurseDocument.deleteMany(),
+    db.nurseDocumentFile.deleteMany(),
     db.nurseProfile.deleteMany(),
     db.topic.deleteMany(),
     db.wallet.deleteMany(),
@@ -205,15 +230,18 @@ export async function seed(db: PrismaClient, opts: SeedOptions) {
               'GOVERNMENT_ID',
               'SELFIE_WITH_ID',
             ] as const
-          ).map((type) => ({
-            type,
-            storageKey: `seed/${user.id}/${type.toLowerCase()}.pdf`,
-            fileName: `${type.toLowerCase()}.pdf`,
-            mimeType: 'application/pdf',
-            sizeBytes: 120_000,
-            sha256: seedTxHash(`doc:${input.email}:${type}`),
-            uploadedAt: input.createdAt,
-          })),
+          ).map((type) => {
+            const pdf = placeholderPdf(`SEED PLACEHOLDER - ${type} - ${input.fullName}`);
+            return {
+              type,
+              storageKey: `seed/${user.id}/${type.toLowerCase()}.pdf`,
+              fileName: `${type.toLowerCase()}.pdf`,
+              mimeType: 'application/pdf',
+              sizeBytes: pdf.length,
+              sha256: createHash('sha256').update(pdf).digest('hex'),
+              uploadedAt: input.createdAt,
+            };
+          }),
         },
         topics: {
           create: (input.topics ?? DEFAULT_TOPICS_BY_ROLE[roleKey]).map((topicSlug) => ({
@@ -221,6 +249,15 @@ export async function seed(db: PrismaClient, opts: SeedOptions) {
           })),
         },
       },
+    });
+    // The files behind the document rows: placeholder PDFs, so the admin page opens real files.
+    const docs = await db.nurseDocument.findMany({ where: { nurseId: user.id } });
+    await db.nurseDocumentFile.createMany({
+      data: docs.map((d) => ({
+        storageKey: d.storageKey,
+        bytes: new Uint8Array(placeholderPdf(`SEED PLACEHOLDER - ${d.type} - ${input.fullName}`)),
+        createdAt: input.createdAt,
+      })),
     });
     return user;
   }

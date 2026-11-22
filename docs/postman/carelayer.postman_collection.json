@@ -5,7 +5,7 @@
     "description": "CareLayer backend (apps/api). Contract: docs/API_CONTRACT.md (v1). One folder per module; folders are added by the task that builds each module (Z3 Auth, Z5 Top-up, Z6 Chat + Questions, Z7 Nurse cases, Z9 Nurse profile + Admin). Select the 'CareLayer local' environment ({{baseUrl}} = http://localhost:4000).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "createdAt": "2026-11-18T22:32:09.000Z",
-    "updatedAt": "2026-11-20T21:05:03.000Z",
+    "updatedAt": "2026-11-21T23:45:58.000Z",
     "lastUpdatedBy": "44554019",
     "uid": "44554019-757e009e-9b28-4514-a7f4-6fcbc1c6380e"
   },
@@ -1975,6 +1975,617 @@
       "createdAt": "2026-11-20T21:05:03.000Z",
       "updatedAt": "2026-11-20T21:06:19.000Z",
       "uid": "44554019-be24cf69-d842-4e36-bdbc-fdae5d7d3c75"
+    },
+    {
+      "name": "Nurse profile",
+      "item": [
+        {
+          "name": "Get my profile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const b = pm.response.json();",
+                  "if (b.userId) pm.environment.set('nurseId', b.userId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "c9ce7540-099f-4ae2-b182-ae9f01bda056",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/nurse/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["nurse", "profile"]
+            },
+            "description": "Sign in through Auth with app \"nurses\" first. Saves nurseId (for the Admin folder)."
+          },
+          "response": [
+            {
+              "id": "ce2782a2-6962-4221-b114-8c5459ee285b",
+              "name": "200 draft profile",
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/nurse/profile",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["nurse", "profile"]
+                },
+                "description": "Sign in through Auth with app \"nurses\" first. Saves nurseId (for the Admin folder)."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"userId\": \"cmwr1v47b00013ghrz6re3zb7\",\n  \"role\": \"midwife\",\n  \"fullName\": \"Ngozi Adeyemi\",\n  \"fullNameConfirmed\": true,\n  \"gender\": \"female\",\n  \"practiceArea\": \"Antenatal care\",\n  \"yearsOfPractice\": 7,\n  \"bio\": \"Midwife in Ibadan, 7 years in antenatal care.\",\n  \"languages\": [\"english\", \"yoruba\"],\n  \"licenceNumber\": \"RM 12345\",\n  \"documents\": [\n    { \"id\": \"cmwr1v4qz0005\", \"type\": \"practising_licence\", \"fileName\": \"licence.pdf\", \"mimeType\": \"application/pdf\", \"sizeBytes\": 48211, \"uploadedAt\": \"2026-11-21T23:39:23.000Z\" }\n  ],\n  \"custodialStellarAddress\": \"GDNBRW2FSR62HN4ALG7G4GAFPETHD25TLIW5O5OCCAF6BHBISWSR7NXU\",\n  \"ownStellarAddress\": null,\n  \"guidanceNotDiagnosisAccepted\": true,\n  \"verificationStatus\": \"draft\",\n  \"rejectionReason\": null,\n  \"topics\": [\"pregnancy\", \"periods\"],\n  \"available\": false,\n  \"avgResponseMinutes\": null,\n  \"helpful\": { \"percent\": null, \"count\": 0 }\n}",
+              "createdAt": "2026-11-21T23:57:47.000Z",
+              "updatedAt": "2026-11-21T23:57:47.000Z",
+              "uid": "44554019-ce2782a2-6962-4221-b114-8c5459ee285b"
+            }
+          ],
+          "createdAt": "2026-11-21T23:46:09.000Z",
+          "updatedAt": "2026-11-21T23:57:47.000Z",
+          "uid": "44554019-c9ce7540-099f-4ae2-b182-ae9f01bda056"
+        },
+        {
+          "name": "Update profile (onboarding)",
+          "id": "9659d6b7-e3fc-41e9-869c-e3d68c9d4cdc",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"midwife\",\n  \"fullNameConfirmed\": true,\n  \"gender\": \"female\",\n  \"practiceArea\": \"Antenatal care\",\n  \"yearsOfPractice\": 7,\n  \"bio\": \"Midwife in Ibadan, 7 years in antenatal care.\",\n  \"languages\": [\"english\", \"yoruba\"],\n  \"licenceNumber\": \"RM 12345\",\n  \"guidanceNotDiagnosisAccepted\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/nurse/profile",
+              "host": ["{{baseUrl}}"],
+              "path": ["nurse", "profile"]
+            },
+            "description": "Any subset. Topics default from the role the first time. Licence fields (fullName, role, licenceNumber, fullNameConfirmed) lock while under review and once approved (409)."
+          },
+          "response": [],
+          "createdAt": "2026-11-21T23:46:28.000Z",
+          "updatedAt": "2026-11-21T23:46:28.000Z",
+          "uid": "44554019-9659d6b7-e3fc-41e9-869c-e3d68c9d4cdc"
+        },
+        {
+          "name": "Upload document",
+          "id": "59151c32-317c-49d2-a912-6b0711dc1c1d",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "description": "practising_licence | registration_certificate | government_id | selfie_with_id",
+                  "key": "type",
+                  "type": "text",
+                  "value": "practising_licence"
+                },
+                {
+                  "description": "Pick a PDF, JPEG, PNG, WebP or HEIC (max 10 MB)",
+                  "key": "file",
+                  "type": "file",
+                  "value": null
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/nurse/documents",
+              "host": ["{{baseUrl}}"],
+              "path": ["nurse", "documents"]
+            },
+            "description": "Multipart. Pick a file in the \"file\" row. Repeat for all 4 types. Re-uploading a type replaces it. The type is detected from the bytes."
+          },
+          "response": [
+            {
+              "id": "25fd0813-22d7-4bb2-b15e-d82f0aecce3b",
+              "name": "201 uploaded",
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "description": "practising_licence | registration_certificate | government_id | selfie_with_id",
+                      "key": "type",
+                      "type": "text",
+                      "value": "practising_licence"
+                    },
+                    {
+                      "description": "Pick a PDF, JPEG, PNG, WebP or HEIC (max 10 MB)",
+                      "key": "file",
+                      "type": "file",
+                      "value": null
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/nurse/documents",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["nurse", "documents"]
+                },
+                "description": "Multipart. Pick a file in the \"file\" row. Repeat for all 4 types. Re-uploading a type replaces it. The type is detected from the bytes."
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{ \"id\": \"cmwr1v4qz0005\", \"type\": \"practising_licence\", \"fileName\": \"licence.pdf\", \"mimeType\": \"application/pdf\", \"sizeBytes\": 48211, \"uploadedAt\": \"2026-11-21T23:39:23.000Z\" }",
+              "createdAt": "2026-11-22T00:01:34.000Z",
+              "updatedAt": "2026-11-22T00:01:34.000Z",
+              "uid": "44554019-25fd0813-22d7-4bb2-b15e-d82f0aecce3b"
+            }
+          ],
+          "createdAt": "2026-11-21T23:47:02.000Z",
+          "updatedAt": "2026-11-22T00:01:34.000Z",
+          "uid": "44554019-59151c32-317c-49d2-a912-6b0711dc1c1d"
+        },
+        {
+          "name": "Submit for review",
+          "id": "39a9bd7f-3a34-463f-946b-9e983faf8b6a",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/nurse/profile/submit",
+              "host": ["{{baseUrl}}"],
+              "path": ["nurse", "profile", "submit"]
+            },
+            "description": "409 ONBOARDING_INCOMPLETE lists details.missing until every step is done."
+          },
+          "response": [
+            {
+              "id": "69060124-4d42-4e17-b32e-667b0bf40de3",
+              "name": "409 incomplete",
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/nurse/profile/submit",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["nurse", "profile", "submit"]
+                },
+                "description": "409 ONBOARDING_INCOMPLETE lists details.missing until every step is done."
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{ \"error\": { \"code\": \"ONBOARDING_INCOMPLETE\", \"message\": \"Finish every step before submitting.\", \"details\": { \"missing\": [\"licenceNumber\", \"government_id\", \"selfie_with_id\"] } } }",
+              "createdAt": "2026-11-21T23:57:51.000Z",
+              "updatedAt": "2026-11-21T23:57:51.000Z",
+              "uid": "44554019-69060124-4d42-4e17-b32e-667b0bf40de3"
+            }
+          ],
+          "createdAt": "2026-11-21T23:48:10.000Z",
+          "updatedAt": "2026-11-21T23:57:51.000Z",
+          "uid": "44554019-39a9bd7f-3a34-463f-946b-9e983faf8b6a"
+        },
+        {
+          "name": "Update preferences (topics, available)",
+          "id": "288c50fd-6f36-4d82-8b05-5467dac935eb",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"topics\": [\"pregnancy\", \"periods\"], \"available\": true }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/nurse/preferences",
+              "host": ["{{baseUrl}}"],
+              "path": ["nurse", "preferences"]
+            },
+            "description": "At least one topic (else 400 TOPICS_REQUIRED). Topics control alerts only."
+          },
+          "response": [],
+          "createdAt": "2026-11-21T23:51:50.000Z",
+          "updatedAt": "2026-11-21T23:51:50.000Z",
+          "uid": "44554019-288c50fd-6f36-4d82-8b05-5467dac935eb"
+        },
+        {
+          "name": "Set payout address (fresh code)",
+          "id": "fd04e1ae-4f6d-4069-92da-cbe9555a8370",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"stellarAddress\": \"GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5\" }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/nurse/payout-address",
+              "host": ["{{baseUrl}}"],
+              "path": ["nurse", "payout-address"]
+            },
+            "description": "Needs a step-up in the last 5 minutes (Auth > step-up), else 403 STEP_UP_REQUIRED. null = pay to the custodial wallet."
+          },
+          "response": [],
+          "createdAt": "2026-11-21T23:51:52.000Z",
+          "updatedAt": "2026-11-21T23:51:52.000Z",
+          "uid": "44554019-fd04e1ae-4f6d-4069-92da-cbe9555a8370"
+        }
+      ],
+      "id": "1babd808-14b8-4241-83e7-57de86b10f41",
+      "createdAt": "2026-11-21T23:45:55.000Z",
+      "updatedAt": "2026-11-21T23:51:52.000Z",
+      "uid": "44554019-1babd808-14b8-4241-83e7-57de86b10f41"
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "List nurses for review",
+          "id": "c07daf34-4b56-48d4-a3b5-45bb58ca1e29",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/nurses?status=pending_review&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "nurses"],
+              "query": [
+                {
+                  "description": "draft | pending_review | approved | rejected",
+                  "key": "status",
+                  "value": "pending_review"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Sign in through Auth with app \"admin\" (seeded: admin@example.com). Oldest first. Or use the page: {{baseUrl}}/admin-console"
+          },
+          "response": [],
+          "createdAt": "2026-11-21T23:51:55.000Z",
+          "updatedAt": "2026-11-21T23:51:55.000Z",
+          "uid": "44554019-c07daf34-4b56-48d4-a3b5-45bb58ca1e29"
+        },
+        {
+          "name": "Nurse detail (signed document links)",
+          "id": "438ffaa6-1799-4489-8b07-dc73052109ad",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/nurses/{{nurseId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "nurses", "{{nurseId}}"]
+            },
+            "description": "documentUrls: document id -> path of a signed link valid 10 minutes. Open {{baseUrl}} + that path in a browser."
+          },
+          "response": [
+            {
+              "id": "38b8530b-cfb8-465c-80d2-01a953031673",
+              "name": "200 detail",
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/nurses/{{nurseId}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "nurses", "{{nurseId}}"]
+                },
+                "description": "documentUrls: document id -> path of a signed link valid 10 minutes. Open {{baseUrl}} + that path in a browser."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"userId\": \"cmwr1v47b00013ghrz6re3zb7\",\n  \"fullName\": \"Ngozi Adeyemi\",\n  \"email\": \"ngozi@example.com\",\n  \"role\": \"midwife\",\n  \"licenceNumber\": \"RM 12345\",\n  \"verificationStatus\": \"pending_review\",\n  \"documents\": [{ \"id\": \"cmwr1v4qz0005\", \"type\": \"practising_licence\", \"fileName\": \"licence.pdf\", \"mimeType\": \"application/pdf\", \"sizeBytes\": 48211, \"uploadedAt\": \"2026-11-21T23:39:23.000Z\" }],\n  \"documentUrls\": { \"cmwr1v4qz0005\": \"/files/nurse-documents/cmwr1v4qz0005?exp=1795305000&a=cmadmin01&sig=<64 hex>\" },\n  \"topics\": [\"pregnancy\", \"periods\"],\n  \"available\": false\n}",
+              "createdAt": "2026-11-22T00:02:34.000Z",
+              "updatedAt": "2026-11-22T00:02:34.000Z",
+              "uid": "44554019-38b8530b-cfb8-465c-80d2-01a953031673"
+            }
+          ],
+          "createdAt": "2026-11-21T23:51:57.000Z",
+          "updatedAt": "2026-11-22T00:02:34.000Z",
+          "uid": "44554019-438ffaa6-1799-4489-8b07-dc73052109ad"
+        },
+        {
+          "name": "Approve nurse",
+          "id": "e7d74676-7bc7-4846-890d-19eaca45f189",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/nurses/{{nurseId}}/approve",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "nurses", "{{nurseId}}", "approve"]
+            },
+            "description": "Only from pending_review (else 409). She is emailed."
+          },
+          "response": [
+            {
+              "id": "e4798dc0-2144-4ae4-8a01-fff2663ba651",
+              "name": "200 approved",
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/admin/nurses/{{nurseId}}/approve",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["admin", "nurses", "{{nurseId}}", "approve"]
+                },
+                "description": "Only from pending_review (else 409). She is emailed."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{ \"userId\": \"cmwr1v47b00013ghrz6re3zb7\", \"fullName\": \"Ngozi Adeyemi\", \"role\": \"midwife\", \"licenceNumber\": \"RM 12345\", \"verificationStatus\": \"approved\", \"submittedAt\": \"2026-11-21T23:39:24.000Z\" }",
+              "createdAt": "2026-11-22T00:03:56.000Z",
+              "updatedAt": "2026-11-22T00:03:56.000Z",
+              "uid": "44554019-e4798dc0-2144-4ae4-8a01-fff2663ba651"
+            }
+          ],
+          "createdAt": "2026-11-21T23:52:00.000Z",
+          "updatedAt": "2026-11-22T00:03:56.000Z",
+          "uid": "44554019-e7d74676-7bc7-4846-890d-19eaca45f189"
+        },
+        {
+          "name": "Reject nurse",
+          "id": "ea8a4218-63dd-413d-8c34-55dc7a3a0385",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"reason\": \"The licence photo is blurry. Upload a clearer one.\" }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/nurses/{{nurseId}}/reject",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "nurses", "{{nurseId}}", "reject"]
+            },
+            "description": "Reason 5-500 characters; she sees it and can fix and resubmit."
+          },
+          "response": [],
+          "createdAt": "2026-11-21T23:55:21.000Z",
+          "updatedAt": "2026-11-21T23:55:21.000Z",
+          "uid": "44554019-ea8a4218-63dd-413d-8c34-55dc7a3a0385"
+        }
+      ],
+      "id": "881704ee-1549-4dda-b110-98ef62e7665f",
+      "createdAt": "2026-11-21T23:45:58.000Z",
+      "updatedAt": "2026-11-21T23:55:21.000Z",
+      "uid": "44554019-881704ee-1549-4dda-b110-98ef62e7665f"
     }
   ]
 }

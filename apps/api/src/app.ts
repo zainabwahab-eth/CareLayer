@@ -5,6 +5,8 @@ import type { AppDeps } from './deps.js';
 import { errorHandler, notFoundHandler } from './lib/errors.js';
 import { requestLogger } from './lib/request-logger.js';
 import { createAdminRouter } from './modules/admin/router.js';
+import { createAdminService, type AdminService } from './modules/admin/service.js';
+import { createNurseProfileService, type NurseProfileService } from './modules/nurses/profile.js';
 import { createEmailSender } from './modules/auth/email.js';
 import { createAuthRouter } from './modules/auth/router.js';
 import { createChatRouter } from './modules/chat/router.js';
@@ -80,6 +82,8 @@ export interface AppServices {
   topups: TopupService;
   chat: ChatService;
   questions: QuestionService;
+  nurseProfiles: NurseProfileService;
+  admin: AdminService;
 }
 
 /**
@@ -111,12 +115,29 @@ export function buildChatAndQuestionServices(deps: AppDeps) {
   };
 }
 
+/** Nurse onboarding + admin verification (Z9). */
+export function buildNurseServices(deps: AppDeps) {
+  const now = deps.clock ?? (() => new Date());
+  const nurseProfiles = createNurseProfileService({ db: deps.db, logger: deps.logger, now });
+  const admin = createAdminService({
+    db: deps.db,
+    profiles: nurseProfiles,
+    email: deps.emailSender ?? createEmailSender(deps.config.auth, deps.logger),
+    jwtAccessSecret: deps.config.auth.jwtAccessSecret,
+    nurseAppUrl: deps.config.nurseAppUrl,
+    logger: deps.logger,
+    now,
+  });
+  return { nurseProfiles, admin };
+}
+
 export function buildServices(deps: AppDeps): AppServices {
   const wallets = buildWalletService(deps);
   return {
     wallets,
     topups: buildTopupService(deps, wallets),
     ...buildChatAndQuestionServices(deps),
+    ...buildNurseServices(deps),
   };
 }
 
@@ -138,9 +159,9 @@ export function createApp(deps: AppDeps, services: AppServices = buildServices(d
   app.use(createTopupsRouter(deps, services.topups));
   app.use(createChatRouter(deps, services.chat));
   app.use(createQuestionsRouter(deps, services.questions));
-  app.use(createNursesRouter(deps));
+  app.use(createNursesRouter(deps, services.nurseProfiles));
   app.use(createPaymentsRouter(deps));
-  app.use(createAdminRouter(deps));
+  app.use(createAdminRouter(deps, services.admin));
 
   app.use(notFoundHandler);
   app.use(errorHandler(deps.logger));

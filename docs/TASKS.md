@@ -148,7 +148,7 @@ Figma file: **"CareLayer – Product design v1"**, key `cCmDYngHpc03VO66FsVUvD`.
 | N02 Verify licence               | `/onboarding/licence`                              | workers | `PATCH /nurse/profile`                                                  |
 | N03 Documents                    | `/onboarding/documents`                            | workers | `POST /nurse/documents`, `POST /nurse/profile/submit`                   |
 | N04 Under review                 | `/onboarding/review`                               | workers | `GET /nurse/profile`                                                    |
-| N05 Today                        | `/today`                                           | workers | `GET /nurse/dashboard`, `PATCH /nurse/availability`                     |
+| N05 Today                        | `/today`                                           | workers | `GET /nurse/dashboard`, `PATCH /nurse/preferences`                      |
 | N06 Cases                        | `/cases`                                           | workers | `GET /nurse/questions?tab=waiting                                       | active  | completed`, `POST /nurse/questions/:id/claim` |
 | N07 Respond                      | `/cases/:id`                                       | workers | `POST /nurse/questions/:id/release`, `POST /nurse/questions/:id/answer` |
 | N08 Answer sent                  | `/cases/:id/sent`                                  | workers | response of the answer call                                             |
@@ -312,9 +312,20 @@ Implement everything in "Accounts and auth" (section 2): `POST /auth/code/reques
 **Tests:** emergency creates no question; consent required; cleaned text stored separately from original; spending limit enforced; chosen-nurse visibility rule.
 **Postman:** Chat and Questions folders.
 
-### Z9. Nurse onboarding and admin approval
+### Z9. Nurse onboarding and admin approval (done)
 
-- `GET/PATCH /nurse/profile`, `POST /nurse/documents` (private storage, never public URLs), `POST /nurse/profile/submit`, topics with role defaults (midwives: Pregnancy + Periods; nurses: all), `PATCH /nurse/availability`.
+- **Decided in Z9:**
+  - **Documents are stored in Postgres** (`NurseDocumentFile`, chosen by Zainab). No new account or key. Private by design: there is no file URL. Files survive redeploys and are backed up with the database. The database grows about 2–10 MB per nurse; Neon's free 0.5 GB holds roughly 50–200 nurses. To move to a bucket later, change only `src/modules/nurses/documents.ts`.
+  - **File type is detected from the bytes** (PDF, JPEG, PNG, WebP, HEIC for iPhone photos), never from the name or the browser's claim. Max 10 MB. Files are served back with `nosniff` and a sandboxing CSP.
+  - **Signed document links:** HMAC, 10 minutes, bound to the admin who opened the nurse (every view is logged with the admin's id). The path `/files/nurse-documents/:id` sits outside `/admin` because a link opened in a new tab or an `<img>` carries no bearer token.
+  - **Licence fields and documents are locked while `pending_review` as well as once `approved`.** The admin's decision is about exactly what she submitted.
+  - **`fullName` is editable until submit** (her name exactly as on the licence) and also becomes her display name.
+  - **Decisions are conditional updates on `pending_review`:** two admins at once means one wins and the other gets 409. Rejecting also sets her unavailable. She is emailed either way.
+  - **`/nurse/questions*` and `/nurse/claim` are guarded for approved nurses now**, so Z7's routes are protected from the start.
+  - **Admin page `GET /admin-console`:** plain HTML + JS from the API, signing in with an emailed code (`app: "admin"`), behind a nonce CSP. Nurse-supplied text is only ever inserted as text. The seeded admin is `admin@example.com`.
+  - **Seed:** seeded nurses' documents now have placeholder PDF files, so the admin page opens real files after `db:seed`.
+  - **Screen map:** `PATCH /nurse/availability` is `PATCH /nurse/preferences { available }` (the contract name).
+- `GET/PATCH /nurse/profile`, `POST /nurse/documents` (private storage, never public URLs), `POST /nurse/profile/submit`, topics with role defaults (midwives: Pregnancy + Periods; nurses: all), `PATCH /nurse/preferences` (topics, available).
 - Admin: `GET /admin/nurses?status=`, `POST /admin/nurses/:id/approve`, `POST /admin/nurses/:id/reject`, signed short-lived document links, and a minimal admin page.
 
 **Tests:** unapproved nurse can't see questions; at least one topic required; documents not publicly reachable.
@@ -446,7 +457,7 @@ Tick in the PR that completes the task.
 - [x] Z4 Wallets
 - [x] Z5 Top-up
 - [x] Z6 Chat and questions
-- [ ] Z9 Nurse onboarding + admin
+- [x] Z9 Nurse onboarding + admin
 - [ ] Z7 Claiming and answering
 - [ ] Z8 Pay on delivery + payouts
 - [ ] Z10 Earnings and withdrawals

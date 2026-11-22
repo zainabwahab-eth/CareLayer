@@ -3,7 +3,12 @@ import { createApp } from '../../src/app.js';
 import type { Config } from '../../src/config.js';
 import type { Db } from '../../src/db.js';
 import { createLogger, type Logger } from '../../src/lib/logger.js';
-import type { CodeEmail, EmailSender, NurseAlertEmail } from '../../src/modules/auth/email.js';
+import type {
+  CodeEmail,
+  EmailSender,
+  NurseAlertEmail,
+  NurseReviewEmail,
+} from '../../src/modules/auth/email.js';
 import {
   LlmUnavailableError,
   type LlmClient,
@@ -85,14 +90,19 @@ export function fakeLlm(...replies: (object | string | Error)[]) {
 export function memoryEmailSender() {
   const sent: CodeEmail[] = [];
   const alerts: NurseAlertEmail[] = [];
+  const reviews: NurseReviewEmail[] = [];
   return {
     sent,
     alerts,
+    reviews,
     async sendCode(email: CodeEmail) {
       sent.push(email);
     },
     async sendNurseAlert(email: NurseAlertEmail) {
       alerts.push(email);
+    },
+    async sendNurseReview(email: NurseReviewEmail) {
+      reviews.push(email);
     },
     /** The latest code sent to this address. */
     lastCode(to: string): string {
