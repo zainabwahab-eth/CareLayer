@@ -3,12 +3,15 @@
     "_postman_id": "757e009e-9b28-4514-a7f4-6fcbc1c6380e",
     "name": "CareLayer API",
     "description": "CareLayer backend (apps/api). Contract: docs/API_CONTRACT.md (v1). One folder per module; folders are added by the task that builds each module (Z3 Auth, Z5 Top-up, Z6 Chat + Questions, Z7 Nurse cases, Z9 Nurse profile + Admin). Select the 'CareLayer local' environment ({{baseUrl}} = http://localhost:4000).",
-    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "createdAt": "2026-11-18T22:32:09.000Z",
+    "updatedAt": "2026-11-20T21:05:03.000Z",
+    "lastUpdatedBy": "44554019",
+    "uid": "44554019-757e009e-9b28-4514-a7f4-6fcbc1c6380e"
   },
   "item": [
     {
       "name": "Health",
-      "description": "GET /health: 200 when Postgres answers, 503 when it does not (docs/API_CONTRACT.md §1).",
       "item": [
         {
           "name": "Health",
@@ -30,6 +33,7 @@
               }
             }
           ],
+          "id": "f20777c6-3886-4507-b8a5-b5a6bc53d05d",
           "request": {
             "method": "GET",
             "header": [],
@@ -42,6 +46,7 @@
           },
           "response": [
             {
+              "id": "59620a5a-f4dc-48e8-8640-5e2c3cd35e6e",
               "name": "200 database ok",
               "originalRequest": {
                 "method": "GET",
@@ -70,9 +75,14 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"status\": \"ok\",\n  \"database\": \"ok\",\n  \"service\": \"carelayer-api\",\n  \"contractVersion\": \"v1\",\n  \"time\": \"2026-11-18T21:25:48.928Z\"\n}"
+              "responseTime": null,
+              "body": "{\n  \"status\": \"ok\",\n  \"database\": \"ok\",\n  \"service\": \"carelayer-api\",\n  \"contractVersion\": \"v1\",\n  \"time\": \"2026-11-18T21:25:48.928Z\"\n}",
+              "createdAt": "2026-11-18T22:32:10.000Z",
+              "updatedAt": "2026-11-18T22:32:10.000Z",
+              "uid": "44554019-59620a5a-f4dc-48e8-8640-5e2c3cd35e6e"
             },
             {
+              "id": "f52832ce-051b-4a98-9d39-52bce693e412",
               "name": "503 database down",
               "originalRequest": {
                 "method": "GET",
@@ -101,15 +111,185 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"status\": \"unavailable\",\n  \"database\": \"down\",\n  \"service\": \"carelayer-api\",\n  \"contractVersion\": \"v1\",\n  \"time\": \"2026-11-18T21:25:54.081Z\"\n}"
+              "responseTime": null,
+              "body": "{\n  \"status\": \"unavailable\",\n  \"database\": \"down\",\n  \"service\": \"carelayer-api\",\n  \"contractVersion\": \"v1\",\n  \"time\": \"2026-11-18T21:25:54.081Z\"\n}",
+              "createdAt": "2026-11-18T22:32:10.000Z",
+              "updatedAt": "2026-11-18T22:32:10.000Z",
+              "uid": "44554019-f52832ce-051b-4a98-9d39-52bce693e412"
             }
-          ]
+          ],
+          "createdAt": "2026-11-18T22:32:10.000Z",
+          "updatedAt": "2026-11-18T22:32:10.000Z",
+          "uid": "44554019-f20777c6-3886-4507-b8a5-b5a6bc53d05d"
         }
-      ]
+      ],
+      "id": "88f4c89c-05ea-4cfb-9f60-201576bed5a5",
+      "description": "GET /health: 200 when Postgres answers, 503 when it does not (docs/API_CONTRACT.md §1).",
+      "createdAt": "2026-11-18T22:32:09.000Z",
+      "updatedAt": "2026-11-18T22:32:09.000Z",
+      "uid": "44554019-88f4c89c-05ea-4cfb-9f60-201576bed5a5"
+    },
+    {
+      "name": "x402 (Z2 proof)",
+      "item": [
+        {
+          "name": "x402 test: guard (not ready, 409)",
+          "event": [
+            {
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('409 QUESTION_NOT_ANSWERED', () => {",
+                  "  pm.response.to.have.status(409);",
+                  "  pm.expect(pm.response.json().error.code).to.eql('QUESTION_NOT_ANSWERED');",
+                  "});",
+                  "pm.test('no payment requested', () => pm.expect(pm.response.headers.has('PAYMENT-REQUIRED')).to.be.false);"
+                ]
+              },
+              "listen": "test"
+            }
+          ],
+          "id": "531d0d96-8acd-5255-7465-bdbd2e99c046",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/x402-test?ready=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["x402-test"],
+              "query": [
+                {
+                  "description": "Simulates an unanswered question: the pay-on-delivery guard returns 409 before x402 runs.",
+                  "value": "false",
+                  "key": "ready"
+                }
+              ]
+            },
+            "description": "Pay-on-delivery guard. Needs X402_TEST_ROUTE=true. Returns 409 QUESTION_NOT_ANSWERED with NO PAYMENT-REQUIRED header: no payment is ever requested for an unanswered question."
+          },
+          "response": [
+            {
+              "id": "9b140033-6ad9-14c1-0b29-745eb7728d67",
+              "name": "409 not ready (no payment requested)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/x402-test?ready=false",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["x402-test"],
+                  "query": [
+                    {
+                      "description": "Simulates an unanswered question: the pay-on-delivery guard returns 409 before x402 runs.",
+                      "value": "false",
+                      "key": "ready"
+                    }
+                  ]
+                },
+                "description": "Pay-on-delivery guard. Needs X402_TEST_ROUTE=true. Returns 409 QUESTION_NOT_ANSWERED with NO PAYMENT-REQUIRED header: no payment is ever requested for an unanswered question."
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"error\": {\n    \"code\": \"QUESTION_NOT_ANSWERED\",\n    \"message\": \"Not ready yet. No payment was requested.\"\n  }\n}",
+              "createdAt": "2026-11-19T19:30:24.000Z",
+              "updatedAt": "2026-11-19T19:30:24.000Z",
+              "uid": "44554019-9b140033-6ad9-14c1-0b29-745eb7728d67"
+            }
+          ],
+          "createdAt": "2026-11-19T19:29:28.000Z",
+          "updatedAt": "2026-11-19T19:30:24.000Z",
+          "uid": "44554019-531d0d96-8acd-5255-7465-bdbd2e99c046"
+        },
+        {
+          "name": "x402 test: payment required (402)",
+          "event": [
+            {
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('402 Payment Required', () => pm.response.to.have.status(402));",
+                  "const raw = pm.response.headers.get('PAYMENT-REQUIRED');",
+                  "pm.test('PAYMENT-REQUIRED header present', () => pm.expect(raw).to.be.a('string'));",
+                  "const req = JSON.parse(atob(raw));",
+                  "const accept = req.accepts[0];",
+                  "pm.test('0.01 USDC on stellar:testnet', () => {",
+                  "  pm.expect(accept.scheme).to.eql('exact');",
+                  "  pm.expect(accept.network).to.eql('stellar:testnet');",
+                  "  pm.expect(accept.amount).to.eql('100000');",
+                  "  pm.expect(accept.asset).to.eql('CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA');",
+                  "});"
+                ]
+              },
+              "listen": "test"
+            }
+          ],
+          "id": "bb8c910e-8d20-40b8-b01d-89be53527023",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/x402-test",
+              "host": ["{{baseUrl}}"],
+              "path": ["x402-test"]
+            },
+            "description": "Without a PAYMENT-SIGNATURE header the API answers 402 with a base64 JSON PAYMENT-REQUIRED header: exact scheme, stellar:testnet, 0.01 USDC (amount 100000 stroops) to the treasury. Postman cannot sign Stellar payments; to actually pay run `npm run x402:pay -w @carelayer/api`."
+          },
+          "response": [
+            {
+              "id": "e6d0f3b6-f027-0188-3f56-c3c720b896ce",
+              "name": "402 payment required (0.01 USDC)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/x402-test",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["x402-test"]
+                },
+                "description": "Without a PAYMENT-SIGNATURE header the API answers 402 with a base64 JSON PAYMENT-REQUIRED header: exact scheme, stellar:testnet, 0.01 USDC (amount 100000 stroops) to the treasury. Postman cannot sign Stellar payments; to actually pay run `npm run x402:pay -w @carelayer/api`."
+              },
+              "status": "Payment Required",
+              "code": 402,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "PAYMENT-REQUIRED",
+                  "value": "eyJ4NDAyVmVyc2lvbiI6MiwiZXJyb3IiOiJQYXltZW50IHJlcXVpcmVkIiwicmVzb3VyY2UiOnsidXJsIjoiaHR0cDovL2xvY2FsaG9zdDo0MDAwL3g0MDItdGVzdCIsImRlc2NyaXB0aW9uIjoiQ2FyZUxheWVyIHg0MDIgcHJvb2Y6IDAuMDEgVVNEQyBvbiBTdGVsbGFyIHRlc3RuZXQiLCJtaW1lVHlwZSI6ImFwcGxpY2F0aW9uL2pzb24ifSwiYWNjZXB0cyI6W3sic2NoZW1lIjoiZXhhY3QiLCJuZXR3b3JrIjoic3RlbGxhcjp0ZXN0bmV0IiwiYW1vdW50IjoiMTAwMDAwIiwiYXNzZXQiOiJDQklFTFRLNllCWkpVNVVQMldXUUVVQ1lLTFBVNkFVTloyQlE0V1dGRUlFM1VTQ0lITVhRREFNQSIsInBheVRvIjoiR0JZMjRSTzUzNlJER0VXSUpFSDNVTTdPV1FPS1M1M09ZUlRCRFVRQTdYTktLSlEyTlhVSUdaNVEiLCJtYXhUaW1lb3V0U2Vjb25kcyI6MTIwLCJleHRyYSI6eyJhcmVGZWVzU3BvbnNvcmVkIjp0cnVlfX1dfQ=="
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"error\": \"Payment required\"\n}",
+              "createdAt": "2026-11-19T19:30:33.000Z",
+              "updatedAt": "2026-11-19T19:30:33.000Z",
+              "uid": "44554019-e6d0f3b6-f027-0188-3f56-c3c720b896ce"
+            }
+          ],
+          "createdAt": "2026-11-19T19:29:31.000Z",
+          "updatedAt": "2026-11-19T19:30:33.000Z",
+          "uid": "44554019-bb8c910e-8d20-40b8-b01d-89be53527023"
+        }
+      ],
+      "id": "72ab4841-d76a-4578-f489-ae012f746942",
+      "createdAt": "2026-11-19T19:18:26.000Z",
+      "updatedAt": "2026-11-19T19:29:31.000Z",
+      "uid": "44554019-72ab4841-d76a-4578-f489-ae012f746942"
     },
     {
       "name": "Auth",
-      "description": "Passwordless auth (Z3). Order: 1 request code -> copy the code from the dev_email_code line in the API log into the `code` environment variable -> 2 verify (stores accessToken; Postman keeps the httpOnly cl_refresh cookie) -> 3-6.",
       "item": [
         {
           "name": "1. Request code (log in)",
@@ -119,7 +299,7 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"202 sent\", () => {",
+                  "pm.test('202 sent', () => {",
                   "  pm.response.to.have.status(202);",
                   "  pm.expect(pm.response.json().sent).to.eql(true);",
                   "});"
@@ -127,6 +307,7 @@
               }
             }
           ],
+          "id": "dfbbd9c9-dfe3-4519-70e8-1e2cb287c236",
           "request": {
             "method": "POST",
             "header": [
@@ -149,56 +330,81 @@
               "host": ["{{baseUrl}}"],
               "path": ["auth", "code", "request"]
             },
-            "description": "purpose: signup (needs name) | login | step_up (bearer). app: women | nurses | admin (login only). Resend after 45 s, max 5 per hour."
+            "description": "Sends a 6-digit code. In local dev (EMAIL_TRANSPORT=console) the code is printed in the API log as a `dev_email_code` line. purpose: signup (needs `name`) | login | step_up (needs a bearer token). app: women | nurses | admin (admin: login only). Resend after 45 s, max 5 per hour."
           },
           "response": [
             {
+              "id": "77f6846d-4851-c840-dedf-b0908168aa72",
               "name": "202 code sent",
               "originalRequest": {
                 "method": "POST",
-                "header": [],
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"tolu@example.com\",\n  \"purpose\": \"login\",\n  \"app\": \"women\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
                 "url": {
                   "raw": "{{baseUrl}}/auth/code/request",
                   "host": ["{{baseUrl}}"],
                   "path": ["auth", "code", "request"]
-                }
+                },
+                "description": "Sends a 6-digit code. In local dev (EMAIL_TRANSPORT=console) the code is printed in the API log as a `dev_email_code` line. purpose: signup (needs `name`) | login | step_up (needs a bearer token). app: women | nurses | admin (admin: login only). Resend after 45 s, max 5 per hour."
               },
               "status": "Accepted",
               "code": 202,
               "_postman_previewlanguage": "json",
               "header": [
                 {
-                  "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
+                  "value": "application/json; charset=utf-8",
+                  "key": "Content-Type"
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"sent\": true,\n  \"resendAvailableAt\": \"2026-11-20T03:30:36.404Z\"\n}"
+              "responseTime": null,
+              "body": "{\n  \"sent\": true,\n  \"resendAvailableAt\": \"2026-11-20T03:30:36.404Z\"\n}",
+              "createdAt": "2026-11-20T03:32:24.000Z",
+              "updatedAt": "2026-11-20T03:32:24.000Z",
+              "uid": "44554019-77f6846d-4851-c840-dedf-b0908168aa72"
             }
-          ]
+          ],
+          "createdAt": "2026-11-20T03:31:52.000Z",
+          "updatedAt": "2026-11-20T03:32:24.000Z",
+          "uid": "44554019-dfbbd9c9-dfe3-4519-70e8-1e2cb287c236"
         },
         {
           "name": "2. Verify code (stores accessToken)",
           "event": [
             {
-              "listen": "test",
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"200 signed in\", () => pm.response.to.have.status(200));",
+                  "pm.test('200 signed in', () => pm.response.to.have.status(200));",
                   "const body = pm.response.json();",
-                  "if (body.accessToken) pm.environment.set(\"accessToken\", body.accessToken);",
-                  "pm.test(\"refresh cookie set\", () => pm.expect(pm.cookies.has(\"cl_refresh\")).to.be.true);"
+                  "if (body.accessToken) pm.environment.set('accessToken', body.accessToken);",
+                  "pm.test('access token stored', () => pm.expect(pm.environment.get('accessToken')).to.be.a('string'));",
+                  "pm.test('refresh cookie set', () => pm.expect(pm.cookies.has('cl_refresh')).to.be.true);"
                 ]
-              }
+              },
+              "listen": "test"
             }
           ],
+          "id": "a62861a4-e9cd-5a48-f8f5-f78d7a6d751d",
           "request": {
             "method": "POST",
             "header": [
               {
-                "key": "Content-Type",
-                "value": "application/json"
+                "value": "application/json",
+                "key": "Content-Type"
               }
             ],
             "body": {
@@ -214,41 +420,65 @@
               "raw": "{{baseUrl}}/auth/code/verify",
               "host": ["{{baseUrl}}"],
               "path": ["auth", "code", "verify"]
-            }
+            },
+            "description": "Set the `code` environment variable to the code from the API log first. On success the test script saves `accessToken` to the environment; Postman keeps the httpOnly `cl_refresh` cookie for /auth/refresh and /auth/logout."
           },
           "response": [
             {
+              "id": "bcf8e08f-4364-3ef9-2bba-b770f8481299",
               "name": "200 signed in",
               "originalRequest": {
                 "method": "POST",
-                "header": [],
+                "header": [
+                  {
+                    "value": "application/json",
+                    "key": "Content-Type"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"tolu@example.com\",\n  \"code\": \"{{code}}\",\n  \"purpose\": \"login\",\n  \"app\": \"women\",\n  \"deviceName\": \"Postman\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
                 "url": {
                   "raw": "{{baseUrl}}/auth/code/verify",
                   "host": ["{{baseUrl}}"],
                   "path": ["auth", "code", "verify"]
-                }
+                },
+                "description": "Set the `code` environment variable to the code from the API log first. On success the test script saves `accessToken` to the environment; Postman keeps the httpOnly `cl_refresh` cookie for /auth/refresh and /auth/logout."
               },
               "status": "OK",
               "code": 200,
               "_postman_previewlanguage": "json",
               "header": [
                 {
-                  "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
+                  "value": "application/json; charset=utf-8",
+                  "key": "Content-Type"
                 },
                 {
-                  "key": "Cache-Control",
-                  "value": "no-store"
+                  "value": "no-store",
+                  "key": "Cache-Control"
                 },
                 {
-                  "key": "Set-Cookie",
-                  "value": "cl_refresh=<opaque>; Max-Age=7776000; Path=/auth; HttpOnly; SameSite=Lax"
+                  "value": "cl_refresh=<opaque>; Max-Age=7776000; Path=/auth; HttpOnly; SameSite=Lax",
+                  "key": "Set-Cookie"
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.<payload>.<signature>\",\n  \"accessTokenExpiresAt\": \"2026-11-20T03:45:37.000Z\",\n  \"user\": {\n    \"id\": \"cmwmmqfc4000274hretqv38au\",\n    \"role\": \"woman\",\n    \"displayName\": \"Tolu\",\n    \"email\": \"tolu@example.com\",\n    \"createdAt\": \"2026-10-28T21:24:44.053Z\"\n  }\n}"
+              "responseTime": null,
+              "body": "{\n  \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.<payload>.<signature>\",\n  \"accessTokenExpiresAt\": \"2026-11-20T03:45:37.000Z\",\n  \"user\": {\n    \"id\": \"cmwmmqfc4000274hretqv38au\",\n    \"role\": \"woman\",\n    \"displayName\": \"Tolu\",\n    \"email\": \"tolu@example.com\",\n    \"createdAt\": \"2026-10-28T21:24:44.053Z\"\n  }\n}",
+              "createdAt": "2026-11-20T03:32:28.000Z",
+              "updatedAt": "2026-11-20T03:32:28.000Z",
+              "uid": "44554019-bcf8e08f-4364-3ef9-2bba-b770f8481299"
             }
-          ]
+          ],
+          "createdAt": "2026-11-20T03:31:56.000Z",
+          "updatedAt": "2026-11-20T03:32:28.000Z",
+          "uid": "44554019-a62861a4-e9cd-5a48-f8f5-f78d7a6d751d"
         },
         {
           "name": "3. Get me",
@@ -257,10 +487,16 @@
               "listen": "test",
               "script": {
                 "type": "text/javascript",
-                "exec": ["pm.test(\"200 user\", () => pm.response.to.have.status(200));"]
+                "exec": [
+                  "pm.test('200 user', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.have.keys('id', 'role', 'displayName', 'email', 'createdAt');",
+                  "});"
+                ]
               }
             }
           ],
+          "id": "de306529-5e17-e3b7-b43b-5fd93b35e4ea",
           "request": {
             "auth": {
               "type": "bearer",
@@ -278,19 +514,32 @@
               "raw": "{{baseUrl}}/me",
               "host": ["{{baseUrl}}"],
               "path": ["me"]
-            }
+            },
+            "description": "The signed-in user. 401 UNAUTHENTICATED without a valid token or after logout."
           },
           "response": [
             {
+              "id": "98c4c278-f4c0-71ea-057f-bf9a13ff8571",
               "name": "200 user",
               "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
                 "method": "GET",
                 "header": [],
                 "url": {
                   "raw": "{{baseUrl}}/me",
                   "host": ["{{baseUrl}}"],
                   "path": ["me"]
-                }
+                },
+                "description": "The signed-in user. 401 UNAUTHENTICATED without a valid token or after logout."
               },
               "status": "OK",
               "code": 200,
@@ -302,9 +551,16 @@
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"id\": \"cmwmmqfc4000274hretqv38au\",\n  \"role\": \"woman\",\n  \"displayName\": \"Tolu\",\n  \"email\": \"tolu@example.com\",\n  \"createdAt\": \"2026-10-28T21:24:44.053Z\"\n}"
+              "responseTime": null,
+              "body": "{\n  \"id\": \"cmwmmqfc4000274hretqv38au\",\n  \"role\": \"woman\",\n  \"displayName\": \"Tolu\",\n  \"email\": \"tolu@example.com\",\n  \"createdAt\": \"2026-10-28T21:24:44.053Z\"\n}",
+              "createdAt": "2026-11-20T03:32:32.000Z",
+              "updatedAt": "2026-11-20T03:32:32.000Z",
+              "uid": "44554019-98c4c278-f4c0-71ea-057f-bf9a13ff8571"
             }
-          ]
+          ],
+          "createdAt": "2026-11-20T03:32:00.000Z",
+          "updatedAt": "2026-11-20T03:32:32.000Z",
+          "uid": "44554019-de306529-5e17-e3b7-b43b-5fd93b35e4ea"
         },
         {
           "name": "4. Refresh (rotates cookie, stores accessToken)",
@@ -314,13 +570,14 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"200 refreshed\", () => pm.response.to.have.status(200));",
+                  "pm.test('200 refreshed', () => pm.response.to.have.status(200));",
                   "const body = pm.response.json();",
-                  "if (body.accessToken) pm.environment.set(\"accessToken\", body.accessToken);"
+                  "if (body.accessToken) pm.environment.set('accessToken', body.accessToken);"
                 ]
               }
             }
           ],
+          "id": "aff95df0-084f-3cb8-6a85-14d5dc8948d5",
           "request": {
             "method": "POST",
             "header": [],
@@ -329,9 +586,12 @@
               "host": ["{{baseUrl}}"],
               "path": ["auth", "refresh"]
             },
-            "description": "Uses the cl_refresh cookie. Reusing an old cookie more than 10 s later revokes the session (401 REFRESH_REUSED)."
+            "description": "Uses the cl_refresh cookie (no body, no bearer). Returns a new access token and rotates the cookie. Reusing an old cookie more than 10 s later revokes the session (401 REFRESH_REUSED)."
           },
-          "response": []
+          "response": [],
+          "createdAt": "2026-11-20T03:32:04.000Z",
+          "updatedAt": "2026-11-20T03:32:04.000Z",
+          "uid": "44554019-aff95df0-084f-3cb8-6a85-14d5dc8948d5"
         },
         {
           "name": "5. List sessions",
@@ -341,11 +601,15 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"one current session\", () => pm.expect(pm.response.json().filter((s) => s.current)).to.have.lengthOf(1));"
+                  "pm.test('200 list with exactly one current', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().filter((s) => s.current)).to.have.lengthOf(1);",
+                  "});"
                 ]
               }
             }
           ],
+          "id": "4761f077-cf2d-f980-ab3b-0b5be7a01df7",
           "request": {
             "auth": {
               "type": "bearer",
@@ -363,24 +627,29 @@
               "raw": "{{baseUrl}}/auth/sessions",
               "host": ["{{baseUrl}}"],
               "path": ["auth", "sessions"]
-            }
+            },
+            "description": "Live sessions for this user (one per device). `current` marks this one. DELETE /auth/sessions/:id ends another."
           },
-          "response": []
+          "response": [],
+          "createdAt": "2026-11-20T03:32:07.000Z",
+          "updatedAt": "2026-11-20T03:32:07.000Z",
+          "uid": "44554019-4761f077-cf2d-f980-ab3b-0b5be7a01df7"
         },
         {
           "name": "6. Log out",
           "event": [
             {
-              "listen": "test",
               "script": {
-                "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"204\", () => pm.response.to.have.status(204));",
-                  "pm.environment.unset(\"accessToken\");"
-                ]
-              }
+                  "pm.test('204', () => pm.response.to.have.status(204));",
+                  "pm.environment.unset('accessToken');"
+                ],
+                "type": "text/javascript"
+              },
+              "listen": "test"
             }
           ],
+          "id": "276bf4f8-d259-0333-868f-f8bb337ac4bb",
           "request": {
             "auth": {
               "type": "bearer",
@@ -399,35 +668,42 @@
               "host": ["{{baseUrl}}"],
               "path": ["auth", "logout"]
             },
-            "description": "Works with only the cookie too. Idempotent. POST /auth/logout-all ends every session."
+            "description": "Ends this session immediately and clears the cookie. Also works with only the cookie (expired access token). Idempotent. POST /auth/logout-all ends every session."
           },
-          "response": []
+          "response": [],
+          "createdAt": "2026-11-20T03:32:12.000Z",
+          "updatedAt": "2026-11-20T03:32:12.000Z",
+          "uid": "44554019-276bf4f8-d259-0333-868f-f8bb337ac4bb"
         }
-      ]
+      ],
+      "id": "d939f7a5-53b4-8da5-c4a4-05df901ef40e",
+      "createdAt": "2026-11-20T03:31:35.000Z",
+      "updatedAt": "2026-11-20T03:32:12.000Z",
+      "uid": "44554019-d939f7a5-53b4-8da5-c4a4-05df901ef40e"
     },
     {
       "name": "Wallet",
-      "description": "Custodial Stellar testnet wallet (Z4). Sign in first (Auth folder).",
       "item": [
         {
           "name": "Get wallet",
           "event": [
             {
-              "listen": "test",
               "script": {
-                "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"200 wallet\", () => pm.response.to.have.status(200));",
+                  "pm.test('200 wallet', () => pm.response.to.have.status(200));",
                   "const w = pm.response.json();",
-                  "pm.test(\"shape\", () => {",
+                  "pm.test('shape', () => {",
                   "  pm.expect(w.stellarAddress).to.match(/^G[A-Z2-7]{55}$/);",
-                  "  pm.expect(w.status).to.be.oneOf([\"pending\", \"active\"]);",
-                  "  pm.expect(w.balance).to.have.keys(\"kobo\", \"usdc\");",
+                  "  pm.expect(w.status).to.be.oneOf(['pending', 'active']);",
+                  "  pm.expect(w.balance).to.have.keys('kobo', 'usdc');",
                   "});"
-                ]
-              }
+                ],
+                "type": "text/javascript"
+              },
+              "listen": "test"
             }
           ],
+          "id": "cc50ce1d-446c-5c4e-ce26-15107eaddfba",
           "request": {
             "auth": {
               "type": "bearer",
@@ -446,37 +722,12 @@
               "host": ["{{baseUrl}}"],
               "path": ["wallet"]
             },
-            "description": "status: pending | active. Live balance (4 s limit), else the last known one with balanceSyncedAt. freeAnswersRemaining is null for nurses."
+            "description": "Her custodial Stellar testnet wallet. status: pending (not on-chain yet) | active. Balance read live from Stellar (4 s limit); if Stellar is slow, the last known balance with balanceSyncedAt. freeAnswersRemaining is null for nurses. Sign in first (Auth folder)."
           },
-          "response": [
-            {
-              "name": "200 active wallet",
-              "originalRequest": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{baseUrl}}/wallet",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["wallet"]
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
-                },
-                {
-                  "key": "Cache-Control",
-                  "value": "no-store"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"stellarAddress\": \"GDNBRW2FSR62HN4ALG7G4GAFPETHD25TLIW5O5OCCAF6BHBISWSR7NXU\",\n  \"status\": \"active\",\n  \"balance\": {\n    \"kobo\": 350000,\n    \"usdc\": \"2.1875000\"\n  },\n  \"balanceSyncedAt\": \"2026-11-20T11:20:00.000Z\",\n  \"freeAnswersRemaining\": 2\n}"
-            }
-          ]
+          "response": [],
+          "createdAt": "2026-11-20T11:18:41.000Z",
+          "updatedAt": "2026-11-20T11:18:41.000Z",
+          "uid": "44554019-cc50ce1d-446c-5c4e-ce26-15107eaddfba"
         },
         {
           "name": "List wallet transactions",
@@ -486,11 +737,15 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"200 page\", () => pm.expect(pm.response.json()).to.have.keys(\"items\", \"nextCursor\"));"
+                  "pm.test('200 page', () => {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json()).to.have.keys('items', 'nextCursor');",
+                  "});"
                 ]
               }
             }
           ],
+          "id": "ed787bda-8f79-0c93-460b-313962aec3b9",
           "request": {
             "auth": {
               "type": "bearer",
@@ -517,20 +772,26 @@
                 {
                   "key": "cursor",
                   "value": "",
-                  "disabled": true,
-                  "description": "nextCursor from the previous page"
+                  "description": "nextCursor from the previous page",
+                  "disabled": true
                 }
               ]
             },
-            "description": "Confirmed money movements, newest first. Out = negative."
+            "description": "Confirmed money movements, newest first. Women: top-ups (+), answers paid from her wallet (-). Nurses: earnings (+), withdrawals (-). Amounts out are negative on both kobo and usdc."
           },
-          "response": []
+          "response": [],
+          "createdAt": "2026-11-20T11:18:54.000Z",
+          "updatedAt": "2026-11-20T11:18:54.000Z",
+          "uid": "44554019-ed787bda-8f79-0c93-460b-313962aec3b9"
         }
-      ]
+      ],
+      "id": "f319633a-cd6e-65e0-1d4f-24c0b4d7d862",
+      "createdAt": "2026-11-20T11:17:13.000Z",
+      "updatedAt": "2026-11-20T11:18:54.000Z",
+      "uid": "44554019-f319633a-cd6e-65e0-1d4f-24c0b4d7d862"
     },
     {
       "name": "Top-up",
-      "description": "Paystack TEST top-ups (Z5). Sign in as a woman first. Pay the authorizationUrl with a Paystack test card, then poll Get top-up.",
       "item": [
         {
           "name": "1. Start top-up (stores topupId, reference)",
@@ -538,17 +799,18 @@
             {
               "listen": "test",
               "script": {
-                "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"201 checkout created\", () => pm.response.to.have.status(201));",
+                  "pm.test('201 checkout created', () => pm.response.to.have.status(201));",
                   "const b = pm.response.json();",
-                  "pm.environment.set(\"topupId\", b.topupId);",
-                  "pm.environment.set(\"topupReference\", b.reference);",
-                  "console.log(\"Pay here:\", b.authorizationUrl);"
-                ]
+                  "pm.environment.set('topupId', b.topupId);",
+                  "pm.environment.set('topupReference', b.reference);",
+                  "console.log('Pay here:', b.authorizationUrl);"
+                ],
+                "type": "text/javascript"
               }
             }
           ],
+          "id": "3fb69042-8a67-4a3e-9cca-41c945b08f2a",
           "request": {
             "auth": {
               "type": "bearer",
@@ -580,33 +842,13 @@
               "raw": "{{baseUrl}}/topups",
               "host": ["{{baseUrl}}"],
               "path": ["topups"]
-            }
+            },
+            "description": "Women only. ₦2,000 = 200000 kobo (limits ₦100 to ₦100,000). Open `authorizationUrl` in a browser and pay with a Paystack TEST card. Saves topupId and topupReference to the environment."
           },
-          "response": [
-            {
-              "name": "201 checkout created",
-              "originalRequest": {
-                "method": "POST",
-                "header": [],
-                "url": {
-                  "raw": "{{baseUrl}}/topups",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["topups"]
-                }
-              },
-              "status": "Created",
-              "code": 201,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"topupId\": \"cmwoz63c90003sohr587yvvj9\",\n  \"reference\": \"cltop_ff5ce8d1624e1fbcb43a4797\",\n  \"authorizationUrl\": \"https://checkout.paystack.com/po4d4m8kcn7gke9\"\n}"
-            }
-          ]
+          "response": [],
+          "createdAt": "2026-11-20T12:50:36.000Z",
+          "updatedAt": "2026-11-20T12:50:36.000Z",
+          "uid": "44554019-3fb69042-8a67-4a3e-9cca-41c945b08f2a"
         },
         {
           "name": "2. Get top-up",
@@ -614,13 +856,15 @@
             {
               "listen": "test",
               "script": {
-                "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"known status\", () => pm.expect(pm.response.json().status).to.be.oneOf([\"pending\", \"paid\", \"credited\", \"failed\"]));"
-                ]
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('known status', () => pm.expect(pm.response.json().status).to.be.oneOf(['pending', 'paid', 'credited', 'failed']));"
+                ],
+                "type": "text/javascript"
               }
             }
           ],
+          "id": "34c1e5b2-2f61-429c-9840-929f38329a50",
           "request": {
             "auth": {
               "type": "bearer",
@@ -639,33 +883,12 @@
               "host": ["{{baseUrl}}"],
               "path": ["topups", "{{topupId}}"]
             },
-            "description": "pending -> paid -> credited (or failed). Poll every 2-3 s after paying."
+            "description": "Checks Paystack and Stellar before answering: pending -> paid -> credited (or failed). Poll every 2-3 s after paying."
           },
-          "response": [
-            {
-              "name": "200 pending",
-              "originalRequest": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{baseUrl}}/topups/{{topupId}}",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["topups", "{{topupId}}"]
-                }
-              },
-              "status": "OK",
-              "code": 200,
-              "_postman_previewlanguage": "json",
-              "header": [
-                {
-                  "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
-                }
-              ],
-              "cookie": [],
-              "body": "{\n  \"id\": \"cmwoz63c90003sohr587yvvj9\",\n  \"status\": \"pending\",\n  \"amount\": {\n    \"kobo\": 200000,\n    \"usdc\": \"1.2500000\"\n  },\n  \"stellarTxHash\": null,\n  \"createdAt\": \"2026-11-20T12:48:23.911Z\"\n}"
-            }
-          ]
+          "response": [],
+          "createdAt": "2026-11-20T12:50:40.000Z",
+          "updatedAt": "2026-11-20T12:50:40.000Z",
+          "uid": "44554019-34c1e5b2-2f61-429c-9840-929f38329a50"
         },
         {
           "name": "3. Sample Paystack webhook (signed in pre-request)",
@@ -673,27 +896,28 @@
             {
               "listen": "prerequest",
               "script": {
-                "type": "text/javascript",
                 "exec": [
-                  "const secret = pm.environment.get(\"paystackSecretKey\");",
-                  "if (!secret) throw new Error(\"Set the paystackSecretKey environment variable (your sk_test_ key)\");",
+                  "const secret = pm.environment.get('paystackSecretKey');",
+                  "if (!secret) throw new Error('Set the paystackSecretKey environment variable (your sk_test_ key)');",
                   "const body = pm.variables.replaceIn(pm.request.body.raw);",
                   "pm.request.body.raw = body;",
                   "const sig = CryptoJS.HmacSHA512(body, secret).toString(CryptoJS.enc.Hex);",
-                  "pm.environment.set(\"paystackSignature\", sig);"
-                ]
+                  "pm.environment.set('paystackSignature', sig);"
+                ],
+                "type": "text/javascript"
               }
             },
             {
               "listen": "test",
               "script": {
-                "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"200 received\", () => pm.expect(pm.response.json()).to.eql({ received: true }));"
-                ]
+                  "pm.test('200 received', () => pm.expect(pm.response.json()).to.eql({ received: true }));"
+                ],
+                "type": "text/javascript"
               }
             }
           ],
+          "id": "d9d22462-fa70-40e3-9ac9-e5adc8cc1b59",
           "request": {
             "method": "POST",
             "header": [
@@ -720,19 +944,96 @@
               "host": ["{{baseUrl}}"],
               "path": ["webhooks", "paystack"]
             },
-            "description": "Set the secret env var paystackSecretKey (never exported). amount must equal the top-up amountKobo."
+            "description": "Simulates Paystack's charge.success webhook for the last top-up. Set the SECRET environment variable `paystackSecretKey` (your sk_test_ key, never exported); the pre-request script signs the exact body with HMAC-SHA512 like Paystack does. amount must equal the top-up's amountKobo, else the top-up fails as amount_mismatch."
+          },
+          "response": [],
+          "createdAt": "2026-11-20T12:50:44.000Z",
+          "updatedAt": "2026-11-20T12:50:44.000Z",
+          "uid": "44554019-d9d22462-fa70-40e3-9ac9-e5adc8cc1b59"
+        }
+      ],
+      "id": "846353ce-26d2-48a0-94c2-c508a6cf0cb7",
+      "createdAt": "2026-11-20T12:50:15.000Z",
+      "updatedAt": "2026-11-20T12:50:44.000Z",
+      "uid": "44554019-846353ce-26d2-48a0-94c2-c508a6cf0cb7"
+    },
+    {
+      "name": "Chat + Emergency",
+      "item": [
+        {
+          "name": "Chat: send message",
+          "id": "9902b7c6-dd1b-4eb3-abcd-dcb0e2ab82fa",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    { \"role\": \"user\", \"text\": \"my feet dey swell small small, im 30 weeks pregnant is it normal\" }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["chat"]
+            },
+            "description": "Woman only. Stateless: send the whole thread (oldest first, last turn = hers). Returns { kind: \"reply\", message, escalationOffer } or an EmergencyResponse. Red flags are checked before the LLM. About 6-10 s on the NVIDIA free tier. 12 requests/min per woman. Contract §7."
           },
           "response": [
             {
-              "name": "200 received",
+              "id": "705a596d-67ba-4fc0-a166-048606744f8b",
+              "name": "200 reply with offer",
               "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
                 "method": "POST",
-                "header": [],
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    { \"role\": \"user\", \"text\": \"my feet dey swell small small, im 30 weeks pregnant is it normal\" }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
                 "url": {
-                  "raw": "{{baseUrl}}/webhooks/paystack",
+                  "raw": "{{baseUrl}}/chat",
                   "host": ["{{baseUrl}}"],
-                  "path": ["webhooks", "paystack"]
-                }
+                  "path": ["chat"]
+                },
+                "description": "Woman only. Stateless: send the whole thread (oldest first, last turn = hers). Returns { kind: \"reply\", message, escalationOffer } or an EmergencyResponse. Red flags are checked before the LLM. About 6-10 s on the NVIDIA free tier. 12 requests/min per woman. Contract §7."
               },
               "status": "OK",
               "code": 200,
@@ -740,150 +1041,940 @@
               "header": [
                 {
                   "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
+                  "value": "application/json"
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"received\": true\n}"
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "name": "x402 (Z2 proof)",
-      "description": "GET /x402-test, only when X402_TEST_ROUTE=true. Postman cannot sign Stellar payments; to actually pay run `npm run x402:pay -w @carelayer/api`. Paid example: https://stellar.expert/explorer/testnet/tx/b2ce568136e4372c5b5faa5ab963ebeac8ad94afaa661bb2ccbf2f6b09ef30ed",
-      "item": [
-        {
-          "name": "x402 test: guard (not ready, 409)",
-          "event": [
-            {
-              "listen": "test",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.test('409 QUESTION_NOT_ANSWERED', () => {",
-                  "  pm.response.to.have.status(409);",
-                  "  pm.expect(pm.response.json().error.code).to.eql('QUESTION_NOT_ANSWERED');",
-                  "});",
-                  "pm.test('no payment requested', () => pm.expect(pm.response.headers.has('PAYMENT-REQUIRED')).to.be.false);"
-                ]
-              }
+              "responseTime": null,
+              "body": "{\n  \"kind\": \"reply\",\n  \"message\": {\n    \"id\": \"msg_a439fe93-45a7-406d-a51d-079efb7f629b\",\n    \"role\": \"assistant\",\n    \"text\": \"Some swelling in the feet and ankles is very common in pregnancy, especially in the third trimester... Would you like me to send your question to a verified health worker?\",\n    \"createdAt\": \"2026-11-20T19:49:24.754Z\"\n  },\n  \"escalationOffer\": {\n    \"price\": { \"kobo\": 50000, \"usdc\": \"0.3125000\" },\n    \"isFree\": true,\n    \"freeAnswersRemaining\": 3,\n    \"suggestedCategory\": \"pregnancy\",\n    \"exceedsSpendingLimit\": false\n  }\n}",
+              "createdAt": "2026-11-20T20:03:43.000Z",
+              "updatedAt": "2026-11-20T20:03:43.000Z",
+              "uid": "44554019-705a596d-67ba-4fc0-a166-048606744f8b"
             }
           ],
+          "createdAt": "2026-11-20T20:02:47.000Z",
+          "updatedAt": "2026-11-20T20:03:43.000Z",
+          "uid": "44554019-9902b7c6-dd1b-4eb3-abcd-dcb0e2ab82fa"
+        },
+        {
+          "name": "Chat: red flag (emergency)",
+          "id": "9885bd6e-65b4-4475-9c45-5c2af557fce4",
           "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/x402-test?ready=false",
-              "host": ["{{baseUrl}}"],
-              "path": ["x402-test"],
-              "query": [
+            "auth": {
+              "type": "bearer",
+              "bearer": [
                 {
-                  "key": "ready",
-                  "value": "false",
-                  "description": "Simulates an unanswered question: the pay-on-delivery guard returns 409 before x402 runs."
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
                 }
               ]
             },
-            "description": "Pay-on-delivery guard. Returns 409 QUESTION_NOT_ANSWERED with NO PAYMENT-REQUIRED header: no payment is ever requested for an unanswered question."
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [{ \"role\": \"user\", \"text\": \"I took too many pills\" }]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/chat",
+              "host": ["{{baseUrl}}"],
+              "path": ["chat"]
+            },
+            "description": "Matches the fixed red-flag list: free emergency response, no LLM call, nothing queued. Logged as EmergencyEvent (source + time only)."
           },
           "response": [
             {
-              "name": "409 not ready (no payment requested)",
+              "id": "2ca7d7a3-6ec2-4b10-996b-447e2e453486",
+              "name": "200 emergency",
               "originalRequest": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{baseUrl}}/x402-test?ready=false",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["x402-test"],
-                  "query": [
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
                     {
-                      "key": "ready",
-                      "value": "false"
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
                     }
                   ]
-                }
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [{ \"role\": \"user\", \"text\": \"I took too many pills\" }]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/chat",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["chat"]
+                },
+                "description": "Matches the fixed red-flag list: free emergency response, no LLM call, nothing queued. Logged as EmergencyEvent (source + time only)."
               },
-              "status": "Conflict",
-              "code": 409,
+              "status": "OK",
+              "code": 200,
               "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
+                  "value": "application/json"
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"error\": {\n    \"code\": \"QUESTION_NOT_ANSWERED\",\n    \"message\": \"Not ready yet. No payment was requested.\"\n  }\n}"
+              "responseTime": null,
+              "body": "{\n  \"kind\": \"emergency\",\n  \"message\": \"What you describe may need urgent care. Please get help now: call emergency services or go to the nearest hospital or clinic. If you can, ask someone to go with you. This is free, and nothing has been sent anywhere.\",\n  \"triggeredBy\": [\"suspected_overdose_or_poisoning\"],\n  \"contacts\": [{ \"label\": \"National emergency number\", \"number\": \"112\", \"verified\": false }],\n  \"findHospitalUrl\": \"https://www.google.com/maps/search/?api=1&query=hospital\"\n}",
+              "createdAt": "2026-11-20T20:03:46.000Z",
+              "updatedAt": "2026-11-20T20:03:46.000Z",
+              "uid": "44554019-2ca7d7a3-6ec2-4b10-996b-447e2e453486"
             }
-          ]
+          ],
+          "createdAt": "2026-11-20T20:02:58.000Z",
+          "updatedAt": "2026-11-20T20:03:46.000Z",
+          "uid": "44554019-9885bd6e-65b4-4475-9c45-5c2af557fce4"
         },
         {
-          "name": "x402 test: payment required (402)",
+          "name": "Chat: draft question for a nurse",
           "event": [
             {
               "listen": "test",
               "script": {
-                "type": "text/javascript",
                 "exec": [
-                  "pm.test('402 Payment Required', () => pm.response.to.have.status(402));",
-                  "const raw = pm.response.headers.get('PAYMENT-REQUIRED');",
-                  "pm.test('PAYMENT-REQUIRED header present', () => pm.expect(raw).to.be.a('string'));",
-                  "const req = JSON.parse(atob(raw));",
-                  "const accept = req.accepts[0];",
-                  "pm.test('0.01 USDC on stellar:testnet', () => {",
-                  "  pm.expect(accept.scheme).to.eql('exact');",
-                  "  pm.expect(accept.network).to.eql('stellar:testnet');",
-                  "  pm.expect(accept.amount).to.eql('100000');",
-                  "  pm.expect(accept.asset).to.eql('CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA');",
-                  "});"
-                ]
+                  "const b = pm.response.json();",
+                  "if (b.kind === 'draft') {",
+                  "  pm.environment.set('draftToken', b.draftToken);",
+                  "  pm.environment.set('draftOriginalText', b.draft.originalText);",
+                  "}"
+                ],
+                "type": "text/javascript"
               }
             }
           ],
+          "id": "be9c2fc2-43a3-41d2-b28c-a8f8b21538c5",
           "request": {
-            "method": "GET",
-            "header": [],
-            "url": {
-              "raw": "{{baseUrl}}/x402-test",
-              "host": ["{{baseUrl}}"],
-              "path": ["x402-test"]
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
             },
-            "description": "Without a PAYMENT-SIGNATURE header the API answers 402 with a base64 JSON PAYMENT-REQUIRED header: exact scheme, stellar:testnet, 0.01 USDC (amount 100000 stroops) to the treasury, fees sponsored by the facilitator."
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"messages\": [\n    { \"role\": \"user\", \"text\": \"my feet dey swell small small, im 30 weeks pregnant is it normal\" },\n    { \"role\": \"assistant\", \"text\": \"Some swelling is common. Would you like me to send your question to a health worker?\" }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/chat/draft",
+              "host": ["{{baseUrl}}"],
+              "path": ["chat", "draft"]
+            },
+            "description": "W07 Consent and \"Ask a nurse directly\". The thread may end with the assistant's offer. Returns the exact question a nurse would get (draft), a signed draftToken (2 h) and the price offer. Saves draftToken and draftOriginalText for \"Create question\"."
           },
           "response": [
             {
-              "name": "402 payment required (0.01 USDC)",
+              "id": "bd33507b-10f5-4603-b4d5-e5d0ea8feaaf",
+              "name": "200 draft",
               "originalRequest": {
-                "method": "GET",
-                "header": [],
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"messages\": [\n    { \"role\": \"user\", \"text\": \"my feet dey swell small small, im 30 weeks pregnant is it normal\" },\n    { \"role\": \"assistant\", \"text\": \"Some swelling is common. Would you like me to send your question to a health worker?\" }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
                 "url": {
-                  "raw": "{{baseUrl}}/x402-test",
+                  "raw": "{{baseUrl}}/chat/draft",
                   "host": ["{{baseUrl}}"],
-                  "path": ["x402-test"]
-                }
+                  "path": ["chat", "draft"]
+                },
+                "description": "W07 Consent and \"Ask a nurse directly\". The thread may end with the assistant's offer. Returns the exact question a nurse would get (draft), a signed draftToken (2 h) and the price offer. Saves draftToken and draftOriginalText for \"Create question\"."
               },
-              "status": "Payment Required",
-              "code": 402,
+              "status": "OK",
+              "code": 200,
               "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
-                  "value": "application/json; charset=utf-8"
-                },
-                {
-                  "key": "PAYMENT-REQUIRED",
-                  "value": "eyJ4NDAyVmVyc2lvbiI6MiwiZXJyb3IiOiJQYXltZW50IHJlcXVpcmVkIiwicmVzb3VyY2UiOnsidXJsIjoiaHR0cDovL2xvY2FsaG9zdDo0MDAwL3g0MDItdGVzdCIsImRlc2NyaXB0aW9uIjoiQ2FyZUxheWVyIHg0MDIgcHJvb2Y6IDAuMDEgVVNEQyBvbiBTdGVsbGFyIHRlc3RuZXQiLCJtaW1lVHlwZSI6ImFwcGxpY2F0aW9uL2pzb24ifSwiYWNjZXB0cyI6W3sic2NoZW1lIjoiZXhhY3QiLCJuZXR3b3JrIjoic3RlbGxhcjp0ZXN0bmV0IiwiYW1vdW50IjoiMTAwMDAwIiwiYXNzZXQiOiJDQklFTFRLNllCWkpVNVVQMldXUUVVQ1lLTFBVNkFVTloyQlE0V1dGRUlFM1VTQ0lITVhRREFNQSIsInBheVRvIjoiR0JZMjRSTzUzNlJER0VXSUpFSDNVTTdPV1FPS1M1M09ZUlRCRFVRQTdYTktLSlEyTlhVSUdaNVEiLCJtYXhUaW1lb3V0U2Vjb25kcyI6MTIwLCJleHRyYSI6eyJhcmVGZWVzU3BvbnNvcmVkIjp0cnVlfX1dfQ=="
+                  "value": "application/json"
                 }
               ],
               "cookie": [],
-              "body": "{\n  \"error\": \"Payment required\"\n}"
+              "responseTime": null,
+              "body": "{\n  \"kind\": \"draft\",\n  \"draft\": {\n    \"originalText\": \"my feet dey swell small small, im 30 weeks pregnant is it normal\",\n    \"cleanedText\": \"My feet are swelling a little bit, I'm 30 weeks pregnant. Is it normal?\",\n    \"assistantNotes\": \"User reports gradual foot swelling at 30 weeks gestation. Asking if this is normal.\",\n    \"category\": \"pregnancy\",\n    \"ageRange\": null,\n    \"pregnancyWeeks\": 30\n  },\n  \"draftToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.<signed>\",\n  \"draftExpiresAt\": \"2026-11-20T21:53:12.000Z\",\n  \"offer\": {\n    \"price\": { \"kobo\": 50000, \"usdc\": \"0.3125000\" },\n    \"isFree\": true,\n    \"freeAnswersRemaining\": 3,\n    \"suggestedCategory\": \"pregnancy\",\n    \"exceedsSpendingLimit\": false\n  }\n}",
+              "createdAt": "2026-11-20T20:03:50.000Z",
+              "updatedAt": "2026-11-20T20:03:50.000Z",
+              "uid": "44554019-bd33507b-10f5-4603-b4d5-e5d0ea8feaaf"
             }
-          ]
+          ],
+          "createdAt": "2026-11-20T20:03:02.000Z",
+          "updatedAt": "2026-11-20T20:03:50.000Z",
+          "uid": "44554019-be9c2fc2-43a3-41d2-b28c-a8f8b21538c5"
+        },
+        {
+          "name": "Emergency content",
+          "id": "39d376f4-0d20-4e7b-97ba-f74e9d9fb74e",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/emergency",
+              "host": ["{{baseUrl}}"],
+              "path": ["emergency"]
+            },
+            "description": "Public, static. Contacts stay verified: false until someone checks them (docs/QUESTIONS.md Q2)."
+          },
+          "response": [],
+          "createdAt": "2026-11-20T20:03:08.000Z",
+          "updatedAt": "2026-11-20T20:03:08.000Z",
+          "uid": "44554019-39d376f4-0d20-4e7b-97ba-f74e9d9fb74e"
         }
-      ]
+      ],
+      "id": "a75a2f19-222f-4f4b-8098-78f63c47e6b9",
+      "createdAt": "2026-11-20T20:02:10.000Z",
+      "updatedAt": "2026-11-20T20:03:08.000Z",
+      "uid": "44554019-a75a2f19-222f-4f4b-8098-78f63c47e6b9"
+    },
+    {
+      "name": "Questions + Nurses",
+      "item": [
+        {
+          "name": "Nurses directory",
+          "id": "a3d47cac-fa9b-4d11-bf81-347425cf551e",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/nurses?topic=pregnancy&femaleOnly=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["nurses"],
+              "query": [
+                {
+                  "key": "topic",
+                  "value": "pregnancy"
+                },
+                {
+                  "key": "femaleOnly",
+                  "value": "false"
+                }
+              ]
+            },
+            "description": "W08. Approved, available nurses, public fields only. Fastest responders first."
+          },
+          "response": [
+            {
+              "id": "503f5d62-0d97-4832-8ba5-2e5382c9e91b",
+              "name": "200 nurses",
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/nurses?topic=pregnancy&femaleOnly=false",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["nurses"],
+                  "query": [
+                    {
+                      "key": "topic",
+                      "value": "pregnancy"
+                    },
+                    {
+                      "key": "femaleOnly",
+                      "value": "false"
+                    }
+                  ]
+                },
+                "description": "W08. Approved, available nurses, public fields only. Fastest responders first."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "[\n  {\n    \"id\": \"cm_amaka\",\n    \"fullName\": \"Amaka Okafor\",\n    \"role\": \"midwife\",\n    \"gender\": \"female\",\n    \"yearsOfPractice\": 9,\n    \"bio\": \"Midwife focused on pregnancy and periods.\",\n    \"languages\": [\"english\", \"igbo\"],\n    \"topics\": [\"pregnancy\", \"periods\"],\n    \"available\": true,\n    \"verified\": true,\n    \"avgResponseMinutes\": 14,\n    \"helpful\": { \"percent\": 100, \"count\": 1 }\n  }\n]",
+              "createdAt": "2026-11-20T20:03:57.000Z",
+              "updatedAt": "2026-11-20T20:03:57.000Z",
+              "uid": "44554019-503f5d62-0d97-4832-8ba5-2e5382c9e91b"
+            }
+          ],
+          "createdAt": "2026-11-20T20:03:12.000Z",
+          "updatedAt": "2026-11-20T20:03:57.000Z",
+          "uid": "44554019-a3d47cac-fa9b-4d11-bf81-347425cf551e"
+        },
+        {
+          "name": "Create question (from draft)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "pm.variables.set('draftOriginalTextJson', JSON.stringify(pm.environment.get('draftOriginalText') || ''));"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const b = pm.response.json();",
+                  "if (b.kind === 'question') pm.environment.set('questionId', b.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "e72bd01a-2e98-431e-99e9-bcfdf2d78427",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"originalText\": {{draftOriginalTextJson}},\n  \"source\": \"web\",\n  \"consent\": {\n    \"sharedFields\": [\"cleaned_text\", \"original_text\", \"assistant_notes\", \"category\", \"age_range\", \"pregnancy_weeks\"],\n    \"consentVersion\": \"consent-v1\"\n  },\n  \"nurseSelection\": \"first_available\",\n  \"femaleOnly\": false,\n  \"draftToken\": \"{{draftToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/questions",
+              "host": ["{{baseUrl}}"],
+              "path": ["questions"]
+            },
+            "description": "Run \"Chat: draft question for a nurse\" first. Stores exactly that draft (no second LLM call). cleaned_text and category must be shared. Saves questionId. 409 SPENDING_LIMIT_EXCEEDED: add \"approvedAboveLimit\": true."
+          },
+          "response": [
+            {
+              "id": "8f96e588-1edc-4816-bbab-d33b5af1d891",
+              "name": "201 question created",
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"originalText\": {{draftOriginalTextJson}},\n  \"source\": \"web\",\n  \"consent\": {\n    \"sharedFields\": [\"cleaned_text\", \"original_text\", \"assistant_notes\", \"category\", \"age_range\", \"pregnancy_weeks\"],\n    \"consentVersion\": \"consent-v1\"\n  },\n  \"nurseSelection\": \"first_available\",\n  \"femaleOnly\": false,\n  \"draftToken\": \"{{draftToken}}\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/questions",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["questions"]
+                },
+                "description": "Run \"Chat: draft question for a nurse\" first. Stores exactly that draft (no second LLM call). cleaned_text and category must be shared. Saves questionId. 409 SPENDING_LIMIT_EXCEEDED: add \"approvedAboveLimit\": true."
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"kind\": \"question\",\n  \"id\": \"cmwpecepl00042ohrd6k0n3tx\",\n  \"status\": \"open\",\n  \"category\": \"pregnancy\",\n  \"price\": { \"kobo\": 50000, \"usdc\": \"0.3125000\" },\n  \"isFree\": true,\n  \"nurseSelection\": \"first_available\",\n  \"chosenUntil\": null,\n  \"claimsCloseAt\": \"2026-11-20T20:23:12.803Z\",\n  \"questionKey\": null,\n  \"createdAt\": \"2026-11-20T19:53:12.803Z\"\n}",
+              "createdAt": "2026-11-20T20:03:54.000Z",
+              "updatedAt": "2026-11-20T20:03:54.000Z",
+              "uid": "44554019-8f96e588-1edc-4816-bbab-d33b5af1d891"
+            }
+          ],
+          "createdAt": "2026-11-20T20:03:16.000Z",
+          "updatedAt": "2026-11-20T20:03:54.000Z",
+          "uid": "44554019-e72bd01a-2e98-431e-99e9-bcfdf2d78427"
+        },
+        {
+          "name": "Question status",
+          "id": "ff23e498-e4db-4b0e-b752-2fc4188da783",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/questions/{{questionId}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["questions", "{{questionId}}", "status"]
+            },
+            "description": "W10 polls this. Own questions only (404 otherwise)."
+          },
+          "response": [
+            {
+              "id": "b2dbe198-de24-4f18-9bd7-2d3059c3d452",
+              "name": "200 open",
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/questions/{{questionId}}/status",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["questions", "{{questionId}}", "status"]
+                },
+                "description": "W10 polls this. Own questions only (404 otherwise)."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{ \"id\": \"cmwpecepl00042ohrd6k0n3tx\", \"status\": \"open\", \"category\": \"pregnancy\", \"claimsCloseAt\": \"2026-11-20T20:23:12.803Z\", \"answeredAt\": null, \"expiredAt\": null }",
+              "createdAt": "2026-11-20T20:04:03.000Z",
+              "updatedAt": "2026-11-20T20:04:03.000Z",
+              "uid": "44554019-b2dbe198-de24-4f18-9bd7-2d3059c3d452"
+            }
+          ],
+          "createdAt": "2026-11-20T20:03:20.000Z",
+          "updatedAt": "2026-11-20T20:04:03.000Z",
+          "uid": "44554019-ff23e498-e4db-4b0e-b752-2fc4188da783"
+        },
+        {
+          "name": "My questions (active)",
+          "id": "605b6916-2404-4ff5-88d2-288e35112518",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/questions?status=active&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["me", "questions"],
+              "query": [
+                {
+                  "description": "open|claimed|answered|expired|cancelled|active",
+                  "key": "status",
+                  "value": "active"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "W05 / W12. Newest first, cursor pages (nextCursor)."
+          },
+          "response": [],
+          "createdAt": "2026-11-20T20:03:24.000Z",
+          "updatedAt": "2026-11-20T20:03:24.000Z",
+          "uid": "44554019-605b6916-2404-4ff5-88d2-288e35112518"
+        },
+        {
+          "name": "My question",
+          "id": "0d6383c6-01be-4ba8-bf7a-7745d632102d",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/questions/{{questionId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["me", "questions", "{{questionId}}"]
+            },
+            "description": "Both texts; answer stays null until collected (Z8)."
+          },
+          "response": [],
+          "createdAt": "2026-11-20T20:03:31.000Z",
+          "updatedAt": "2026-11-20T20:03:31.000Z",
+          "uid": "44554019-0d6383c6-01be-4ba8-bf7a-7745d632102d"
+        }
+      ],
+      "id": "81c7eaf2-6deb-4efd-b3e4-f616bc31224a",
+      "createdAt": "2026-11-20T20:02:22.000Z",
+      "updatedAt": "2026-11-20T20:03:31.000Z",
+      "uid": "44554019-81c7eaf2-6deb-4efd-b3e4-f616bc31224a"
+    },
+    {
+      "name": "Settings",
+      "item": [
+        {
+          "name": "Get settings",
+          "id": "676863f0-831e-4b03-8f41-3384ccd3aa97",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["me", "settings"]
+            },
+            "description": "Any role. Defaults for a new account (DEFAULT_USER_SETTINGS)."
+          },
+          "response": [
+            {
+              "id": "ebefd1a3-2d8a-40d7-b29e-97d61e62d8ac",
+              "name": "200 defaults",
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/me/settings",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["me", "settings"]
+                },
+                "description": "Any role. Defaults for a new account (DEFAULT_USER_SETTINGS)."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{ \"appearance\": \"system\", \"quickExitTarget\": \"google\", \"spendingLimitPerAnswerKobo\": 100000, \"mcpSpendingLimitPerAnswerKobo\": 50000, \"mcpAskBeforeEachPayment\": true }",
+              "createdAt": "2026-11-20T21:06:28.000Z",
+              "updatedAt": "2026-11-20T21:06:28.000Z",
+              "uid": "44554019-ebefd1a3-2d8a-40d7-b29e-97d61e62d8ac"
+            }
+          ],
+          "createdAt": "2026-11-20T21:05:14.000Z",
+          "updatedAt": "2026-11-20T21:06:28.000Z",
+          "uid": "44554019-676863f0-831e-4b03-8f41-3384ccd3aa97"
+        },
+        {
+          "name": "Update settings",
+          "id": "a00682b0-c7cd-4a26-a0aa-75422929cdaa",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"appearance\": \"dark\",\n  \"quickExitTarget\": \"weather\",\n  \"spendingLimitPerAnswerKobo\": 50000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/me/settings",
+              "host": ["{{baseUrl}}"],
+              "path": ["me", "settings"]
+            },
+            "description": "Any subset (at least one). Limits are whole kobo, ₦0 to ₦100,000. Nurses/admins: appearance only (other fields → 400)."
+          },
+          "response": [
+            {
+              "id": "5c7eecc4-3ff3-40a9-acf9-86afcc7057b8",
+              "name": "200 updated",
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"appearance\": \"dark\",\n  \"quickExitTarget\": \"weather\",\n  \"spendingLimitPerAnswerKobo\": 50000\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/me/settings",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["me", "settings"]
+                },
+                "description": "Any subset (at least one). Limits are whole kobo, ₦0 to ₦100,000. Nurses/admins: appearance only (other fields → 400)."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{ \"appearance\": \"dark\", \"quickExitTarget\": \"weather\", \"spendingLimitPerAnswerKobo\": 50000, \"mcpSpendingLimitPerAnswerKobo\": 50000, \"mcpAskBeforeEachPayment\": true }",
+              "createdAt": "2026-11-20T21:06:31.000Z",
+              "updatedAt": "2026-11-20T21:06:31.000Z",
+              "uid": "44554019-5c7eecc4-3ff3-40a9-acf9-86afcc7057b8"
+            }
+          ],
+          "createdAt": "2026-11-20T21:05:18.000Z",
+          "updatedAt": "2026-11-20T21:06:31.000Z",
+          "uid": "44554019-a00682b0-c7cd-4a26-a0aa-75422929cdaa"
+        },
+        {
+          "name": "Get notifications",
+          "id": "97b3e970-bdb4-4af8-871f-bed993bdf8e2",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/me/notifications",
+              "host": ["{{baseUrl}}"],
+              "path": ["me", "notifications"]
+            },
+            "description": "Women only. Email when a nurse answers (on by default)."
+          },
+          "response": [
+            {
+              "id": "c6ccf80a-ac54-435f-ae91-74d2fa8e3fa1",
+              "name": "200",
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/me/notifications",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["me", "notifications"]
+                },
+                "description": "Women only. Email when a nurse answers (on by default)."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{ \"notifyWhenAnswered\": true }",
+              "createdAt": "2026-11-20T21:06:34.000Z",
+              "updatedAt": "2026-11-20T21:06:34.000Z",
+              "uid": "44554019-c6ccf80a-ac54-435f-ae91-74d2fa8e3fa1"
+            }
+          ],
+          "createdAt": "2026-11-20T21:06:16.000Z",
+          "updatedAt": "2026-11-20T21:06:34.000Z",
+          "uid": "44554019-97b3e970-bdb4-4af8-871f-bed993bdf8e2"
+        },
+        {
+          "name": "Update notifications",
+          "id": "532999b8-3c55-4c3c-b1e0-04e5569ed68a",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"notifyWhenAnswered\": false }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/me/notifications",
+              "host": ["{{baseUrl}}"],
+              "path": ["me", "notifications"]
+            },
+            "description": "Women only."
+          },
+          "response": [
+            {
+              "id": "509f1f7f-0125-4697-974e-922309660f74",
+              "name": "200",
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{ \"notifyWhenAnswered\": false }",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/me/notifications",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["me", "notifications"]
+                },
+                "description": "Women only."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{ \"notifyWhenAnswered\": false }",
+              "createdAt": "2026-11-20T21:06:37.000Z",
+              "updatedAt": "2026-11-20T21:06:37.000Z",
+              "uid": "44554019-509f1f7f-0125-4697-974e-922309660f74"
+            }
+          ],
+          "createdAt": "2026-11-20T21:06:19.000Z",
+          "updatedAt": "2026-11-20T21:06:37.000Z",
+          "uid": "44554019-532999b8-3c55-4c3c-b1e0-04e5569ed68a"
+        }
+      ],
+      "id": "be24cf69-d842-4e36-bdbc-fdae5d7d3c75",
+      "createdAt": "2026-11-20T21:05:03.000Z",
+      "updatedAt": "2026-11-20T21:06:19.000Z",
+      "uid": "44554019-be24cf69-d842-4e36-bdbc-fdae5d7d3c75"
     }
   ]
 }

@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   EXTRA_KEYS_HEADER,
@@ -89,11 +90,25 @@ describe('fillEnv (never overwrites a set value)', () => {
     expect(r.extra).toEqual(['REFRESH_TOKEN_PEPPER', 'CUSTOM']);
   });
 
-  it('syncEnvWithExample is idempotent and keeps an explicitly empty value', () => {
-    const example = 'A=default\nB=\n';
-    const once = syncEnvWithExample(example, 'A=\nB=x\nOLD=1\n').text;
-    expect(once).toContain('A=\n'); // her explicit empty stays empty
-    expect(syncEnvWithExample(example, once).text).toBe(once);
+  it('syncEnvWithExample fills an empty value with the example default; empty secrets stay empty', () => {
+    // Regression: LLM_MODEL / LLM_BASE_URL sat empty in .env although the example had defaults.
+    const example = 'LLM_BASE_URL=https://integrate.api.nvidia.com/v1\nLLM_API_KEY=\nB=\n';
+    const r = syncEnvWithExample(example, 'LLM_BASE_URL=\nLLM_API_KEY=\nB=x\nOLD=1\n');
+    expect(r.text).toContain('LLM_BASE_URL=https://integrate.api.nvidia.com/v1\n');
+    expect(r.text).toContain('LLM_API_KEY=\n'); // no default in the example: she fills it
+    expect(r.text).toContain('B=x\n'); // a set value is never overwritten
+    expect(r.filled).toEqual(['LLM_BASE_URL']);
+    expect(r.kept).toEqual(['LLM_API_KEY', 'B']);
+    expect(syncEnvWithExample(example, r.text).text).toBe(r.text); // idempotent
+  });
+
+  it('.env.example lists every variable config.ts reads (so env:sync can add it)', () => {
+    const configSrc = readFileSync(new URL('../src/config.ts', import.meta.url), 'utf8');
+    const example = readFileSync(new URL('../.env.example', import.meta.url), 'utf8');
+    const read = [...configSrc.matchAll(/^ {4}([A-Z][A-Z0-9_]+):/gm)].map((m) => m[1]);
+    const listed = new Set([...example.matchAll(/^([A-Z][A-Z0-9_]*)=/gm)].map((m) => m[1]));
+    expect(read.length).toBeGreaterThan(20);
+    expect(read.filter((k) => !listed.has(k))).toEqual([]);
   });
 
   it('readEnvValue treats empty as unset', () => {

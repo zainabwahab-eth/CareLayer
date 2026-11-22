@@ -38,13 +38,16 @@ export interface SyncResult {
   kept: string[];
   /** Keys your .env did not have: added with the example's default value. */
   added: string[];
+  /** Keys that were empty in your .env while the example has a default: filled with it. */
+  filled: string[];
   /** Keys in your .env that the example no longer has: moved to the bottom section. */
   extra: string[];
 }
 
 /**
  * Rebuilds a .env in .env.example's order and comments, keeping every value already set.
- * Never drops a key: ones the example does not know are kept under EXTRA_KEYS_HEADER.
+ * An EMPTY value gets the example's default when the example has one (defaults in the example are
+ * never secrets). Never drops a key: ones the example does not know go under EXTRA_KEYS_HEADER.
  * Pure: no file IO, and idempotent (syncing the result again changes nothing).
  */
 export function syncEnvWithExample(example: string, env: string): SyncResult {
@@ -58,6 +61,7 @@ export function syncEnvWithExample(example: string, env: string): SyncResult {
   const seen = new Set<string>();
   const kept: string[] = [];
   const added: string[] = [];
+  const filled: string[] = [];
   for (const line of example.split(/\r?\n/)) {
     const m = KEY_LINE.exec(line);
     if (!m) {
@@ -67,7 +71,10 @@ export function syncEnvWithExample(example: string, env: string): SyncResult {
     const key = m[1]!;
     if (seen.has(key)) continue;
     seen.add(key);
-    if (values.has(key)) {
+    if (values.has(key) && values.get(key)!.trim() === '' && m[2]!.trim() !== '') {
+      out.push(`${key}=${m[2]!}`);
+      filled.push(key);
+    } else if (values.has(key)) {
       out.push(`${key}=${values.get(key)}`);
       kept.push(key);
     } else {
@@ -82,7 +89,7 @@ export function syncEnvWithExample(example: string, env: string): SyncResult {
     out.push('', EXTRA_KEYS_HEADER);
     for (const key of extra) out.push(`${key}=${values.get(key)}`);
   }
-  return { text: out.join('\n') + '\n', kept, added, extra };
+  return { text: out.join('\n') + '\n', kept, added, filled, extra };
 }
 
 /** Reads KEY=value pairs (no expansion, no quotes handling beyond trimming). */

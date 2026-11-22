@@ -7,17 +7,14 @@
 // Activation is safe to run from several places at once (sign-up hook, background loop, GET
 // /wallet): a conditional UPDATE "claims" the wallet, so only one attempt runs at a time, and an
 // account that already exists on-chain with its trustline is simply marked active.
-import {
-  FREE_ANSWERS_PER_WOMAN,
-  type WalletResponse,
-  type WalletTransaction,
-} from '@carelayer/shared';
+import { type WalletResponse, type WalletTransaction } from '@carelayer/shared';
 import { Keypair, StrKey } from '@stellar/stellar-sdk';
 import type { WalletConfig } from '../../config.js';
 import type { Db } from '../../db.js';
 import type { Wallet } from '../../generated/prisma/client.js';
 import type { Logger } from '../../lib/logger.js';
 import { stroopsToKobo, stroopsToUsdcString } from '../../lib/money.js';
+import { freeAnswersRemaining } from '../questions/pricing.js';
 import { AccountAlreadyExistsError, type WalletChain } from './chain.js';
 import { decryptWalletSecret, newCustodialWallet } from './crypto.js';
 
@@ -214,8 +211,8 @@ export function createWalletService(d: WalletServiceDeps) {
         status: wallet.activatedAt ? 'active' : 'pending',
         balance: money(wallet.cachedBalanceStroops, d.ngnPerUsdc),
         balanceSyncedAt: wallet.balanceSyncedAt?.toISOString() ?? null,
-        freeAnswersRemaining:
-          user.role === 'WOMAN' ? Math.max(0, FREE_ANSWERS_PER_WOMAN - user.freeAnswersUsed) : null,
+        // Same count as the price quote on an offer: in-flight free questions are reserved.
+        freeAnswersRemaining: user.role === 'WOMAN' ? await freeAnswersRemaining(d.db, user) : null,
       };
     },
 

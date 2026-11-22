@@ -250,6 +250,9 @@ describe('activation is safe to run many times', () => {
   });
 
   it('the background loop retries failed wallets with backoff (1, 2, 4... minutes)', async () => {
+    // Other test files leave never-tried pending wallets behind; the loop takes those first (by
+    // design), so take them out of the queue to keep this test about this wallet.
+    await db.wallet.updateMany({ where: { activatedAt: null }, data: { activatedAt: clock() } });
     const userId = await pendingUser();
     const wallets = buildWalletService(deps());
     fake.state.failActivate = new Error('stellar request failed: timeout');

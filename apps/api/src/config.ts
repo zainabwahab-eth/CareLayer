@@ -149,6 +149,27 @@ const EnvSchema = z
       z.url().default('http://localhost:5173/account/wallet'),
     ),
     PAYSTACK_BASE_URL: z.preprocess(emptyToUndefined, z.url().default('https://api.paystack.co')),
+
+    // ---- LLM for the assistant (Z6). Any OpenAI-compatible chat completions API. ----
+    /** Default: NVIDIA's free hosted endpoints (build.nvidia.com). OpenAI: https://api.openai.com/v1 */
+    LLM_BASE_URL: z.preprocess(
+      emptyToUndefined,
+      z.url().default('https://integrate.api.nvidia.com/v1'),
+    ),
+    /** Provider API key (nvapi-... for NVIDIA). Unset = POST /chat answers 503. Secret. */
+    LLM_API_KEY: optionalString,
+    /** Model id at that provider. Default chosen in Z6 by latency + JSON reliability (see docs/TASKS.md). */
+    LLM_MODEL: z.preprocess(
+      emptyToUndefined,
+      z.string().trim().default('nvidia/nemotron-3-ultra-550b-a55b'),
+    ),
+    /** Per-call timeout. Free hosted models can queue; past this she gets a clear "try again". */
+    LLM_TIMEOUT_MS: z.preprocess(
+      emptyToUndefined,
+      z.coerce.number().int().min(1000).max(120_000).default(45_000),
+    ),
+    /** Nurse app base URL, used in "new question" alert emails. */
+    NURSE_APP_URL: z.preprocess(emptyToUndefined, z.url().default('http://localhost:5174')),
   })
   .superRefine((e, ctx) => {
     if (e.NODE_ENV === 'production' && e.EMAIL_TRANSPORT === 'console') {
@@ -241,6 +262,13 @@ export type WalletConfig = {
   horizonUrl: string;
 };
 
+export type LlmConfig = {
+  baseUrl: string;
+  apiKey: string | undefined;
+  model: string;
+  timeoutMs: number;
+};
+
 export type Config = {
   nodeEnv: 'development' | 'test' | 'production';
   port: number;
@@ -254,6 +282,8 @@ export type Config = {
   auth: AuthConfig;
   wallet: WalletConfig;
   paystack: PaystackConfig;
+  llm: LlmConfig;
+  nurseAppUrl: string;
 };
 
 export class ConfigError extends Error {
@@ -312,5 +342,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       callbackUrl: e.PAYSTACK_CALLBACK_URL,
       baseUrl: e.PAYSTACK_BASE_URL,
     },
+    llm: {
+      baseUrl: e.LLM_BASE_URL.replace(/\/+$/, ''),
+      apiKey: e.LLM_API_KEY,
+      model: e.LLM_MODEL,
+      timeoutMs: e.LLM_TIMEOUT_MS,
+    },
+    nurseAppUrl: e.NURSE_APP_URL.replace(/\/+$/, ''),
   };
 }

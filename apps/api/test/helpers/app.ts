@@ -3,7 +3,12 @@ import { createApp } from '../../src/app.js';
 import type { Config } from '../../src/config.js';
 import type { Db } from '../../src/db.js';
 import { createLogger, type Logger } from '../../src/lib/logger.js';
-import type { CodeEmail, EmailSender } from '../../src/modules/auth/email.js';
+import type { CodeEmail, EmailSender, NurseAlertEmail } from '../../src/modules/auth/email.js';
+import {
+  LlmUnavailableError,
+  type LlmClient,
+  type LlmRequest,
+} from '../../src/modules/llm/client.js';
 import type { GoogleIdentity, GoogleVerifier } from '../../src/modules/auth/google.js';
 import type { TopupChain } from '../../src/modules/topups/chain.js';
 import type { PaystackClient } from '../../src/modules/topups/paystack.js';
@@ -22,6 +27,7 @@ export function buildTestApp(
     walletChain?: WalletChain;
     paystack?: PaystackClient;
     topupChain?: TopupChain;
+    llm?: LlmClient;
   } = {},
 ) {
   return createApp({
@@ -35,16 +41,58 @@ export function buildTestApp(
     walletChain: opts.walletChain,
     paystack: opts.paystack,
     topupChain: opts.topupChain,
+    // Never the real provider in gate tests: a fake that fails like an unconfigured key.
+    llm: opts.llm ?? unconfiguredLlm(),
   });
 }
 
-/** Captures sign-in emails so tests can read the code. */
+/** An LLM that is never reachable (chat answers 503). Tests that need replies pass fakeLlm(). */
+export function unconfiguredLlm(): LlmClient {
+  return {
+    async complete() {
+      throw new LlmUnavailableError('not_configured', 'no LLM in this test');
+    },
+  };
+}
+
+/**
+ * Scripted LLM. Each call takes the next reply: a JSON-able object, a raw string, or an Error to
+ * throw. `calls` records every request (to assert on prompts and history).
+ */
+export function fakeLlm(...replies: (object | string | Error)[]) {
+  const calls: LlmRequest[] = [];
+  const client: LlmClient & { calls: LlmRequest[]; queue: typeof replies } = {
+    calls,
+    queue: replies,
+    async complete(req) {
+      calls.push(req);
+      const next = replies.shift();
+      if (next === undefined) throw new Error('fakeLlm: no scripted reply left');
+      if (next instanceof Error) throw next;
+      return {
+        content: typeof next === 'string' ? next : JSON.stringify(next),
+        model: 'fake-model',
+        latencyMs: 1,
+        promptTokens: 10,
+        completionTokens: 10,
+      };
+    },
+  };
+  return client;
+}
+
+/** Captures sign-in emails and nurse alerts so tests can read them. */
 export function memoryEmailSender() {
   const sent: CodeEmail[] = [];
+  const alerts: NurseAlertEmail[] = [];
   return {
     sent,
+    alerts,
     async sendCode(email: CodeEmail) {
       sent.push(email);
+    },
+    async sendNurseAlert(email: NurseAlertEmail) {
+      alerts.push(email);
     },
     /** The latest code sent to this address. */
     lastCode(to: string): string {

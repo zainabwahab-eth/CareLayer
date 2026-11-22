@@ -30,6 +30,7 @@ Claude Code should follow this loop without waiting for new prompts:
 5. **Test:** write the tests listed for the task and make them pass. Run lint and typecheck.
 6. **Postman (backend tasks):** add or update requests in the Postman collection **"CareLayer API"** (folder per module), with an example response for each request. Export it to `docs/postman/carelayer.postman_collection.json` and the environment to `docs/postman/carelayer.local.postman_environment.json` (no secrets in the export).
 7. **Docs:** update `docs/API_CONTRACT.md` and `packages/shared` if any endpoint or type changed. Tick the task in the status tracker (section 8).
+   **Env:** if an env var was added, renamed or removed, update `.env.example` (a gate test fails if `config.ts` reads a key it lacks), run `npm run env:sync -w @carelayer/api`, and list in the session and the PR every key that still needs a value from the user (secrets and account-tied keys).
 8. **PR:** open a pull request into `main` with: what changed, how to test it, any contract changes (in bold), and screenshots for frontend work. The other person approves. Squash and merge.
 
 ### When to stop and ask
@@ -133,7 +134,7 @@ Figma file: **"CareLayer – Product design v1"**, key `cCmDYngHpc03VO66FsVUvD`.
 | _(no design)_ Log in             | `/login`                                           | web     | `POST /auth/code/request`                                               |
 | W05 Home                         | `/home`                                            | web     | `GET /me`, `GET /wallet`, `GET /me/questions?status=active`             |
 | W06 Assistant chat               | `/ask`                                             | web     | `POST /chat`                                                            |
-| W07 Consent                      | `/ask/send/consent`                                | web     | (client state from chat)                                                |
+| W07 Consent                      | `/ask/send/consent`                                | web     | `POST /chat/draft`                                                      |
 | W08 Choose who answers           | `/ask/send/nurse`                                  | web     | `GET /nurses?topic=`                                                    |
 | W09 Confirm and pay              | `/ask/send/confirm`                                | web     | `POST /questions`                                                       |
 | W10 Waiting                      | `/questions/:id` (status open/claimed)             | web     | `GET /questions/:id/status`                                             |
@@ -281,8 +282,27 @@ Implement everything in "Accounts and auth" (section 2): `POST /auth/code/reques
 **Postman:** Top-up folder, including a sample webhook body.
 **Done when:** a test-card top-up updates the balance from the real wallet screen.
 
-### Z6. Chat, emergencies and sending questions
+### Z6. Chat, emergencies and sending questions (done)
 
+- **Decided in Z6:**
+  - **LLM: NVIDIA's free hosted tier, behind an OpenAI-compatible client.** Zainab has no Anthropic key and limited OpenAI credit. Switching provider is `LLM_BASE_URL` + `LLM_API_KEY` + `LLM_MODEL` (OpenAI works unchanged). The global "route LLM calls through local Claude Code" rule does not fit a deployed product (no Claude Code on the server, personal subscription, one process per message), so Zainab chose a hosted API.
+  - **Model `nvidia/nemotron-3-ultra-550b-a55b`**, measured on the real prompt (November 2026): 9 to 12 s per call, valid JSON on every call. Kimi K3.1, Mistral Large 4, GLM 5.3, Gemma 4 and Step 5 timed out at 90 s on the free tier; MiniMax M3.1 took 12 to 23 s and cut off one reply.
+  - **Q1 answered: chat is `POST /chat { messages }`** (the client sends the thread; the response keeps the existing `{ kind: "reply", message, escalationOffer }` shape, so the web app's handling stays). **The draft is a separate `POST /chat/draft`**, not part of the offer. Building it is a second LLM call (about 10 s), and most offers end in "Not now", so it only runs when she opens W07 or uses "Ask a nurse directly". Each chat reply stays at one call.
+  - **Signed draft (`draftToken`).** `POST /questions` stores exactly the draft she reviewed on W07, with no second LLM run that could word it differently, and nothing is stored between the two calls. It is an HS256 JWT on a key derived from `JWT_ACCESS_SECRET`, bound to her id, valid 2 hours. Calls without a token (agents) get a fresh Mode B run.
+  - **The question for a nurse = all her messages in the thread, joined verbatim.** Never a model-chosen subset: nothing she said can be dropped.
+  - **Deterministic guards on the model's output:**
+    - The clean-up may not shorten her text below 70%, more than double it, or drop any number she wrote. One retry; then her own words are used as `cleanedText`.
+    - The age range is computed in code from a stated age that appears in her text.
+    - Pregnancy weeks are kept only if she wrote weeks.
+    - A red-flag suspicion always beats an offer.
+  - **Red flags:** her new chat message, and the whole question for drafts and `POST /questions`. The fixed list runs before the LLM and works when the LLM is down. `red-flags.json` is validated at startup (a broken file stops the API).
+  - **Emergency contacts: `112` marked `verified: false`** until a person checks it (Q2). `findHospitalUrl` is a map search on her device.
+  - **Free answers left = 3 − collected − free questions still in flight.** Used in offers, questions and `GET /wallet`. An expired question gives its free answer back. The seed follows the same rule: Tolu has 1 used + 2 held by open questions = 0 left. Demo the free path with a new account.
+  - **Consent must share `cleaned_text` + `category`.** Fields she does not share are not stored.
+  - **Nurse alerts** email the topic only (never the question), to approved + available nurses with that topic (female only if asked), or only the chosen nurse. The other nurses get alerted when the window passes (Z7 sweeper).
+  - **Rate limit:** 12 chat/draft requests per woman per minute, in memory (one API instance). It protects the free tier's ~40 requests a minute.
+  - **Woman-only for now:** `GET /nurses` and the question endpoints. Agent tokens and `X-Question-Key` come with Z12.
+  - **Evals:** `npm run eval:assistant -w @carelayer/api` runs Hikmah's test set and the clean-up set (`apps/api/evals/cleanup-cases.json`) on the real model. Thresholds: emergency recall 100%; action, category, clean-up and extraction ≥ 80–90%. Run before each demo and whenever the prompt or model changes.
 - `POST /chat`: red-flag check first (fixed list in `apps/api/config/red-flags.json` + LLM); emergency → `{ type: "emergency" }`, log `EmergencyEvent`, nothing queued. Otherwise call the LLM with `apps/api/prompts/assistant.md` (Hikmah owns it) and return `{ type: "answer" }` or `{ type: "offer", draft: { cleanedText, assistantNotes, category, ageRange?, pregnancyWeeks? }, price, freeAnswersLeft }`. Chat history comes from the client in the request; nothing is stored.
 - `GET /nurses?topic=&femaleOnly=`: available, approved nurses with public profile fields only.
 - `POST /questions`: requires consent fields; stores original + cleaned text, notes, category, age range, pregnancy weeks, selection, chosen nurse window (10 min), `expiresAt` (30 min), price, free flag; checks her spending limit. Alerts nurses for the topic (email, behind a wrapper).
@@ -357,6 +377,18 @@ Order: H1 → H2 → H3 → H4 → H5 → H6 → H7 → H8 → H9 → H10. All s
 - `apps/api/config/red-flags.json`: red-flag symptoms.
 - `apps/api/prompts/test-set.json`: ~30 questions with expected outcome (answer / offer / emergency) and category. Get a nurse or midwife to review the red flags.
 - **Done when:** the test set passes through Zainab's `/chat`.
+- **Open after Z6 (read `docs/QUESTIONS.md` Q3 first).** The eval runs the test set (`apps/api/test/fixtures/assistant-test-questions.json`) through the real model: `npm run eval:assistant -w @carelayer/api` (about 4 min; needs `LLM_API_KEY` in `apps/api/.env`, a free NVIDIA key from build.nvidia.com works).
+  - **Baseline:** emergency recall 100%, category 95%, clean-up 100%, but **action accuracy 69.7% (target 80%)**.
+  - **The main problem is over-offering.** The model offers a nurse on plain information questions marked "answer": q01, q10, q13, q14, q16, q18, q23.
+  - **Fix in `assistant.md`'s escalation section:**
+    - Answer general "what is / how does / is it common" questions directly, with no offer.
+    - Offer a nurse only when she describes her _own_ symptoms or situation and needs a judgement on it.
+    - Add a few one-line "answer, no offer" examples.
+  - **Also in `assistant.md`:**
+    - Describe the two Mode B fields the API now asks for: `statedAge` (her age as a number, only if stated) and `pregnancyWeeks` (only if she stated weeks).
+    - Update the endpoint names: Mode A = `POST /chat`; Mode B = `POST /chat/draft` and `POST /questions`.
+  - **Ask the reviewing nurse or midwife** whether q02 (baby moving less at 32 weeks) and q12 (soaking pads quickly) should be "emergency". The model routes both there.
+  - Re-run the eval after each prompt change until it reports PASS. Paste the score table into the PR.
 
 ### H3. App shells, theme and mocks
 
@@ -413,7 +445,7 @@ Tick in the PR that completes the task.
 - [x] Z3 Auth
 - [x] Z4 Wallets
 - [x] Z5 Top-up
-- [ ] Z6 Chat and questions
+- [x] Z6 Chat and questions
 - [ ] Z9 Nurse onboarding + admin
 - [ ] Z7 Claiming and answering
 - [ ] Z8 Pay on delivery + payouts

@@ -10,6 +10,8 @@ coverage
 
 # Generated
 apps/api/src/generated
+# Eval reports (paid runs); the summary goes in the PR
+apps/api/evals/reports
 *.tsbuildinfo
 dev-dist
 

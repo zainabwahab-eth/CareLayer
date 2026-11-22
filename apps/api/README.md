@@ -25,14 +25,14 @@ npm test -w @carelayer/api
 
 ### Seed data
 
-| Who             | Email                         | State                                                    |
-| --------------- | ----------------------------- | -------------------------------------------------------- |
-| Tolu (woman)    | `tolu@example.com`            | 2 of 3 free answers left, ₦0 (top up with a test card)   |
-| Amaka Okafor    | `amaka.okafor@example.com`    | Midwife, 9 yrs, English/Igbo, approved                   |
-| Funmilayo Bello | `funmilayo.bello@example.com` | Midwife, 6 yrs, English/Yoruba, approved                 |
-| Hauwa Musa      | `hauwa.musa@example.com`      | Midwife (nurse-midwife), 11 yrs, English/Hausa, approved |
-| Chiamaka Eze    | `chiamaka.eze@example.com`    | Nurse, pending admin review                              |
-| Admin           | `admin@example.com`           | Admin                                                    |
+| Who             | Email                         | State                                                                               |
+| --------------- | ----------------------------- | ----------------------------------------------------------------------------------- |
+| Tolu (woman)    | `tolu@example.com`            | 0 free answers left (1 used, 2 held by open questions), ₦0: top up with a test card |
+| Amaka Okafor    | `amaka.okafor@example.com`    | Midwife, 9 yrs, English/Igbo, approved                                              |
+| Funmilayo Bello | `funmilayo.bello@example.com` | Midwife, 6 yrs, English/Yoruba, approved                                            |
+| Hauwa Musa      | `hauwa.musa@example.com`      | Midwife (nurse-midwife), 11 yrs, English/Hausa, approved                            |
+| Chiamaka Eze    | `chiamaka.eze@example.com`    | Nurse, pending admin review                                                         |
+| Admin           | `admin@example.com`           | Admin                                                                               |
 
 Questions cover every status: answered + collected (free, treasury payout to Amaka), answered not collected, claimed (Hauwa's active lock), open inside a chosen-nurse window, open female-only, open after fallback, expired, cancelled. Times are relative to when the seed runs, so re-seed before a demo.
 
@@ -48,6 +48,24 @@ Placeholders, clearly not real: wallet keys start with `GSEED` (no secret; Z4 cr
 - Google sign-in needs `GOOGLE_CLIENT_ID`; without it `POST /auth/google` answers 503.
 - Wallets (Z4): `WALLET_ENCRYPTION_KEY` (32 bytes, required; never change it once wallets exist) encrypts wallet secrets. With `STELLAR_TREASURY_SECRET` set, new wallets are activated on testnet right after sign-up and retried every minute while pending; without it they stay `pending`. Code: `src/modules/wallets/` (`crypto.ts`, `chain.ts`, `service.ts`, `router.ts`).
 - Real email: `EMAIL_TRANSPORT=resend` + `EMAIL_API_KEY` + `EMAIL_FROM` (on a domain verified in Resend). Check delivery with `npm run email:test -w @carelayer/api -- you@example.com` (sends a sample code that cannot be used).
+
+## Chat, emergencies and questions (Z6)
+
+- **LLM:** any OpenAI-compatible API. Set `LLM_API_KEY` in `apps/api/.env`. The defaults are NVIDIA's free tier (`LLM_BASE_URL`) and `nvidia/nemotron-3-ultra-550b-a55b` (`LLM_MODEL`). OpenAI: change the base URL, model and key. Without a key, `POST /chat` and `/chat/draft` answer 503; the red-flag list still works.
+- **Flow:**
+  - `POST /chat`: fixed red flags → LLM Mode A (Hikmah's `prompts/assistant.md`) → reply, with a price offer when it suggests a nurse.
+  - `POST /chat/draft`: the exact question a nurse would get, signed (`draftToken`).
+  - `POST /questions`: stores that draft with her consent and emails the nurses who can take it.
+  - Nothing about the chat is stored.
+- **Safety in code, not just in the prompt** (`src/modules/llm/assistant.ts`): the clean-up may not shorten her question or drop a number (one retry, then her own words); the age range is computed in code; weeks are kept only if she wrote weeks; a red flag beats an offer. `red-flags.json` is validated at startup.
+- **Evals (paid lane, real model):** `npm run eval:assistant -w @carelayer/api` runs Hikmah's test set (`test/fixtures/assistant-test-questions.json`) and the clean-up set (`evals/cleanup-cases.json`). It takes about 4 minutes on the free tier. Report: `evals/reports/<time>.md`. It exits 1 under a threshold (`evals/scoring.ts`; emergency recall must be 100%). Run it before a demo and after any prompt or model change.
+- **Trace:** log lines `llm_call` (mode, model, latency, tokens, outcome), `chat_reply`, `chat_draft`, `cleanup_fallback`, `emergency` (source + which layer caught it), `question_created`, `nurse_alerts`. Never her text.
+- Code:
+  - `src/modules/llm/`: `client.ts`, `assistant.ts`, `errors.ts`.
+  - `src/modules/emergency/`: `red-flags.ts`, `service.ts`.
+  - `src/modules/chat/`.
+  - `src/modules/questions/`: `service.ts`, `pricing.ts`, `draft-token.ts`, `router.ts`.
+  - `src/modules/nurses/directory.ts`.
 
 ## x402 on Stellar testnet (Z2)
 
@@ -70,7 +88,7 @@ npm run test:testnet -w @carelayer/api    # same, as assertions (real testnet, n
 - `src/config.ts`: env validation with zod; fails fast listing every bad variable. Add each new env var here and to `.env.example`.
 - `src/db.ts`: Prisma client (node-postgres adapter) and `pingDatabase` (2 s timeout).
 - `src/lib/`: `errors.ts` (AppError + central handler, contract-shaped errors, no stack leaks), `logger.ts` (JSON lines), `request-logger.ts` (request id + one log line per request; never bodies or query strings), `money.ts`.
-- `src/modules/<name>/router.ts`: auth, users, wallets, chat, questions, nurses, payments, admin (empty until their task), plus health.
+- `src/modules/<name>/router.ts`: auth, users, wallets, topups, chat, questions, nurses, payments, admin (empty until its task), plus health. Shared helpers: `src/modules/llm/`, `src/modules/emergency/`.
 - `src/seed/`: `seed.ts` (logic, used by tests) and `run.ts` (CLI).
 - `prompts/assistant.md`, `config/red-flags.json`: owned by Hikmah.
 
