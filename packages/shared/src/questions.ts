@@ -151,6 +151,11 @@ export interface AnswerResponse {
 export interface CollectAnswerBody {
   /** She approved paying above her per-answer spending limit (W11). Default false. */
   approvedAboveLimit?: boolean;
+  /**
+   * Claude only (agent token): she confirmed this payment in the conversation. Required for a paid
+   * answer when her setting mcpAskBeforeEachPayment is on (else 409 PAYMENT_CONFIRMATION_REQUIRED).
+   */
+  confirmPayment?: boolean;
 }
 
 /**

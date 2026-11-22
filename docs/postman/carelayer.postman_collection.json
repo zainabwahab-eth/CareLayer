@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "757e009e-9b28-4514-a7f4-6fcbc1c6380e",
     "name": "CareLayer API",
-    "description": "CareLayer backend (apps/api). Contract: docs/API_CONTRACT.md (v1). One folder per module; folders are added by the task that builds each module (Z3 Auth, Z5 Top-up, Z6 Chat + Questions, Z8 answers/collect/feedback in Questions + Nurses, Z7 Nurse cases, Z9 Nurse profile + Admin). Select the 'CareLayer local' environment ({{baseUrl}} = http://localhost:4000).",
+    "description": "CareLayer backend (apps/api). Contract: docs/API_CONTRACT.md (v1). One folder per module; folders are added by the task that builds each module (Z3 Auth, Z5 Top-up, Z6 Chat + Questions, Z8 answers/collect/feedback in Questions + Nurses, Z7 Nurse cases, Z9 Nurse profile + Admin; Z10 Earnings in Nurse profile; Z12 Claude connections in Auth). Select the 'CareLayer local' environment ({{baseUrl}} = http://localhost:4000).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "createdAt": "2026-11-18T22:32:09.000Z",
     "updatedAt": "2026-11-22T01:19:23.000Z",
@@ -674,6 +674,179 @@
           "createdAt": "2026-11-20T03:32:12.000Z",
           "updatedAt": "2026-11-20T03:32:12.000Z",
           "uid": "44554019-276bf4f8-d259-0333-868f-f8bb337ac4bb"
+        },
+        {
+          "name": "Create Claude connection (agent token)",
+          "id": "d9a164ee-4c45-4ab8-a5fe-fc1d9734dcec",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.environment.set('agentToken', pm.response.json().token);",
+                  "  pm.environment.set('agentTokenId', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"label\": \"Claude Desktop\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/agent-tokens",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "agent-tokens"]
+            },
+            "description": "Z12. Woman, signed in. Returns the agent token ONCE (clat_...), stored hashed; saved as {{agentToken}}. Max 5 active (409). See apps/mcp/README.md."
+          },
+          "response": [
+            {
+              "id": "2e1bf478-3104-4b10-97b8-8fee911b0cca",
+              "name": "201 Connection created (token shown once)",
+              "code": 201,
+              "status": "Created",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"id\": \"cmwsagent0001s6l1token001\",\n  \"label\": \"Claude Desktop\",\n  \"token\": \"clat_EXAMPLE-shown-only-once-copy-it-now-xxxxxxxxxxxx\",\n  \"createdAt\": \"2026-11-22T18:00:00.000Z\"\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "List Claude connections",
+          "id": "85bf3a00-1428-4480-8e11-fe717b257586",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/agent-tokens",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "agent-tokens"]
+            },
+            "description": "Z12. Active connections, newest first. Never the token."
+          },
+          "response": [
+            {
+              "id": "40217b15-8a02-4690-aa5a-0538e25f2720",
+              "name": "200 Her connections",
+              "code": 200,
+              "status": "OK",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "[\n  {\n    \"id\": \"cmwsagent0001s6l1token001\",\n    \"label\": \"Claude Desktop\",\n    \"createdAt\": \"2026-11-22T18:00:00.000Z\",\n    \"lastUsedAt\": \"2026-11-22T18:05:12.000Z\"\n  }\n]",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Remove Claude connection",
+          "id": "372ae101-2f63-4c53-be8b-106be1c909f3",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/auth/agent-tokens/{{agentTokenId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "agent-tokens", "{{agentTokenId}}"]
+            },
+            "description": "Z12. 204. Immediate: the token gets 401 afterwards."
+          },
+          "response": []
+        },
+        {
+          "name": "As Claude: wallet (agent token)",
+          "id": "8348668e-9924-42b8-a1fb-b2ac82dc0942",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{agentToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/wallet",
+              "host": ["{{baseUrl}}"],
+              "path": ["wallet"]
+            },
+            "description": "Z12. With the agent token, as the MCP server calls it. Allowed: POST /chat/draft, POST /questions (source mcp), GET /questions/:id/status, POST /me/questions/:id/collect, GET /wallet. Anything else: 403."
+          },
+          "response": [
+            {
+              "id": "6c73064a-0b92-44dd-aaf1-32ce096c8116",
+              "name": "403 A route Claude may not use",
+              "code": 403,
+              "status": "Forbidden",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"FORBIDDEN\",\n    \"message\": \"This is not available through Claude.\"\n  }\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
         }
       ],
       "id": "d939f7a5-53b4-8da5-c4a4-05df901ef40e",
@@ -1756,7 +1929,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"approvedAboveLimit\": false\n}",
+              "raw": "{\n  \"approvedAboveLimit\": false,\n  \"confirmPayment\": false\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1768,7 +1941,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["me", "questions", "{{questionId}}", "collect"]
             },
-            "description": "Z8. The web app's way to get an answer (W11). Free if she has one of her first 3 left; otherwise checks her spending limit (409 unless approvedAboveLimit), her live balance (409 INSUFFICIENT_BALANCE), then pays over x402 from her custodial wallet. Calling again returns the same answer without paying again."
+            "description": "Z8. The web app's way to get an answer (W11). Free if she has one of her first 3 left; otherwise checks her spending limit (409 unless approvedAboveLimit), her live balance (409 INSUFFICIENT_BALANCE), then pays over x402 from her custodial wallet. Calling again returns the same answer without paying again. Z12: with an agent token, Claude's own limit applies (approvedAboveLimit ignored) and \"ask before each payment\" needs confirmPayment: true (else 409 PAYMENT_CONFIRMATION_REQUIRED)."
           },
           "response": [
             {
@@ -1811,6 +1984,20 @@
                 }
               ],
               "body": "{\n  \"error\": {\n    \"code\": \"INSUFFICIENT_BALANCE\",\n    \"message\": \"Not enough in your wallet for this answer. Top up to continue.\",\n    \"details\": {\n      \"price\": {\n        \"kobo\": 50000,\n        \"usdc\": \"0.3125000\"\n      },\n      \"balance\": {\n        \"kobo\": 16000,\n        \"usdc\": \"0.1000000\"\n      }\n    }\n  }\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "b8f3dc04-dc2b-4cd8-9db3-da99c87ff6d3",
+              "name": "409 Claude must ask her first (agent token)",
+              "code": 409,
+              "status": "Conflict",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"PAYMENT_CONFIRMATION_REQUIRED\",\n    \"message\": \"Your answer is ready. Confirm the payment first.\",\n    \"details\": {\n      \"price\": {\n        \"kobo\": 50000,\n        \"usdc\": \"0.3125000\"\n      }\n    }\n  }\n}",
               "_postman_previewlanguage": "json"
             }
           ]

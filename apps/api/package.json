@@ -24,6 +24,7 @@
     "x402:pay": "tsx --env-file-if-exists=.env scripts/pay-x402.ts",
     "answer:e2e": "tsx --env-file-if-exists=.env scripts/answer-e2e.ts",
     "withdrawal:e2e": "tsx --env-file-if-exists=.env scripts/withdrawal-e2e.ts",
+    "two-agent:e2e": "tsx --env-file-if-exists=.env scripts/two-agent-e2e.ts",
     "test:testnet": "vitest run --config vitest.testnet.config.ts",
     "email:test": "tsx --env-file-if-exists=.env scripts/send-test-email.ts",
     "eval:assistant": "tsx --env-file-if-exists=.env scripts/eval-assistant.ts",

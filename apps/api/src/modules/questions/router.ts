@@ -4,6 +4,8 @@
 //   GET  /questions/:id/status       woman (own)
 //   GET  /questions/:id/answer       woman (own) + x402: 409/410 guard -> free | 402 | paid answer
 //   POST /me/questions/:id/collect   woman: the API's agent pays from her wallet (or free)
+// Claude (agent token, Z12) may use: POST /questions (source "mcp"), GET /questions/:id/status,
+// POST /me/questions/:id/collect (Claude's spending limit; confirmPayment when she asked for it).
 //   POST /questions/:id/feedback     woman: { helpful }
 //   GET  /me/questions               woman: ?status=open|claimed|answered|expired|cancelled|active
 //   GET  /me/questions/:id           woman (own)
@@ -64,7 +66,9 @@ const ListQuerySchema = z.object({
     .default(20),
 });
 
-const CollectSchema = z.object({ approvedAboveLimit: z.boolean().optional() }).strict();
+const CollectSchema = z
+  .object({ approvedAboveLimit: z.boolean().optional(), confirmPayment: z.boolean().optional() })
+  .strict();
 const FeedbackSchema = z.object({
   helpful: z.boolean({ error: 'helpful must be true or false.' }),
 });
@@ -75,13 +79,20 @@ export function createQuestionsRouter(
   answers: AnswerService,
 ): Router {
   const router = Router();
-  const authed = requireAuth({
+  const guard = {
     db: deps.db,
     jwtAccessSecret: deps.config.auth.jwtAccessSecret,
     now: deps.clock ?? (() => new Date()),
+  };
+  const authed = requireAuth(guard);
+  // Claude (agent token, Z12) may send a question, check its status and collect the answer.
+  const authedOrAgent = requireAuth({
+    ...guard,
+    allowAgent: true,
+    pepper: deps.config.auth.pepper,
   });
 
-  router.post('/questions', authed, requireRole('woman'), async (req, res) => {
+  router.post('/questions', authedOrAgent, requireRole('woman'), async (req, res) => {
     // No consent object at all is a consent problem, not a generic validation one.
     const consent = (req.body as { consent?: unknown } | undefined)?.consent;
     if (!consent || typeof consent !== 'object') {
@@ -92,16 +103,24 @@ export function createQuestionsRouter(
       );
     }
     const body = CreateQuestionSchema.parse(req.body);
-    if (body.source !== 'web') {
-      throw new AppError(400, 'VALIDATION_FAILED', 'Signed-in web requests use source "web".', {
-        field: 'source',
-      });
+    const { userId, via } = getAuth(res);
+    // The source is who is asking: her app ("web") or Claude with her agent token ("mcp").
+    const expected = via === 'agent' ? 'mcp' : 'web';
+    if (body.source !== expected) {
+      throw new AppError(
+        400,
+        'VALIDATION_FAILED',
+        via === 'agent'
+          ? 'Claude sends questions with source "mcp".'
+          : 'Signed-in web requests use source "web".',
+        { field: 'source' },
+      );
     }
-    const result = await questions.create(getAuth(res).userId, body);
+    const result = await questions.create(userId, body, expected);
     res.status(result.status).json(result.body);
   });
 
-  router.get('/questions/:id/status', authed, requireRole('woman'), async (req, res) => {
+  router.get('/questions/:id/status', authedOrAgent, requireRole('woman'), async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     res.json(await questions.status(getAuth(res).userId, String(req.params.id)));
   });
@@ -123,11 +142,22 @@ export function createQuestionsRouter(
     res.json(result.body);
   });
 
-  router.post('/me/questions/:id/collect', authed, requireRole('woman'), async (req, res) => {
-    const body = CollectSchema.parse(req.body ?? {});
-    res.setHeader('Cache-Control', 'no-store');
-    res.json(await answers.collect(getAuth(res).userId, String(req.params.id), body));
-  });
+  router.post(
+    '/me/questions/:id/collect',
+    authedOrAgent,
+    requireRole('woman'),
+    async (req, res) => {
+      const body = CollectSchema.parse(req.body ?? {});
+      const { userId, via } = getAuth(res);
+      res.setHeader('Cache-Control', 'no-store');
+      res.json(
+        await answers.collect(userId, String(req.params.id), {
+          ...body,
+          channel: via === 'agent' ? 'mcp' : 'web',
+        }),
+      );
+    },
+  );
 
   router.post('/questions/:id/feedback', authed, requireRole('woman'), async (req, res) => {
     const { helpful } = FeedbackSchema.parse(req.body ?? {});

@@ -1,18 +1,36 @@
 // Route guards.
 //   requireAuth       Bearer access token AND a live session (not revoked, not expired). 401 otherwise.
+//                     With { allowAgent, pepper }: also a woman's agent token (Claude, Z12). Agent
+//                     tokens are REFUSED (403) on every route that does not opt in.
 //   requireRole(...)  403 FORBIDDEN for other roles (e.g. a woman calling /nurse/*).
 //   requireFreshCode  403 STEP_UP_REQUIRED unless this session verified a code in the last 5 min.
-import { AUTH_RULES, type UserRole as ApiRole } from '@carelayer/shared';
+import { AGENT_TOKEN_PREFIX, AUTH_RULES, type UserRole as ApiRole } from '@carelayer/shared';
 import type { Request, RequestHandler, Response } from 'express';
 import type { Db } from '../../db.js';
 import { AppError } from '../../lib/errors.js';
+import { resolveAgentToken } from './agent-tokens.js';
 import { verifyAccessToken } from './tokens.js';
 
 export interface AuthState {
   userId: string;
   role: ApiRole;
+  /** "session": the app (access token). "agent": Claude with her agent token (apps/mcp). */
+  via: 'session' | 'agent';
+  /** Empty for agents (no session). */
   sessionId: string;
   stepUpAt: Date | null;
+  /** Set for agents. */
+  agentTokenId?: string;
+}
+
+export interface AuthGuardDeps {
+  db: Db;
+  jwtAccessSecret: string;
+  now: () => Date;
+  /** Accept a woman's agent token on this route (needs `pepper`). Default: refused with 403. */
+  allowAgent?: boolean;
+  /** AUTH_PEPPER: agent tokens are stored as a keyed hash. */
+  pepper?: string;
 }
 
 export function bearerToken(req: Request): string | undefined {
@@ -50,18 +68,36 @@ export async function resolveAuth(
   return {
     userId: claims.userId,
     role: claims.role,
+    via: 'session',
     sessionId: session.id,
     stepUpAt: session.stepUpAt,
   };
 }
 
-export function requireAuth(deps: {
-  db: Db;
-  jwtAccessSecret: string;
-  now: () => Date;
-}): RequestHandler {
+export function requireAuth(deps: AuthGuardDeps): RequestHandler {
   return async (req, res, next) => {
     try {
+      const token = bearerToken(req);
+      if (token?.startsWith(AGENT_TOKEN_PREFIX)) {
+        if (!deps.allowAgent || !deps.pepper) {
+          next(new AppError(403, 'FORBIDDEN', 'This is not available through Claude.'));
+          return;
+        }
+        const agent = await resolveAgentToken(deps.db, deps.pepper, token, deps.now());
+        if (!agent) {
+          next(
+            new AppError(
+              401,
+              'UNAUTHENTICATED',
+              'This Claude connection was removed. Create a new one in CareLayer.',
+            ),
+          );
+          return;
+        }
+        res.locals.auth = agent;
+        next();
+        return;
+      }
       const auth = await resolveAuth(req, deps);
       if (!auth) {
         next(new AppError(401, 'UNAUTHENTICATED', 'Please sign in.'));

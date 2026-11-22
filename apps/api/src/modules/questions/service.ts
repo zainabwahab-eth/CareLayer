@@ -40,7 +40,7 @@ import type { Assistant } from '../llm/assistant.js';
 import { llmToAppError } from '../llm/errors.js';
 import { alertNurses } from './alerts.js';
 import { verifyDraftToken } from './draft-token.js';
-import { moneyFromKobo, quoteFor } from './pricing.js';
+import { moneyFromKobo, quoteFor, type Channel } from './pricing.js';
 
 const MINUTE = 60_000;
 
@@ -185,9 +185,11 @@ export function createQuestionService(d: QuestionServiceDeps) {
   }
 
   return {
+    /** `channel` "mcp": Claude with her agent token (source MCP, Claude's spending limit). */
     async create(
       womanId: string,
       body: CreateQuestionBody,
+      channel: Channel = 'web',
     ): Promise<{ status: 201; body: CreatedQuestion } | { status: 200; body: EmergencyResponse }> {
       const shared = new Set<SharedField>(body.consent.sharedFields);
       const missing = REQUIRED_SHARED_FIELDS.filter((f) => !shared.has(f));
@@ -200,19 +202,21 @@ export function createQuestionService(d: QuestionServiceDeps) {
         );
       }
 
+      const emergencySource = channel === 'mcp' ? 'MCP' : 'QUESTION';
       const flagged = matchRedFlags(d.redFlags, body.originalText);
       if (flagged.length) {
-        return { status: 200, body: await recordEmergency(d, 'QUESTION', flagged) };
+        return { status: 200, body: await recordEmergency(d, emergencySource, flagged) };
       }
       const resolved = await resolveDraft(womanId, body);
       if ('emergency' in resolved) {
-        return { status: 200, body: await recordEmergency(d, 'QUESTION', ['llm']) };
+        return { status: 200, body: await recordEmergency(d, emergencySource, ['llm']) };
       }
       const { draft } = resolved;
 
       const chosen = await chosenNurseFor(body);
-      const quote = await quoteFor(d.db, d.config, womanId);
-      if (quote.exceedsSpendingLimit && !body.approvedAboveLimit) {
+      const quote = await quoteFor(d.db, d.config, womanId, channel);
+      // Claude cannot approve its way past Claude's own limit (she raises it in the app).
+      if (quote.exceedsSpendingLimit && (channel === 'mcp' || !body.approvedAboveLimit)) {
         throw new AppError(
           409,
           'SPENDING_LIMIT_EXCEEDED',
@@ -225,7 +229,7 @@ export function createQuestionService(d: QuestionServiceDeps) {
       const q = await d.db.question.create({
         data: {
           womanId,
-          source: 'WEB',
+          source: channel === 'mcp' ? 'MCP' : 'WEB',
           originalText: body.originalText,
           cleanedText: draft.cleanedText,
           // Not shared = not stored.
@@ -262,6 +266,7 @@ export function createQuestionService(d: QuestionServiceDeps) {
         femaleOnly: q.femaleOnly,
         isFree: q.isFree,
         fromDraft: Boolean(body.draftToken),
+        source: q.source,
       });
       void alertNurses(
         { db: d.db, email: d.email, logger: d.logger, nurseAppUrl: d.config.nurseAppUrl },

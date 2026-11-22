@@ -127,6 +127,15 @@ npm run test:testnet -w @carelayer/api    # same, as assertions (real testnet, n
 - `testnet:setup` only fills empty `.env` values and never prints secrets. Re-running it is safe.
 - First proof payment: https://stellar.expert/explorer/testnet/tx/b2ce568136e4372c5b5faa5ab963ebeac8ad94afaa661bb2ccbf2f6b09ef30ed
 
+## Claude via MCP (Z12)
+
+- **Agent tokens:** `POST/GET/DELETE /auth/agent-tokens` (woman, signed in). A token starts with `clat_` and is shown once.
+- **Deny by default:** an agent token is refused (403) on every route except the five that opt in with `requireAuth({ allowAgent: true, pepper })`: `POST /chat/draft`, `POST /questions` (`source: "mcp"`), `GET /questions/:id/status`, `POST /me/questions/:id/collect`, `GET /wallet`.
+- **Claude rules in the API:** source `MCP`, emergencies logged as `MCP`, Claude's spending limit (no `approvedAboveLimit` for Claude), and `confirmPayment` when she asked to approve each payment.
+- **The MCP server itself:** `apps/mcp` (README there: how to connect Claude Desktop and Claude Code).
+- **Two-agent demo on testnet:** `E2E_LLM_ENV_FILE=deploy/.env.production npm run two-agent:e2e -w @carelayer/api`.
+- **Code:** `src/modules/auth/agent-tokens.ts`, `src/modules/auth/middleware.ts`, `src/modules/questions/pricing.ts` (`Channel`).
+
 ## Deploy (Z11): Google Cloud Run + Neon
 
 At most one Cloud Run instance, scaled to zero when idle (pay per use: the background loops only run while requests are served, so some work is delayed until the next request; see Z11 in `docs/TASKS.md` for the trade-off and the planned Cloud Scheduler tick). A Neon Postgres, secrets in Google Secret Manager. Region `europe-west2` (London), next to the Neon database (`eu-west-2`); set `GCP_REGION` if your Neon project is elsewhere. The image is the repo-root `Dockerfile`; `deploy/cloudrun.sh` does every step.

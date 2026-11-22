@@ -44,7 +44,7 @@ import type { AnswerPayer } from '../payments/x402-client.js';
 import { decryptWalletSecret } from '../wallets/crypto.js';
 import type { WalletChain } from '../wallets/chain.js';
 import { recomputeNurseStats } from '../nurses/stats.js';
-import { moneyFromKobo } from './pricing.js';
+import { moneyFromKobo, spendingLimitFor, type Channel } from './pricing.js';
 import { publicNurse } from './service.js';
 
 /** Margin on top of the payment's own timeout before an unconfirmed attempt is declared failed. */
@@ -476,23 +476,39 @@ export function createAnswerService(d: AnswerServiceDeps) {
     async collect(
       womanId: string,
       questionId: string,
-      opts: { approvedAboveLimit?: boolean } = {},
+      opts: { approvedAboveLimit?: boolean; confirmPayment?: boolean; channel?: Channel } = {},
     ): Promise<AnswerResponse> {
+      const channel = opts.channel ?? 'web';
       const q = await load(womanId, questionId);
       guardAnswered(q);
 
       const first = await fetchAnswer(womanId, questionId);
       if (first.kind === 'answer') return first.body; // collected already, free, or reconciled
 
-      // She pays: her limit, then her balance, then sign and pay.
+      // She pays: her limit, (Claude: her confirmation), then her balance, then sign and pay.
       const settings = await d.db.userSettings.findUnique({ where: { userId: womanId } });
-      const limit = settings?.spendingLimitPerAnswerKobo ?? 100_000;
-      if (q.priceKobo > limit && !opts.approvedAboveLimit) {
+      const limit = spendingLimitFor(settings, channel);
+      if (q.priceKobo > limit && (channel === 'mcp' || !opts.approvedAboveLimit)) {
+        // Claude cannot approve its way past Claude's own limit: she raises it in the app.
         throw new AppError(
           409,
           'SPENDING_LIMIT_EXCEEDED',
-          'This answer costs more than your limit per answer. Approve it to continue.',
+          channel === 'mcp'
+            ? 'This answer costs more than your Claude limit per answer. Raise it in the CareLayer app, or collect the answer there.'
+            : 'This answer costs more than your limit per answer. Approve it to continue.',
           { priceKobo: q.priceKobo, spendingLimitKobo: limit },
+        );
+      }
+      if (
+        channel === 'mcp' &&
+        (settings?.mcpAskBeforeEachPayment ?? true) &&
+        !opts.confirmPayment
+      ) {
+        throw new AppError(
+          409,
+          'PAYMENT_CONFIRMATION_REQUIRED',
+          'Your answer is ready. Confirm the payment first.',
+          { price: money(q.priceKobo) },
         );
       }
       const wallet = await d.db.wallet.findUnique({ where: { userId: womanId } });
