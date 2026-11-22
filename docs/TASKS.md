@@ -403,7 +403,7 @@ Implement everything in "Accounts and auth" (section 2): `POST /auth/code/reques
 ### Z11. Deploy
 
 - **Decided in Z11:**
-  - **Google Cloud Run + Neon (free), chosen by Zainab.** Region `europe-west3` (Frankfurt), next to Neon's `eu-central-1`; Neon has no African region.
+  - **Google Cloud Run + Neon (free), chosen by Zainab.** Region `europe-west2` (London), next to the Neon database (`eu-west-2`); Neon has no African region. The database URL is Neon's direct host (no `-pooler`), because Prisma migrations need a direct connection.
   - **One instance that never sleeps:** `--min-instances 1 --max-instances 1 --no-cpu-throttling`. The background loops (claim expiry, payouts, top-ups, withdrawals) and the in-memory chat rate limit live in the process. Scaling to zero would stop the loops; a second instance would double them.
   - **Image:** repo-root `Dockerfile` (API + `packages/shared` only), built by Cloud Build, so no local Docker is needed.
   - **The same image runs the migrations** (Cloud Run job `prisma migrate deploy`, before every deploy) and the one-time seed (Cloud Run job).

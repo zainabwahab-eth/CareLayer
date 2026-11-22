@@ -129,11 +129,11 @@ npm run test:testnet -w @carelayer/api    # same, as assertions (real testnet, n
 
 ## Deploy (Z11): Google Cloud Run + Neon
 
-One always-on Cloud Run instance (the background loops and the in-memory rate limit need exactly one), a Neon Postgres, secrets in Google Secret Manager. Region `europe-west3` (Frankfurt), next to Neon's `eu-central-1`. The image is the repo-root `Dockerfile`; `deploy/cloudrun.sh` does every step.
+One always-on Cloud Run instance (the background loops and the in-memory rate limit need exactly one), a Neon Postgres, secrets in Google Secret Manager. Region `europe-west2` (London), next to the Neon database (`eu-west-2`); set `GCP_REGION` if your Neon project is elsewhere. The image is the repo-root `Dockerfile`; `deploy/cloudrun.sh` does every step.
 
 **Accounts (once, by you):**
 
-1. **Neon** (free): create a project in **AWS Europe Central 1 (Frankfurt)**, database `carelayer`. Copy the **direct** connection string (not "pooled").
+1. **Neon** (free): create a project (ours: AWS Europe West 2, London). Copy the connection string with **pooling off**: the host must not contain `-pooler`. Use `sslmode=verify-full`.
 2. **Resend:** verify your domain (DNS records), create an API key with sending access.
 3. **Google Cloud:** a project with billing on.
    - `gcloud auth login && gcloud config set project <id>`.

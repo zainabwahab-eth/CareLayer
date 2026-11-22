@@ -12,7 +12,7 @@
 # Needs: gcloud signed in (`gcloud auth login`), a project with billing, and
 # apps/api/deploy/.env.production (copy .env.production.example). Settings (env vars):
 #   GCP_PROJECT  default: gcloud's current project
-#   GCP_REGION   default: europe-west3 (Frankfurt, next to Neon's eu-central-1)
+#   GCP_REGION   default: europe-west2 (London, next to the Neon database in eu-west-2)
 #   ENV_FILE     default: apps/api/deploy/.env.production
 #
 # Why these service flags: the API runs background loops (claim expiry, payouts, top-ups,
@@ -23,7 +23,7 @@ set -euo pipefail
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$HERE/../../.." && pwd)"
 PROJECT="${GCP_PROJECT:-$(gcloud config get-value project 2>/dev/null)}"
-REGION="${GCP_REGION:-europe-west3}"
+REGION="${GCP_REGION:-europe-west2}"
 ENV_FILE="${ENV_FILE:-$HERE/.env.production}"
 SERVICE=carelayer-api
 REPO=carelayer
