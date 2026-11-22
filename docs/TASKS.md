@@ -402,6 +402,21 @@ Implement everything in "Accounts and auth" (section 2): `POST /auth/code/reques
 
 ### Z11. Deploy
 
+- **Decided in Z11:**
+  - **Google Cloud Run + Neon (free), chosen by Zainab.** Region `europe-west3` (Frankfurt), next to Neon's `eu-central-1`; Neon has no African region.
+  - **One instance that never sleeps:** `--min-instances 1 --max-instances 1 --no-cpu-throttling`. The background loops (claim expiry, payouts, top-ups, withdrawals) and the in-memory chat rate limit live in the process. Scaling to zero would stop the loops; a second instance would double them.
+  - **Image:** repo-root `Dockerfile` (API + `packages/shared` only), built by Cloud Build, so no local Docker is needed.
+  - **The same image runs the migrations** (Cloud Run job `prisma migrate deploy`, before every deploy) and the one-time seed (Cloud Run job).
+  - **Secrets** live in Google Secret Manager, uploaded from a gitignored `apps/api/deploy/.env.production` by `deploy/cloudrun.sh secrets`. Values are never printed. Plain settings are env vars on the service.
+  - **A separate testnet treasury and facilitator key for the deployed API** (`CARELAYER_ENV_FILE=deploy/.env.production npm run testnet:setup`), not the local one.
+  - **Production seed:** the seed wipes every table, so in production it needs `CARELAYER_SEED_PRODUCTION=wipe-and-seed`, and it refuses once any real account (not `@example.com`) exists. The admin's email comes from `SEED_ADMIN_EMAIL`, because `/admin-console` codes are emailed.
+  - **Cookies across domains:** the frontends and the API are on different domains, so `AUTH_COOKIE_SAMESITE=none` + `Secure`.
+  - **Logs** carry a Cloud Logging `severity`.
+  - Runbook: `apps/api/README.md` → "Deploy". Postman environment: "CareLayer Cloud Run".
+- **For Hikmah (deploying the frontends):**
+  - **API URL:** `apps/api/deploy/cloudrun.sh url` (Zainab shares it). The frontends call it directly, with `credentials: 'include'` so the refresh cookie (`SameSite=None; Secure`) is sent.
+  - **Send Zainab both final frontend URLs.** They go in `CORS_ORIGINS`, `WEB_APP_URL`, `NURSE_APP_URL` and `PAYSTACK_CALLBACK_URL` (`<web>/account/wallet`). Until then the browser blocks calls (CORS).
+  - **Google sign-in:** the Google OAuth client needs both frontend origins as authorised JavaScript origins.
 - Deploy API + Postgres (Cloud Run or similar), set env vars, run migrations and seed, share the URL. Add a Postman environment for the deployed API.
 - **Before the demo:** the hosted OpenZeppelin facilitator key from Z2 is anonymous with undocumented rate limits. Get a non-anonymous key, or stand up the self-hosted OpenZeppelin Relayer x402 plugin as a fallback (switching is only `X402_FACILITATOR_URL` + `X402_FACILITATOR_API_KEY`).
 

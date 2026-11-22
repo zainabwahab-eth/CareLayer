@@ -150,6 +150,28 @@ describe('seed on a freshly migrated database', () => {
 
   it('refuses to run in production', async () => {
     await expect(seed(db, { ...opts, nodeEnv: 'production' })).rejects.toThrow(/production/);
+  });
+
+  it('production seed: only when explicitly allowed AND no real account exists', async () => {
+    // Fresh deployment (only seeded @example.com accounts): allowed once, on purpose.
+    await expect(
+      seed(db, { ...opts, nodeEnv: 'production', allowProduction: true }),
+    ).resolves.toBeTruthy();
+    // A real person signed up: never wipe.
+    const real = await db.user.create({
+      data: { role: 'WOMAN', email: 'someone@gmail.com', displayName: 'Real' },
+    });
+    await expect(
+      seed(db, { ...opts, nodeEnv: 'production', allowProduction: true }),
+    ).rejects.toThrow(/1 real account/);
+    await db.user.delete({ where: { id: real.id } });
+  });
+
+  it('the admin email can be an inbox you own (deployments)', async () => {
+    await seed(db, { ...opts, adminEmail: ' Ops@MyDomain.com ' });
+    const admin = await db.user.findFirstOrThrow({ where: { role: 'ADMIN' } });
+    expect(admin.email).toBe('ops@mydomain.com');
+    await seed(db, opts); // back to the standard demo state for the tests that follow
     expect(await db.user.count({ where: { email: SEED_EMAILS.tolu } })).toBe(1);
   });
 });

@@ -1,0 +1,21 @@
+# Keep the build context small and secret-free.
+**/node_modules
+**/dist
+**/dev-dist
+**/coverage
+**/.env
+**/.env.*
+!**/.env.example
+apps/api/src/generated
+apps/api/evals/reports
+# Other workspaces: only their manifests (npm ci checks the lockfile against every workspace).
+apps/web/*
+!apps/web/package.json
+apps/workers/*
+!apps/workers/package.json
+apps/mcp/*
+!apps/mcp/package.json
+.git
+docs
+*.md
+!apps/api/prompts/*.md

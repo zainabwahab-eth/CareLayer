@@ -9,6 +9,9 @@
 // 4. Writes STELLAR_TREASURY_SECRET, X402_PAY_TO_ADDRESS, X402_TEST_PAYER_SECRET,
 //    X402_FACILITATOR_API_KEY and STELLAR_USDC_ISSUER into apps/api/.env, ONLY where empty.
 //    Never overwrites a value, never prints a secret.
+//
+// Another env file (e.g. a separate treasury and keys for the deployed API, Z11):
+//   CARELAYER_ENV_FILE=deploy/.env.production npm run testnet:setup -w @carelayer/api
 import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { Keypair } from '@stellar/stellar-sdk';
@@ -19,7 +22,9 @@ import {
   TESTNET_USDC_ISSUER,
 } from '../src/modules/payments/stellar-testnet.js';
 
-const ENV_PATH = resolve(import.meta.dirname, '../.env');
+const ENV_PATH = process.env.CARELAYER_ENV_FILE
+  ? resolve(process.cwd(), process.env.CARELAYER_ENV_FILE)
+  : resolve(import.meta.dirname, '../.env');
 const KEY_GEN_URL = 'https://channels.openzeppelin.com/testnet/gen';
 const explorer = (a: string) => `https://stellar.expert/explorer/testnet/account/${a}`;
 
