@@ -58,10 +58,17 @@ export function createChatRouter(
   }),
 ): Router {
   const router = Router();
-  const authed = requireAuth({
+  const guard = {
     db: deps.db,
     jwtAccessSecret: deps.config.auth.jwtAccessSecret,
     now: deps.clock ?? (() => new Date()),
+  };
+  const authed = requireAuth(guard);
+  // Claude (agent token) may draft a question; it may not use /chat (Claude is the assistant there).
+  const authedOrAgent = requireAuth({
+    ...guard,
+    allowAgent: true,
+    pepper: deps.config.auth.pepper,
   });
 
   router.get('/emergency', (_req, res) => {
@@ -76,12 +83,12 @@ export function createChatRouter(
     res.json(await chat.reply(userId, messages));
   });
 
-  router.post('/chat/draft', authed, requireRole('woman'), async (req, res) => {
+  router.post('/chat/draft', authedOrAgent, requireRole('woman'), async (req, res) => {
     const { messages } = DraftRequestSchema.parse(req.body);
-    const { userId } = getAuth(res);
+    const { userId, via } = getAuth(res);
     limiter.hit(userId);
     res.setHeader('Cache-Control', 'no-store');
-    res.json(await chat.draft(userId, messages));
+    res.json(await chat.draft(userId, messages, via === 'agent' ? 'mcp' : 'web'));
   });
 
   return router;

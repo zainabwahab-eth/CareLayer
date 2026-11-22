@@ -446,7 +446,21 @@ Implement everything in "Accounts and auth" (section 2): `POST /auth/code/reques
 
 **Done when:** both frontends work against the deployed API on a phone.
 
-### Z12. MCP server for Claude
+### Z12. MCP server for Claude (done: the two-agent demo on testnet, [web answer paid](https://stellar.expert/explorer/testnet/tx/28a60ec12d8b8b9ea6ae1894783285342e54ab9d2688bfbed15dc12ef463484d), [Claude answer paid](https://stellar.expert/explorer/testnet/tx/3b523e1bd99a32e0f9bd0d8a25e7941d9742344a081c6e4a28830428f8c89c36))
+
+- **Decided in Z12:**
+  - **Clients: Claude Desktop and Claude Code** (Zainab's choice). stdio with her token in the client config, and a hosted Streamable HTTP endpoint (Cloud Run `carelayer-mcp`, stateless) where each request sends `Authorization: Bearer clat_...`. claude.ai web custom connectors need OAuth, which is **not built** (follow-up).
+  - **Agent tokens:** `clat_` + 256 random bits, stored as HMAC(`AUTH_PEPPER`), at most 5 active, revoked immediately. Created, listed and revoked only from a signed-in session (`GET /auth/agent-tokens` added).
+  - **Deny by default:** `requireAuth` refuses agent tokens (403) unless a route opts in. Only `POST /chat/draft`, `POST /questions`, `GET /questions/:id/status`, `POST /me/questions/:id/collect` and `GET /wallet` opt in, so Claude cannot change settings, limits or tokens, top up, chat, or reach nurse/admin routes.
+  - **The rules are enforced by the API, not only by the MCP tools:** source `mcp` (the source must match the caller), emergencies logged as `MCP`, Claude's own spending limit at draft, create and collect. Claude cannot use `approvedAboveLimit`: she raises the limit in the app. "Ask before each payment" → 409 `PAYMENT_CONFIRMATION_REQUIRED` until `confirmPayment: true`.
+  - **`ask_health_worker` reuses the draft flow** (`POST /chat/draft` → signed `draftToken` → `POST /questions`). What she approves in Claude is exactly what the nurse gets, with no second LLM run. It shares the cleaned question, category and, if present, notes, age range and pregnancy weeks, never her raw words. The tool text tells Claude to show the price and these fields and to send only after a clear yes.
+  - **Claude pays through the same internal agent as the web app** (`collect` → x402 from her custodial wallet), so both "agents" are paid via x402.
+  - **Not built:** `X-Question-Key` for public third-party agents (decisions log item 3). Questions still need a CareLayer account.
+  - **End to end:** `npm run two-agent:e2e -w @carelayer/api` (with `E2E_LLM_ENV_FILE=deploy/.env.production` when the local LLM key is empty).
+- **For Hikmah (account screen "Use CareLayer in Claude"):**
+  - Create (`POST /auth/agent-tokens`, show the token once with a copy button), list (`GET`) and remove (`DELETE`) connections.
+  - Show the connection steps from `apps/mcp/README.md`.
+  - The Claude limit and "ask before each payment" are the existing `/me/settings` fields.
 
 - `apps/mcp` with the official TypeScript MCP SDK. Tools: `ask_health_worker` (returns the price and requires explicit confirmation before sending), `get_answer`, `get_balance`. Authenticates with an agent token linked to her account; separate Claude spending limit and "ask before each payment"; emergencies return the same free guidance.
 - Document how to add it to Claude as a custom connector.
@@ -544,7 +558,7 @@ Tick in the PR that completes the task.
 - [x] Z8 Pay on delivery + payouts
 - [x] Z10 Earnings and withdrawals
 - [ ] Z11 Deploy
-- [ ] Z12 MCP server
+- [x] Z12 MCP server
 - [ ] H1 Tokens
 - [ ] H2 Assistant behaviour
 - [ ] H3 Shells, theme, mocks

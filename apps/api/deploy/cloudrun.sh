@@ -7,6 +7,8 @@
 #   SEED_ADMIN_EMAIL=you@yourdomain apps/api/deploy/cloudrun.sh seed
 #                                          ONCE on a fresh database: demo accounts (wipes tables)
 #   apps/api/deploy/cloudrun.sh url        print the service URL
+#   apps/api/deploy/cloudrun.sh deploy-mcp build + deploy the hosted MCP server (Z12) next to the API
+#   apps/api/deploy/cloudrun.sh mcp-url    print the MCP endpoint (<url>/mcp)
 #   (also: build, migrate, deploy on their own)
 #
 # Needs: gcloud signed in (`gcloud auth login`), a project with billing, and
@@ -185,6 +187,29 @@ cmd_deploy() {
   info "health: $(cmd_url)/health"
 }
 
+# Hosted MCP server (Z12): stateless; every request carries the woman's own agent token, which it
+# only passes on to the API. Scales to zero; CARELAYER_API_URL points at the API service.
+MCP_SERVICE=carelayer-mcp
+cmd_deploy_mcp() {
+  local api_url image
+  api_url="$(cmd_url)"
+  [[ -n "$api_url" ]] || die "deploy the API first (release)"
+  image="$REGION-docker.pkg.dev/$PROJECT/$REPO/mcp:$(image_tag)"
+  info "building $image (Cloud Build, Dockerfile.mcp)"
+  (cd "$REPO_ROOT" && gcloud builds submit --project "$PROJECT" --region "$REGION" \
+    --config apps/api/deploy/cloudbuild-mcp.yaml --substitutions "_IMAGE=$image" .)
+  info "deploying $MCP_SERVICE"
+  gcloud run deploy "$MCP_SERVICE" --image "$image" --region "$REGION" --project "$PROJECT" \
+    --service-account "$SA" --allow-unauthenticated \
+    --min-instances 0 --max-instances 2 --cpu-throttling --cpu 1 --memory 256Mi --timeout 120 \
+    --set-env-vars "CARELAYER_API_URL=$api_url,MCP_TRANSPORT=http"
+  info "MCP endpoint: $(cmd_mcp_url)"
+}
+
+cmd_mcp_url() {
+  echo "$(gcloud run services describe "$MCP_SERVICE" --region "$REGION" --project "$PROJECT" --format 'value(status.url)')/mcp"
+}
+
 cmd_url() {
   gcloud run services describe "$SERVICE" --region "$REGION" --project "$PROJECT" --format 'value(status.url)'
 }
@@ -198,5 +223,7 @@ case "${1:-}" in
   deploy) cmd_deploy ;;
   release) cmd_build; cmd_migrate; cmd_deploy ;;
   url) cmd_url ;;
+  deploy-mcp) cmd_deploy_mcp ;;
+  mcp-url) cmd_mcp_url ;;
   *) sed -n '2,10p' "$0"; exit 1 ;;
 esac

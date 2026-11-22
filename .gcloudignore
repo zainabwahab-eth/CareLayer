@@ -13,8 +13,7 @@ apps/web/*
 !apps/web/package.json
 apps/workers/*
 !apps/workers/package.json
-apps/mcp/*
-!apps/mcp/package.json
+# apps/mcp: sources are needed for Dockerfile.mcp (its node_modules/dist are excluded above).
 .git
 docs
 *.md

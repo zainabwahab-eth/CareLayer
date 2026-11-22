@@ -1,0 +1,35 @@
+# CareLayer MCP server (apps/mcp), hosted mode (Streamable HTTP) for Google Cloud Run (Z12).
+# Each request brings the woman's own agent token as "Authorization: Bearer clat_..."; nothing is
+# stored here. Built from the repo root (it depends on packages/shared):
+#   apps/api/deploy/cloudrun.sh deploy-mcp
+
+FROM node:24-bookworm-slim AS build
+WORKDIR /app
+COPY package.json package-lock.json ./
+COPY packages/shared/package.json packages/shared/
+COPY apps/api/package.json apps/api/
+COPY apps/web/package.json apps/web/
+COPY apps/workers/package.json apps/workers/
+COPY apps/mcp/package.json apps/mcp/
+RUN npm ci --workspace @carelayer/mcp --workspace @carelayer/shared --include-workspace-root \
+      --omit=dev --ignore-scripts --no-audit --no-fund
+# TypeScript is a root dev dependency: install it alone for the build step.
+RUN npm install --no-save --no-audit --no-fund typescript@$(node -p "require('./package-lock.json').packages['node_modules/typescript'].version")
+COPY tsconfig.base.json ./
+COPY packages/shared packages/shared
+COPY apps/mcp apps/mcp
+RUN npx tsc -p packages/shared/tsconfig.json && npx tsc -p apps/mcp/tsconfig.build.json
+
+FROM node:24-bookworm-slim
+ENV NODE_ENV=production MCP_TRANSPORT=http
+WORKDIR /app
+COPY --from=build /app/package.json ./
+COPY --from=build /app/node_modules node_modules
+COPY --from=build /app/packages/shared/package.json packages/shared/package.json
+COPY --from=build /app/packages/shared/dist packages/shared/dist
+COPY --from=build /app/apps/mcp/package.json apps/mcp/package.json
+COPY --from=build /app/apps/mcp/dist apps/mcp/dist
+WORKDIR /app/apps/mcp
+USER node
+EXPOSE 8080
+CMD ["node", "dist/index.js"]

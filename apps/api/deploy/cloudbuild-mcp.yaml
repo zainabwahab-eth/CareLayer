@@ -1,0 +1,5 @@
+# Cloud Build: the MCP server image (Dockerfile.mcp). Used by `deploy/cloudrun.sh deploy-mcp`.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args: ['build', '-f', 'Dockerfile.mcp', '-t', '${_IMAGE}', '.']
+images: ['${_IMAGE}']

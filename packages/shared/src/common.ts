@@ -55,6 +55,8 @@ export type ApiErrorCode =
   // wallet / payments
   | 'INSUFFICIENT_BALANCE'
   | 'SPENDING_LIMIT_EXCEEDED'
+  /** Claude: a paid answer needs her confirmation first (mcpAskBeforeEachPayment). */
+  | 'PAYMENT_CONFIRMATION_REQUIRED'
   | 'PAYSTACK_SIGNATURE_INVALID'
   | 'STELLAR_ADDRESS_INVALID'
   | 'STELLAR_SUBMIT_FAILED'

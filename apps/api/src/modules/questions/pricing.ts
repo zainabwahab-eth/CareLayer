@@ -41,10 +41,27 @@ export interface Quote {
   exceedsSpendingLimit: boolean;
 }
 
+/** Schema default for UserSettings.mcpSpendingLimitPerAnswerKobo (₦500): Claude's own limit. */
+export const DEFAULT_MCP_SPENDING_LIMIT_KOBO = 50_000;
+
+/** Where the request comes from: her app (her limit) or Claude via an agent token (Claude's limit). */
+export type Channel = 'web' | 'mcp';
+
+/** Her per-answer spending limit for this channel. */
+export function spendingLimitFor(
+  settings: { spendingLimitPerAnswerKobo: number; mcpSpendingLimitPerAnswerKobo: number } | null,
+  channel: Channel,
+): number {
+  return channel === 'mcp'
+    ? (settings?.mcpSpendingLimitPerAnswerKobo ?? DEFAULT_MCP_SPENDING_LIMIT_KOBO)
+    : (settings?.spendingLimitPerAnswerKobo ?? DEFAULT_SPENDING_LIMIT_KOBO);
+}
+
 export async function quoteFor(
   db: Pick<Db, 'question' | 'user' | 'userSettings'>,
   cfg: { answerPriceKobo: number; ngnPerUsdc: string },
   womanId: string,
+  channel: Channel = 'web',
 ): Promise<Quote> {
   const [woman, settings] = await Promise.all([
     db.user.findUniqueOrThrow({ where: { id: womanId } }),
@@ -52,7 +69,7 @@ export async function quoteFor(
   ]);
   const remaining = await freeAnswersRemaining(db, woman);
   const isFree = remaining > 0;
-  const spendingLimitKobo = settings?.spendingLimitPerAnswerKobo ?? DEFAULT_SPENDING_LIMIT_KOBO;
+  const spendingLimitKobo = spendingLimitFor(settings, channel);
   return {
     priceKobo: cfg.answerPriceKobo,
     priceStroops: koboToStroops(cfg.answerPriceKobo, cfg.ngnPerUsdc),
