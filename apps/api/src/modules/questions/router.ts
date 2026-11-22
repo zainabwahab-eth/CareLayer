@@ -1,9 +1,12 @@
-// Questions module. Z6: create, status, her list. Z8 adds the x402 answer and feedback.
+// Questions module. Z6: create, status, her list. Z8: the x402 answer, collect, feedback.
 // Contract: docs/API_CONTRACT.md §8.
-//   POST /questions               woman: consent + her words (+ draftToken) -> question | emergency
-//   GET  /questions/:id/status    woman (own)
-//   GET  /me/questions            woman: ?status=open|claimed|answered|expired|cancelled|active
-//   GET  /me/questions/:id        woman (own)
+//   POST /questions                  woman: consent + her words (+ draftToken) -> question | emergency
+//   GET  /questions/:id/status       woman (own)
+//   GET  /questions/:id/answer       woman (own) + x402: 409/410 guard -> free | 402 | paid answer
+//   POST /me/questions/:id/collect   woman: the API's agent pays from her wallet (or free)
+//   POST /questions/:id/feedback     woman: { helpful }
+//   GET  /me/questions               woman: ?status=open|claimed|answered|expired|cancelled|active
+//   GET  /me/questions/:id           woman (own)
 // Third-party agents (X-Question-Key) and Claude (agent tokens) come with Z12.
 import { CHAT_LIMITS, QUESTION_STATUSES, SHARED_FIELDS } from '@carelayer/shared';
 import { Router } from 'express';
@@ -11,6 +14,7 @@ import { z } from 'zod';
 import type { AppDeps } from '../../deps.js';
 import { AppError } from '../../lib/errors.js';
 import { getAuth, requireAuth, requireRole } from '../auth/middleware.js';
+import type { AnswerService } from './answers.js';
 import type { QuestionService } from './service.js';
 
 const CreateQuestionSchema = z
@@ -60,7 +64,16 @@ const ListQuerySchema = z.object({
     .default(20),
 });
 
-export function createQuestionsRouter(deps: AppDeps, questions: QuestionService): Router {
+const CollectSchema = z.object({ approvedAboveLimit: z.boolean().optional() }).strict();
+const FeedbackSchema = z.object({
+  helpful: z.boolean({ error: 'helpful must be true or false.' }),
+});
+
+export function createQuestionsRouter(
+  deps: AppDeps,
+  questions: QuestionService,
+  answers: AnswerService,
+): Router {
   const router = Router();
   const authed = requireAuth({
     db: deps.db,
@@ -91,6 +104,34 @@ export function createQuestionsRouter(deps: AppDeps, questions: QuestionService)
   router.get('/questions/:id/status', authed, requireRole('woman'), async (req, res) => {
     res.setHeader('Cache-Control', 'no-store');
     res.json(await questions.status(getAuth(res).userId, String(req.params.id)));
+  });
+
+  // x402 (manual flow, see modules/payments/answer-x402.ts). PAYMENT-SIGNATURE (v2) or X-PAYMENT (v1).
+  router.get('/questions/:id/answer', authed, requireRole('woman'), async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    const header = req.get('payment-signature') ?? req.get('x-payment') ?? undefined;
+    const result = await answers.fetchAnswer(getAuth(res).userId, String(req.params.id), header);
+    if (result.kind === 'payment_required') {
+      res.setHeader('PAYMENT-REQUIRED', result.paymentRequiredHeader);
+      res.status(402).json(result.body);
+      return;
+    }
+    if (result.paymentResponseHeader) {
+      res.setHeader('PAYMENT-RESPONSE', result.paymentResponseHeader);
+      res.setHeader('Access-Control-Expose-Headers', 'PAYMENT-RESPONSE');
+    }
+    res.json(result.body);
+  });
+
+  router.post('/me/questions/:id/collect', authed, requireRole('woman'), async (req, res) => {
+    const body = CollectSchema.parse(req.body ?? {});
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(await answers.collect(getAuth(res).userId, String(req.params.id), body));
+  });
+
+  router.post('/questions/:id/feedback', authed, requireRole('woman'), async (req, res) => {
+    const { helpful } = FeedbackSchema.parse(req.body ?? {});
+    res.json(await answers.feedback(getAuth(res).userId, String(req.params.id), helpful));
   });
 
   router.get('/me/questions', authed, requireRole('woman'), async (req, res) => {

@@ -147,6 +147,23 @@ export interface AnswerResponse {
   };
 }
 
+// POST /me/questions/:id/collect  (woman; the API's own agent pays from her custodial wallet)
+export interface CollectAnswerBody {
+  /** She approved paying above her per-answer spending limit (W11). Default false. */
+  approvedAboveLimit?: boolean;
+}
+
+/**
+ * `details` of a 503 SERVICE_UNAVAILABLE from GET /questions/:id/answer or collect. Always
+ * retryable; nothing was charged. `paymentPending: true` = a payment was sent and is still being
+ * confirmed: retry after `retryAfterSeconds` (she will not be asked to pay again meanwhile).
+ */
+export interface AnswerUnavailableDetails {
+  retryable: true;
+  paymentPending?: boolean;
+  retryAfterSeconds?: number;
+}
+
 // POST /questions/:id/feedback  (woman, answered + collected)
 export interface FeedbackBody {
   helpful: boolean;

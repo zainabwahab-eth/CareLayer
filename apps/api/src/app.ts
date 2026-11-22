@@ -1,4 +1,5 @@
 // Express app factory. Kept separate from index.ts so tests can build it with their own deps.
+import { Keypair } from '@stellar/stellar-sdk';
 import cors from 'cors';
 import express from 'express';
 import type { AppDeps } from './deps.js';
@@ -19,6 +20,11 @@ import { createQuestionService, type QuestionService } from './modules/questions
 import { createHealthRouter } from './modules/health/router.js';
 import { createNursesRouter } from './modules/nurses/router.js';
 import { createPaymentsRouter } from './modules/payments/router.js';
+import { createHorizonAnswerPaymentChain } from './modules/payments/chain.js';
+import { createPayoutService, type PayoutService } from './modules/payments/payouts.js';
+import { createAnswerPayer } from './modules/payments/x402-client.js';
+import { createX402Server } from './modules/payments/x402.js';
+import { createAnswerService, type AnswerService } from './modules/questions/answers.js';
 import { createQuestionsRouter } from './modules/questions/router.js';
 import { createHorizonTopupChain } from './modules/topups/chain.js';
 import { createPaystackClient } from './modules/topups/paystack.js';
@@ -78,8 +84,61 @@ export function buildTopupService(deps: AppDeps, wallets: WalletService): TopupS
   });
 }
 
+/** Where answer payments go: X402_PAY_TO_ADDRESS, else the treasury's public key. */
+export function answerPayTo(config: AppDeps['config']): string | undefined {
+  if (config.x402.payToAddress) return config.x402.payToAddress;
+  return config.wallet.treasurySecret
+    ? Keypair.fromSecret(config.wallet.treasurySecret).publicKey()
+    : undefined;
+}
+
+/** Z8: nurse payouts + answers (x402 pay on delivery, the API's own agent, feedback). */
+export function buildAnswerServices(deps: AppDeps, wallets: WalletService) {
+  const { config } = deps;
+  const now = deps.clock ?? (() => new Date());
+  const treasuryChain =
+    deps.payoutChain ??
+    (config.wallet.treasurySecret
+      ? createHorizonTopupChain({
+          horizonUrl: config.wallet.horizonUrl,
+          treasurySecret: config.wallet.treasurySecret,
+        })
+      : undefined);
+  const payouts = createPayoutService({
+    db: deps.db,
+    chain: treasuryChain,
+    wallets,
+    logger: deps.logger,
+    now,
+  });
+  const walletChain =
+    deps.walletChain ??
+    (config.wallet.treasurySecret
+      ? createHorizonWalletChain({
+          horizonUrl: config.wallet.horizonUrl,
+          treasurySecret: config.wallet.treasurySecret,
+        })
+      : undefined);
+  const answers = createAnswerService({
+    db: deps.db,
+    config,
+    payTo: answerPayTo(config),
+    x402: deps.facilitator ? createX402Server(deps.facilitator, config.x402.network) : undefined,
+    chain:
+      deps.answerChain ?? createHorizonAnswerPaymentChain({ horizonUrl: config.wallet.horizonUrl }),
+    walletChain,
+    payer: deps.answerPayer ?? createAnswerPayer(config.x402.network),
+    payouts,
+    logger: deps.logger,
+    now,
+  });
+  return { payouts, answers };
+}
+
 export interface AppServices {
   wallets: WalletService;
+  payouts: PayoutService;
+  answers: AnswerService;
   topups: TopupService;
   chat: ChatService;
   questions: QuestionService;
@@ -147,6 +206,7 @@ export function buildServices(deps: AppDeps): AppServices {
   return {
     wallets,
     topups: buildTopupService(deps, wallets),
+    ...buildAnswerServices(deps, wallets),
     ...buildChatAndQuestionServices(deps),
     ...buildNurseServices(deps),
   };
@@ -169,7 +229,7 @@ export function createApp(deps: AppDeps, services: AppServices = buildServices(d
   app.use(createWalletsRouter(deps, services.wallets));
   app.use(createTopupsRouter(deps, services.topups));
   app.use(createChatRouter(deps, services.chat));
-  app.use(createQuestionsRouter(deps, services.questions));
+  app.use(createQuestionsRouter(deps, services.questions, services.answers));
   app.use(createNursesRouter(deps, services.nurseProfiles, services.cases));
   app.use(createPaymentsRouter(deps));
   app.use(createAdminRouter(deps, services.admin));

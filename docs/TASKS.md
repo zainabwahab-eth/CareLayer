@@ -353,7 +353,21 @@ Implement everything in "Accounts and auth" (section 2): `POST /auth/code/reques
 **Tests:** two simultaneous claims → exactly one wins; second active claim refused; release reopens; claim after 30 min refused; sweeper transitions.
 **Postman:** Nurse cases folder.
 
-### Z8. Pay on delivery and nurse payouts
+### Z8. Pay on delivery and nurse payouts (done: [her x402 payment](https://stellar.expert/explorer/testnet/tx/99c94f8827856f0400fa5df2a45dfe7ae861a1605887f5e4b05b6b8606803f31), [nurse 80% payout](https://stellar.expert/explorer/testnet/tx/547d121517089f589d0f02c36bd6ef4dab770d830810fed3d0cafa0f708c83be))
+
+- **Decided in Z8:**
+  - **Manual x402 flow, not `paymentMiddleware`.** Checked in `@x402/express` 2.31.0: the middleware runs the handler before it settles. It does buffer the body and drop it when settlement fails, but the handler would have to mark the answer paid before settlement is known, a repeated fetch would be charged again, and an indeterminate settle could not be recorded first. The route now does verify → record the attempt → settle → read and return the answer, with the official `@x402/core` server (requirements, headers, verify, settle). The wire format is the same.
+  - **Indeterminate settles are reconciled on chain.** A Stellar x402 payment is a SAC `transfer`, and its hash is only known after settlement. So a pending attempt is matched on Horizon by payer → platform, USDC, exact amount, after the attempt started (her custodial wallet only pays through our agent, one question at a time). Not found once the signed payment has expired (120 s + 60 s margin) → failed, and she can pay again. Meanwhile it is a 503 `paymentPending`, never a second 402.
+  - **Facilitator errors:**
+    - A 429 or 4xx on settle → failed attempt, 503 retryable.
+    - A 5xx, timeout or network error on settle → pending, reconciled.
+    - A verify error (nothing moves on verify) → 503, nothing recorded.
+  - **The internal agent runs in process.** `POST /me/questions/:id/collect` signs with her decrypted custodial secret (`createEd25519Signer`) and calls the same service function as `GET /questions/:id/answer`, not a loopback HTTP request. The payment is still a real x402 payload verified and settled by the facilitator.
+  - **Free is decided on collection:** quoted free and still under 3 used (a conditional update, so two collects cannot both take the last one). A paid quote stays paid.
+  - **Payouts are separate from her answer.** The payout row is written in the same transaction that confirms her payment. Sending it is retried by a background loop every minute with backoff, and never delays her answer. Each payout is claimed with a conditional update, and its Stellar memo is the payout id, searched before any resend, as with top-ups. It goes to the nurse's own address if set, else her custodial wallet (activated first if pending).
+  - **`payTo` defaults to the treasury's public key** when `X402_PAY_TO_ADDRESS` is empty. The facilitator client is now built whenever `X402_FACILITATOR_API_KEY` is set; without it, paid answers answer 503 and free answers still work. No new env vars.
+  - **Spending limit at collect:** price above her limit → 409 unless `approvedAboveLimit` (new optional collect body). Balance is read live from Horizon (cached value if Stellar is slow).
+  - **End to end:** `npm run answer:e2e -w @carelayer/api` (and the `RUN_TESTNET` test) runs one paid flow on testnet and prints both explorer links.
 
 - `GET /questions/:id/answer` is x402-protected; the guard before the middleware returns 409 (no payment requested) unless the question is answered.
 - An internal agent service acts as the x402 client with the woman's custodial wallet, after checking her spending limit and free answers. Free answers skip her payment.
@@ -473,7 +487,7 @@ Tick in the PR that completes the task.
 - [x] Z6 Chat and questions
 - [x] Z9 Nurse onboarding + admin
 - [x] Z7 Claiming and answering
-- [ ] Z8 Pay on delivery + payouts
+- [x] Z8 Pay on delivery + payouts
 - [ ] Z10 Earnings and withdrawals
 - [ ] Z11 Deploy
 - [ ] Z12 MCP server

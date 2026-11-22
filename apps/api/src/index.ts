@@ -19,11 +19,20 @@ try {
 
 const logger = createLogger(config.logLevel);
 const db = createDb(config.databaseUrl);
-// Only built when an x402 route is mounted (Z2 test route now; Z8 answers later).
-const facilitator = config.x402.testRouteEnabled ? createFacilitatorClient(config.x402) : undefined;
+// x402 facilitator: GET /questions/:id/answer (Z8) and the Z2 test route. Without a key the
+// OpenZeppelin facilitator refuses calls, and paid answers answer 503 (free answers still work).
+const facilitator =
+  config.x402.facilitatorApiKey || config.x402.testRouteEnabled
+    ? createFacilitatorClient(config.x402)
+    : undefined;
+if (!facilitator) {
+  logger.warn('x402_disabled', {
+    reason: 'X402_FACILITATOR_API_KEY is not set: paid answers answer 503',
+  });
+}
 const deps = { config, db, logger, facilitator };
 const services = buildServices(deps);
-const { wallets, topups, cases } = services;
+const { wallets, topups, cases, payouts } = services;
 const app = createApp(deps, services);
 
 const server = app.listen(config.port, () => {
@@ -33,6 +42,7 @@ const server = app.listen(config.port, () => {
 // Background loops, never overlapping themselves:
 //   Z4 wallets (every minute): activate pending wallets whose backoff has passed.
 //   Z5 top-ups (every minute): credit paid ones, check unpaid ones with Paystack, close abandoned ones.
+//   Z8 payouts (every minute): send nurse payouts not confirmed yet.
 //   Z7 sweeper (every 30 s): expire claims, open chosen-nurse questions after 10 min, expire
 //   questions after 30 min. (Requests also apply these lazily, so a late tick is never wrong.)
 function every(name: string, ms: number, run: () => Promise<Record<string, number>>) {
@@ -61,6 +71,13 @@ if (config.paystack.secretKey) {
   every('topup_loop', 60_000, () => topups.processPending());
 } else {
   logger.warn('topups_disabled', { reason: 'PAYSTACK_SECRET_KEY is not set' });
+}
+
+// Z8 payouts (every minute): send nurses' 80% that is not confirmed yet (retries with backoff).
+if (config.wallet.treasurySecret) {
+  every('payout_loop', 60_000, () => payouts.processPending());
+} else {
+  logger.warn('payouts_disabled', { reason: 'STELLAR_TREASURY_SECRET is not set' });
 }
 
 // The sweeper logs its own line when it changes something.
