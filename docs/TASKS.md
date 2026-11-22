@@ -404,7 +404,14 @@ Implement everything in "Accounts and auth" (section 2): `POST /auth/code/reques
 
 - **Decided in Z11:**
   - **Google Cloud Run + Neon (free), chosen by Zainab.** Region `europe-west2` (London), next to the Neon database (`eu-west-2`); Neon has no African region. The database URL is Neon's direct host (no `-pooler`), because Prisma migrations need a direct connection.
-  - **One instance that never sleeps:** `--min-instances 1 --max-instances 1 --no-cpu-throttling`. The background loops (claim expiry, payouts, top-ups, withdrawals) and the in-memory chat rate limit live in the process. Scaling to zero would stop the loops; a second instance would double them.
+  - **At most one instance, scaled to zero, CPU only during requests** (`--min-instances 0 --max-instances 1 --cpu-throttling`). This was changed on 22 November 2026 for cost, chosen by Zainab: the Google Cloud trial credit had expired.
+    - Always-on (`--min-instances 1 --no-cpu-throttling`) is instance-based billing: about $44 a month at Google's list rate, $50–60 in London. Pay-per-use is about $0 at demo traffic.
+    - Max one instance: the in-memory chat rate limit and the in-process loops must not run twice.
+    - **The trade-off:** the background loops (claim expiry, chosen-window fallback emails, payouts, top-up credits, wallet activation, unclear withdrawals) only run while requests are being served. Work is **delayed, never lost or doubled** (claims, memos, stored hashes).
+    - Every request applies the claim and question time rules itself (Z7), so screens stay correct.
+    - What can lag until the next request: nurse payouts (visible on the explorer late), top-up credits and wallet activation (finished when she opens her wallet), and the 10-minute fallback emails.
+    - After about 15 minutes idle, the first request takes a few seconds (cold start).
+  - **Follow-up (option 2, not done):** Cloud Scheduler calls a secret-protected `POST /internal/tick` every minute, which runs one pass of every loop. The in-process timers are switched off in production by a setting. Pay-per-use stays (~43k ticks a month is inside the free tier; 1 of the 3 free scheduler jobs). The loops run every minute again, and the instance stays warm. Also add an Artifact Registry cleanup policy. Do it before the live demo, or switch back to always-on for the demo days (about $1.50 a day).
   - **Image:** repo-root `Dockerfile` (API + `packages/shared` only), built by Cloud Build, so no local Docker is needed.
   - **The same image runs the migrations** (Cloud Run job `prisma migrate deploy`, before every deploy) and the one-time seed (Cloud Run job).
   - **Secrets** live in Google Secret Manager, uploaded from a gitignored `apps/api/deploy/.env.production` by `deploy/cloudrun.sh secrets`. Values are never printed. Plain settings are env vars on the service.

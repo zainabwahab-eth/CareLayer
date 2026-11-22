@@ -15,9 +15,12 @@
 #   GCP_REGION   default: europe-west2 (London, next to the Neon database in eu-west-2)
 #   ENV_FILE     default: apps/api/deploy/.env.production
 #
-# Why these service flags: the API runs background loops (claim expiry, payouts, top-ups,
-# withdrawals) and an in-memory rate limit, so it is ONE instance that never sleeps and keeps its
-# CPU between requests: --min-instances 1 --max-instances 1 --no-cpu-throttling.
+# Service flags (cost decision, see docs/TASKS.md Z11): ONE instance at most (in-memory rate
+# limit, in-process loops), scaled to zero when idle, CPU only during requests:
+#   --min-instances 0 --max-instances 1 --cpu-throttling   (pay per use, ~$0 at demo traffic)
+# The background loops then only run while requests are being served (the work is delayed, never
+# lost or doubled). Always-on (--min-instances 1 --no-cpu-throttling) costs ~$44-60/month.
+# Planned: Cloud Scheduler calling a protected tick endpoint every minute (TASKS Z11 follow-up).
 set -euo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -175,7 +178,7 @@ cmd_deploy() {
   info "deploying $SERVICE with $IMAGE"
   gcloud run deploy "$SERVICE" --image "$IMAGE" --region "$REGION" --project "$PROJECT" \
     --service-account "$SA" --allow-unauthenticated \
-    --min-instances 1 --max-instances 1 --no-cpu-throttling --cpu 1 --memory 512Mi \
+    --min-instances 0 --max-instances 1 --cpu-throttling --cpu 1 --memory 512Mi \
     --timeout 120 --concurrency 80 \
     --env-vars-file "$vars" $(secret_flag)
   rm -f "$vars"

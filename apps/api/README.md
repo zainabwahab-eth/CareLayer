@@ -129,7 +129,7 @@ npm run test:testnet -w @carelayer/api    # same, as assertions (real testnet, n
 
 ## Deploy (Z11): Google Cloud Run + Neon
 
-One always-on Cloud Run instance (the background loops and the in-memory rate limit need exactly one), a Neon Postgres, secrets in Google Secret Manager. Region `europe-west2` (London), next to the Neon database (`eu-west-2`); set `GCP_REGION` if your Neon project is elsewhere. The image is the repo-root `Dockerfile`; `deploy/cloudrun.sh` does every step.
+At most one Cloud Run instance, scaled to zero when idle (pay per use: the background loops only run while requests are served, so some work is delayed until the next request; see Z11 in `docs/TASKS.md` for the trade-off and the planned Cloud Scheduler tick). A Neon Postgres, secrets in Google Secret Manager. Region `europe-west2` (London), next to the Neon database (`eu-west-2`); set `GCP_REGION` if your Neon project is elsewhere. The image is the repo-root `Dockerfile`; `deploy/cloudrun.sh` does every step.
 
 **Accounts (once, by you):**
 
