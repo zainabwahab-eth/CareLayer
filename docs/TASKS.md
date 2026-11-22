@@ -331,9 +331,23 @@ Implement everything in "Accounts and auth" (section 2): `POST /auth/code/reques
 **Tests:** unapproved nurse can't see questions; at least one topic required; documents not publicly reachable.
 **Postman:** Nurse profile and Admin folders.
 
-### Z7. Claiming and answering
+### Z7. Claiming and answering (done)
 
-- `GET /nurse/questions?tab=waiting|active|completed` (waiting = visible to her by topic, selection window and `femaleOnly`), `POST /nurse/questions/:id/claim` (atomic; one active claim; no claims after 30 min), `POST /nurse/questions/:id/release`, `POST /nurse/questions/:id/answer` (with `recommendSeeSomeoneToday`), `GET /nurse/dashboard`.
+- **Decided in Z7:**
+  - **Waiting = every eligible open question, not filtered by topic.** The decisions log, brief and contract all say topics control alerts only. This task line originally said "by topic"; corrected.
+  - **Claims are atomic in two layers:**
+    1. A conditional update (`OPEN` and claims open → `CLAIMED`).
+    2. The partial unique indexes (one `ACTIVE` claim per nurse and per question).
+
+    Tested with two nurses claiming at once, and one nurse claiming two questions at once.
+
+  - **Time rules are applied on every request and by the sweeper** (every 30 s, `index.ts`). A late tick is never wrong: an expired lock frees her at once, and a passed chosen window shows the question to everyone at once.
+  - **Release or lock expiry after claims close (30 min)** → the question becomes `expired` (she pays nothing), not reopened.
+  - **A chosen nurse letting go** (release, or her lock expiring) opens the question to everyone at once. The others are emailed, as they are when the 10-minute window passes. The chosen nurse is not emailed again.
+  - **"Answer is ready" email to the woman** (if `notifyWhenAnswered`), with a deliberately vague subject ("You have a new message on CareLayer") and no answer text: someone else may see her inbox. New env var `WEB_APP_URL` for the link.
+  - **`GET /nurse/dashboard`** (N05 Today) works for any verification status; waiting counts are 0 until approved. Days and weeks are Lagos time (UTC+1, weeks from Monday).
+  - **Waiting is not paged** (open questions are all under 30 minutes old). Completed is cursor-paged.
+- `GET /nurse/questions?tab=waiting|active|completed` (waiting = every eligible open question by selection window and `femaleOnly`; topics are for alerts only), `POST /nurse/questions/:id/claim` (atomic; one active claim; no claims after 30 min), `POST /nurse/questions/:id/release`, `POST /nurse/questions/:id/answer` (with `recommendSeeSomeoneToday`), `GET /nurse/dashboard`.
 - Background sweeper (every 30 s): expire claims → reopen; open chosen-nurse questions after 10 min; expire questions after 30 min with no active claim.
 
 **Tests:** two simultaneous claims → exactly one wins; second active claim refused; release reopens; claim after 30 min refused; sweeper transitions.
@@ -458,7 +472,7 @@ Tick in the PR that completes the task.
 - [x] Z5 Top-up
 - [x] Z6 Chat and questions
 - [x] Z9 Nurse onboarding + admin
-- [ ] Z7 Claiming and answering
+- [x] Z7 Claiming and answering
 - [ ] Z8 Pay on delivery + payouts
 - [ ] Z10 Earnings and withdrawals
 - [ ] Z11 Deploy

@@ -68,6 +68,7 @@ export function testConfig(overrides: Partial<Config> = {}): Config {
       timeoutMs: 5_000,
     },
     nurseAppUrl: 'http://localhost:5174',
+    webAppUrl: 'http://localhost:5173',
     ...overrides,
   };
 }

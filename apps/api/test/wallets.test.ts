@@ -194,8 +194,14 @@ describe('activation is safe to run many times', () => {
       wallets.activate(userId),
       wallets.activate(userId),
     ]);
+    // The invariant: exactly one activation and one Stellar transaction. The other calls are
+    // "busy" (still running) or "already_active" (finished first on a slow database).
     expect(outcomes.filter((o) => o === 'activated')).toHaveLength(1);
-    expect(outcomes.filter((o) => o === 'busy')).toHaveLength(2);
+    expect(
+      outcomes
+        .filter((o) => o !== 'activated')
+        .every((o) => o === 'busy' || o === 'already_active'),
+    ).toBe(true);
     expect(fake.state.activateCalls).toHaveLength(1);
     expect(await wallets.activate(userId)).toBe('already_active');
   });

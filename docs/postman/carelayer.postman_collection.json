@@ -5,7 +5,7 @@
     "description": "CareLayer backend (apps/api). Contract: docs/API_CONTRACT.md (v1). One folder per module; folders are added by the task that builds each module (Z3 Auth, Z5 Top-up, Z6 Chat + Questions, Z7 Nurse cases, Z9 Nurse profile + Admin). Select the 'CareLayer local' environment ({{baseUrl}} = http://localhost:4000).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "createdAt": "2026-11-18T22:32:09.000Z",
-    "updatedAt": "2026-11-21T23:45:58.000Z",
+    "updatedAt": "2026-11-22T01:19:23.000Z",
     "lastUpdatedBy": "44554019",
     "uid": "44554019-757e009e-9b28-4514-a7f4-6fcbc1c6380e"
   },
@@ -2586,6 +2586,474 @@
       "createdAt": "2026-11-21T23:45:58.000Z",
       "updatedAt": "2026-11-21T23:55:21.000Z",
       "uid": "44554019-881704ee-1549-4dda-b110-98ef62e7665f"
+    },
+    {
+      "name": "Nurse cases",
+      "item": [
+        {
+          "name": "Dashboard (Today)",
+          "id": "ae0345d6-efbd-43da-b5fd-90b51f241107",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/nurse/dashboard",
+              "host": ["{{baseUrl}}"],
+              "path": ["nurse", "dashboard"]
+            },
+            "description": "Any nurse (approved or not). Sign in with app \"nurses\" (seeded approved: amaka.okafor@example.com). Lagos days, weeks from Monday."
+          },
+          "response": [
+            {
+              "id": "ecea372c-63ca-4c06-8ce9-b6b6633afe8e",
+              "name": "200",
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/nurse/dashboard",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["nurse", "dashboard"]
+                },
+                "description": "Any nurse (approved or not). Sign in with app \"nurses\" (seeded approved: amaka.okafor@example.com). Lagos days, weeks from Monday."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{ \"verificationStatus\": \"approved\", \"available\": true, \"topics\": [\"pregnancy\", \"periods\"], \"activeClaim\": null, \"waitingCount\": 1, \"chosenForYouCount\": 0, \"answeredToday\": 1, \"answeredThisWeek\": 1, \"avgResponseMinutes\": 14, \"helpful\": { \"percent\": 100, \"count\": 1 } }",
+              "createdAt": "2026-11-22T01:19:59.000Z",
+              "updatedAt": "2026-11-22T01:19:59.000Z",
+              "uid": "44554019-ecea372c-63ca-4c06-8ce9-b6b6633afe8e"
+            }
+          ],
+          "createdAt": "2026-11-22T01:19:32.000Z",
+          "updatedAt": "2026-11-22T01:19:59.000Z",
+          "uid": "44554019-ae0345d6-efbd-43da-b5fd-90b51f241107"
+        },
+        {
+          "name": "Waiting questions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const b = pm.response.json();",
+                  "if (b.items && b.items[0]) pm.environment.set('questionId', b.items[0].id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "id": "1e7537e0-654b-45e0-a943-a1aa8d0fb625",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/nurse/questions?tab=waiting",
+              "host": ["{{baseUrl}}"],
+              "path": ["nurse", "questions"],
+              "query": [
+                {
+                  "description": "waiting | active | completed",
+                  "key": "tab",
+                  "value": "waiting"
+                }
+              ]
+            },
+            "description": "Approved nurses. Chosen-for-you first, then oldest first. Saves the first id as questionId."
+          },
+          "response": [
+            {
+              "id": "293d85bb-68ee-4e43-83e0-541a17729732",
+              "name": "200 waiting",
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/nurse/questions?tab=waiting",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["nurse", "questions"],
+                  "query": [
+                    {
+                      "description": "waiting | active | completed",
+                      "key": "tab",
+                      "value": "waiting"
+                    }
+                  ]
+                },
+                "description": "Approved nurses. Chosen-for-you first, then oldest first. Saves the first id as questionId."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"items\": [\n    {\n      \"id\": \"cmwr5bvsy0003gwhrzxku9b5j\",\n      \"status\": \"open\",\n      \"category\": \"periods\",\n      \"cleanedText\": \"I have been having period pain every month that makes me miss school. I am 19. Is it normal?\",\n      \"originalText\": null,\n      \"assistantNotes\": null,\n      \"ageRange\": \"age_18_24\",\n      \"pregnancyWeeks\": null,\n      \"femaleOnly\": false,\n      \"chosenForYou\": false,\n      \"claimsCloseAt\": \"2026-11-22T01:46:10.000Z\",\n      \"createdAt\": \"2026-11-22T01:16:10.000Z\",\n      \"claimExpiresAt\": null\n    }\n  ],\n  \"nextCursor\": null\n}",
+              "createdAt": "2026-11-22T01:20:02.000Z",
+              "updatedAt": "2026-11-22T01:20:02.000Z",
+              "uid": "44554019-293d85bb-68ee-4e43-83e0-541a17729732"
+            }
+          ],
+          "createdAt": "2026-11-22T01:19:36.000Z",
+          "updatedAt": "2026-11-22T01:20:02.000Z",
+          "uid": "44554019-1e7537e0-654b-45e0-a943-a1aa8d0fb625"
+        },
+        {
+          "name": "Claim question",
+          "id": "129cf0a8-091e-4c2f-84c9-7b2422ec929d",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/nurse/questions/{{questionId}}/claim",
+              "host": ["{{baseUrl}}"],
+              "path": ["nurse", "questions", "{{questionId}}", "claim"]
+            },
+            "description": "10-minute lock. 409 QUESTION_ALREADY_CLAIMED / ACTIVE_CLAIM_EXISTS / CLAIMS_CLOSED; 410 QUESTION_EXPIRED."
+          },
+          "response": [
+            {
+              "id": "92711974-74fc-48ef-b09b-0dfd848441f4",
+              "name": "200 claimed",
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/nurse/questions/{{questionId}}/claim",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["nurse", "questions", "{{questionId}}", "claim"]
+                },
+                "description": "10-minute lock. 409 QUESTION_ALREADY_CLAIMED / ACTIVE_CLAIM_EXISTS / CLAIMS_CLOSED; 410 QUESTION_EXPIRED."
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{ \"questionId\": \"cmwr5bvsy0003gwhrzxku9b5j\", \"expiresAt\": \"2026-11-22T01:26:24.646Z\" }",
+              "createdAt": "2026-11-22T01:20:04.000Z",
+              "updatedAt": "2026-11-22T01:20:04.000Z",
+              "uid": "44554019-92711974-74fc-48ef-b09b-0dfd848441f4"
+            },
+            {
+              "id": "794adc1d-0ace-4cd1-a356-4d405abc1926",
+              "name": "409 taken",
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/nurse/questions/{{questionId}}/claim",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["nurse", "questions", "{{questionId}}", "claim"]
+                },
+                "description": "10-minute lock. 409 QUESTION_ALREADY_CLAIMED / ACTIVE_CLAIM_EXISTS / CLAIMS_CLOSED; 410 QUESTION_EXPIRED."
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{ \"error\": { \"code\": \"QUESTION_ALREADY_CLAIMED\", \"message\": \"Another nurse took this question.\" } }",
+              "createdAt": "2026-11-22T01:20:07.000Z",
+              "updatedAt": "2026-11-22T01:20:07.000Z",
+              "uid": "44554019-794adc1d-0ace-4cd1-a356-4d405abc1926"
+            }
+          ],
+          "createdAt": "2026-11-22T01:19:38.000Z",
+          "updatedAt": "2026-11-22T01:20:07.000Z",
+          "uid": "44554019-129cf0a8-091e-4c2f-84c9-7b2422ec929d"
+        },
+        {
+          "name": "Current claim",
+          "id": "ffb7050e-673c-4e87-be1e-d224a786e119",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/nurse/claim",
+              "host": ["{{baseUrl}}"],
+              "path": ["nurse", "claim"]
+            },
+            "description": "Her active claim (with claimExpiresAt for the countdown) or null."
+          },
+          "response": [],
+          "createdAt": "2026-11-22T01:19:43.000Z",
+          "updatedAt": "2026-11-22T01:19:43.000Z",
+          "uid": "44554019-ffb7050e-673c-4e87-be1e-d224a786e119"
+        },
+        {
+          "name": "Answer question",
+          "id": "76289754-8c8f-472f-ac51-5a6cfe14c747",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"text\": \"Some swelling is common at 30 weeks. Rest with your feet up. If it is sudden, or your face or hands swell, or you have a bad headache, go to a clinic today.\",\n  \"recommendSeeSomeoneToday\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/nurse/questions/{{questionId}}/answer",
+              "host": ["{{baseUrl}}"],
+              "path": ["nurse", "questions", "{{questionId}}", "answer"]
+            },
+            "description": "Claim holder only, before the lock ends (410 CLAIM_EXPIRED). The woman is emailed if she turned on notifications."
+          },
+          "response": [
+            {
+              "id": "a33c9865-19ce-4381-a0e3-a25231601a05",
+              "name": "201 answered",
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"text\": \"Some swelling is common at 30 weeks. Rest with your feet up. If it is sudden, or your face or hands swell, or you have a bad headache, go to a clinic today.\",\n  \"recommendSeeSomeoneToday\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/nurse/questions/{{questionId}}/answer",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["nurse", "questions", "{{questionId}}", "answer"]
+                },
+                "description": "Claim holder only, before the lock ends (410 CLAIM_EXPIRED). The woman is emailed if she turned on notifications."
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "cookie": [],
+              "responseTime": null,
+              "body": "{ \"questionId\": \"cmwr5bvsy0003gwhrzxku9b5j\", \"text\": \"Period pain that makes you miss school is common but worth checking...\", \"nurse\": { \"id\": \"cm_amaka\", \"displayName\": \"Amaka Okafor\", \"role\": \"midwife\", \"verified\": true }, \"recommendSeeSomeoneToday\": false, \"answeredAt\": \"2026-11-22T01:16:40.000Z\" }",
+              "createdAt": "2026-11-22T01:20:10.000Z",
+              "updatedAt": "2026-11-22T01:20:10.000Z",
+              "uid": "44554019-a33c9865-19ce-4381-a0e3-a25231601a05"
+            }
+          ],
+          "createdAt": "2026-11-22T01:19:45.000Z",
+          "updatedAt": "2026-11-22T01:20:10.000Z",
+          "uid": "44554019-76289754-8c8f-472f-ac51-5a6cfe14c747"
+        },
+        {
+          "name": "Release question",
+          "id": "b260d746-7681-40f7-9a51-4bae9eb40ce4",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/nurse/questions/{{questionId}}/release",
+              "host": ["{{baseUrl}}"],
+              "path": ["nurse", "questions", "{{questionId}}", "release"]
+            },
+            "description": "204. Back to open (a chosen-nurse question opens to everyone); expired if claims already closed."
+          },
+          "response": [],
+          "createdAt": "2026-11-22T01:19:47.000Z",
+          "updatedAt": "2026-11-22T01:19:47.000Z",
+          "uid": "44554019-b260d746-7681-40f7-9a51-4bae9eb40ce4"
+        },
+        {
+          "name": "Completed questions",
+          "id": "b7a9cf3f-4415-4634-8007-d095cba9a413",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/nurse/questions?tab=completed&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["nurse", "questions"],
+              "query": [
+                {
+                  "key": "tab",
+                  "value": "completed"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            },
+            "description": "Questions she answered, newest first (cursor pages)."
+          },
+          "response": [],
+          "createdAt": "2026-11-22T01:19:50.000Z",
+          "updatedAt": "2026-11-22T01:19:50.000Z",
+          "uid": "44554019-b7a9cf3f-4415-4634-8007-d095cba9a413"
+        }
+      ],
+      "id": "e74390a6-6323-43ca-b044-f6533250d0e3",
+      "createdAt": "2026-11-22T01:19:23.000Z",
+      "updatedAt": "2026-11-22T01:19:50.000Z",
+      "uid": "44554019-e74390a6-6323-43ca-b044-f6533250d0e3"
     }
   ]
 }

@@ -67,6 +67,14 @@ Placeholders, clearly not real: wallet keys start with `GSEED` (no secret; Z4 cr
   - `src/modules/questions/`: `service.ts`, `pricing.ts`, `draft-token.ts`, `router.ts`.
   - `src/modules/nurses/directory.ts`.
 
+## Claiming and answering (Z7)
+
+- **Approved nurses** use `GET /nurse/questions?tab=waiting|active|completed`, then `POST /nurse/questions/:id/claim` (10-minute lock), then `.../answer` or `.../release`. `GET /nurse/dashboard` serves the Today screen.
+- **The sweeper runs every 30 s** (`src/index.ts` → `cases.sweep()`). It expires locks, opens chosen-nurse questions after 10 minutes (emailing the other nurses), and expires questions after 30 minutes. Requests apply the same rules themselves, so a late tick is never wrong.
+- **On answer:** the question becomes `answered`, the nurse's average response time is recomputed, and the woman gets a vague "you have a new message" email if she turned that on (`WEB_APP_URL` link).
+- **Trace:** log lines `question_claimed`, `question_released`, `question_answered` (with `responseSeconds`), `sweeper`, `nurse_alerts` (with `reason`).
+- **Code:** `src/modules/nurses/cases.ts`, `src/modules/questions/alerts.ts`.
+
 ## Nurse onboarding and admin verification (Z9)
 
 - **Nurse:** `PATCH /nurse/profile` → upload the 4 documents (`POST /nurse/documents`, multipart `type` + `file`) → `POST /nurse/profile/submit`. Licence fields and documents lock while under review and once approved.

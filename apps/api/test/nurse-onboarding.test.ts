@@ -346,8 +346,8 @@ describe('unapproved nurses cannot see questions', () => {
     expect((await n.api.get('/nurse/questions')).body.error.code).toBe('NURSE_NOT_APPROVED');
     const admin = await signInAdmin();
     await as(admin.token).post(`/admin/nurses/${n.userId}/approve`);
-    // Past the guard (the route itself comes in Z7).
-    expect((await n.api.get('/nurse/questions')).status).toBe(404);
+    // Approved: past the guard (Z7 built the route).
+    expect((await n.api.get('/nurse/questions')).status).toBe(200);
   });
 });
 
