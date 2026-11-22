@@ -44,10 +44,43 @@ export interface NurseReviewEmail {
   reviewedAt: Date;
 }
 
+/**
+ * "Your answer is ready" to a woman who turned on "Notify me when answered" (Z7). No answer text
+ * and no health detail in the email: it says only that an answer is waiting in the app.
+ */
+export interface AnswerReadyEmail {
+  to: string;
+  /** Women's app link to the question. */
+  url: string;
+  /** Idempotency: one email per question. */
+  questionId: string;
+}
+
 export interface EmailSender {
   sendCode(email: CodeEmail): Promise<void>;
   sendNurseAlert(email: NurseAlertEmail): Promise<void>;
   sendNurseReview(email: NurseReviewEmail): Promise<void>;
+  sendAnswerReady(email: AnswerReadyEmail): Promise<void>;
+}
+
+export function answerReadyEmailText(email: AnswerReadyEmail): {
+  subject: string;
+  text: string;
+  html: string;
+} {
+  // Deliberately vague subject: someone else may see her inbox.
+  const subject = 'You have a new message on CareLayer';
+  const lead = 'A health worker has replied to you. Open CareLayer to read it.';
+  const text = `${lead}\n\n${email.url}`;
+  const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#F3F5F2;font-family:Arial,Helvetica,sans-serif;color:#13201D">
+<div style="max-width:440px;margin:0 auto;background:#FFFFFF;border-radius:20px;padding:32px">
+<p style="margin:0 0 8px;font-size:15px;color:#55635F">CareLayer</p>
+<h1 style="margin:0 0 16px;font-size:22px;font-weight:600">${escapeHtml(subject)}</h1>
+<p style="margin:0 0 24px;font-size:15px">${escapeHtml(lead)}</p>
+<a href="${escapeHtml(email.url)}" style="display:inline-block;background:#0F4A43;color:#FFFFFF;text-decoration:none;font-size:15px;font-weight:600;padding:14px 20px;border-radius:14px">Open CareLayer</a>
+<p style="margin:24px 0 0;font-size:13px;color:#55635F">You get this because you asked to be told when you get a reply. Turn it off in Account.</p>
+</div></body></html>`;
+  return { subject, text, html };
 }
 
 export function nurseReviewEmailText(email: NurseReviewEmail): {
@@ -142,6 +175,9 @@ export function createConsoleEmailSender(logger: Logger): EmailSender {
       const { subject } = nurseReviewEmailText(email);
       logger.info('dev_email_nurse_review', { to: email.to, subject, approved: email.approved });
     },
+    async sendAnswerReady(email) {
+      logger.info('dev_email_answer_ready', { to: email.to, url: email.url });
+    },
   };
 }
 
@@ -209,6 +245,9 @@ export function createResendEmailSender(
         nurseReviewEmailText(email),
         `review\0${email.to}\0${email.reviewedAt.toISOString()}`,
       );
+    },
+    async sendAnswerReady(email) {
+      await send(email.to, answerReadyEmailText(email), `answer\0${email.to}\0${email.questionId}`);
     },
   };
 }

@@ -170,6 +170,8 @@ const EnvSchema = z
     ),
     /** Nurse app base URL, used in "new question" alert emails. */
     NURSE_APP_URL: z.preprocess(emptyToUndefined, z.url().default('http://localhost:5174')),
+    /** Women's app base URL, used in "your answer is ready" emails. */
+    WEB_APP_URL: z.preprocess(emptyToUndefined, z.url().default('http://localhost:5173')),
   })
   .superRefine((e, ctx) => {
     if (e.NODE_ENV === 'production' && e.EMAIL_TRANSPORT === 'console') {
@@ -284,6 +286,7 @@ export type Config = {
   paystack: PaystackConfig;
   llm: LlmConfig;
   nurseAppUrl: string;
+  webAppUrl: string;
 };
 
 export class ConfigError extends Error {
@@ -349,5 +352,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
       timeoutMs: e.LLM_TIMEOUT_MS,
     },
     nurseAppUrl: e.NURSE_APP_URL.replace(/\/+$/, ''),
+    webAppUrl: e.WEB_APP_URL.replace(/\/+$/, ''),
   };
 }

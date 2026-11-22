@@ -208,7 +208,36 @@ export interface Claim {
 
 // POST /nurse/questions/:id/answer
 export interface SubmitAnswerBody {
+  /** 1 to ANSWER_TEXT_MAX_LENGTH characters. */
   text: string;
   /** "Recommend she sees someone today". Default false. */
   recommendSeeSomeoneToday?: boolean;
+}
+
+export const ANSWER_TEXT_MAX_LENGTH = 5000;
+
+/**
+ * GET /nurse/questions?tab=
+ *   waiting    open questions she may claim now (chosen-for-you first, then oldest first)
+ *   active     her current claim (0 or 1)
+ *   completed  questions she answered, newest first (cursor pages)
+ */
+export const NURSE_QUESTION_TABS = ['waiting', 'active', 'completed'] as const;
+export type NurseQuestionTab = (typeof NURSE_QUESTION_TABS)[number];
+
+/** GET /nurse/dashboard (N05 Today). Days and weeks are Lagos time (UTC+1); weeks start Monday. */
+export interface NurseDashboard {
+  verificationStatus: 'draft' | 'pending_review' | 'approved' | 'rejected';
+  available: boolean;
+  topics: QuestionCategory[];
+  /** Her current claim, with claimExpiresAt for the countdown. */
+  activeClaim: NurseQuestionView | null;
+  /** Open questions she could claim now (0 until approved). */
+  waitingCount: number;
+  /** Of those, reserved for her (she was chosen). */
+  chosenForYouCount: number;
+  answeredToday: number;
+  answeredThisWeek: number;
+  avgResponseMinutes: number | null;
+  helpful: { percent: number | null; count: number };
 }

@@ -23,17 +23,19 @@ const db = createDb(config.databaseUrl);
 const facilitator = config.x402.testRouteEnabled ? createFacilitatorClient(config.x402) : undefined;
 const deps = { config, db, logger, facilitator };
 const services = buildServices(deps);
-const { wallets, topups } = services;
+const { wallets, topups, cases } = services;
 const app = createApp(deps, services);
 
 const server = app.listen(config.port, () => {
   logger.info('api_listening', { url: `http://localhost:${config.port}`, nodeEnv: config.nodeEnv });
 });
 
-// Background loops, every minute, never overlapping themselves:
-//   Z4 wallets: activate pending wallets whose backoff has passed.
-//   Z5 top-ups: credit paid ones, check unpaid ones with Paystack, close abandoned ones.
-function everyMinute(name: string, run: () => Promise<Record<string, number>>) {
+// Background loops, never overlapping themselves:
+//   Z4 wallets (every minute): activate pending wallets whose backoff has passed.
+//   Z5 top-ups (every minute): credit paid ones, check unpaid ones with Paystack, close abandoned ones.
+//   Z7 sweeper (every 30 s): expire claims, open chosen-nurse questions after 10 min, expire
+//   questions after 30 min. (Requests also apply these lazily, so a late tick is never wrong.)
+function every(name: string, ms: number, run: () => Promise<Record<string, number>>) {
   let running = false;
   const tick = async () => {
     if (running) return;
@@ -48,18 +50,24 @@ function everyMinute(name: string, run: () => Promise<Record<string, number>>) {
     }
   };
   void tick();
-  setInterval(() => void tick(), 60_000).unref();
+  setInterval(() => void tick(), ms).unref();
 }
 if (config.wallet.treasurySecret) {
-  everyMinute('wallet_activation_loop', () => wallets.activatePending());
+  every('wallet_activation_loop', 60_000, () => wallets.activatePending());
 } else {
   logger.warn('wallet_activation_disabled', { reason: 'STELLAR_TREASURY_SECRET is not set' });
 }
 if (config.paystack.secretKey) {
-  everyMinute('topup_loop', () => topups.processPending());
+  every('topup_loop', 60_000, () => topups.processPending());
 } else {
   logger.warn('topups_disabled', { reason: 'PAYSTACK_SECRET_KEY is not set' });
 }
+
+// The sweeper logs its own line when it changes something.
+every('sweeper_tick', 30_000, async () => {
+  await cases.sweep();
+  return {};
+});
 
 async function shutdown(signal: string) {
   logger.info('api_shutdown', { signal });

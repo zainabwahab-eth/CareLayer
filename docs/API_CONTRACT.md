@@ -47,6 +47,15 @@ Every type named here is exported from `@carelayer/shared` (`packages/shared/src
 - `GET /nurses` and the question endpoints are **woman-only for now**. Agent tokens (Claude) and third-party agents (`X-Question-Key`) come with Z12.
 - **Settings (same PR):** **`/me/settings` and `/me/notifications` are built.** **A women-only setting sent by a nurse or admin is now a 400, not silently ignored.** Added `SPENDING_LIMIT_KOBO`, `DEFAULT_USER_SETTINGS` and `WOMEN_ONLY_SETTINGS` to `@carelayer/shared`.
 
+**Z7 changes (claiming and answering):**
+
+- §9 is built.
+- **New `GET /nurse/dashboard` → `NurseDashboard`.**
+- `NURSE_QUESTION_TABS`, `NurseQuestionTab` and `ANSWER_TEXT_MAX_LENGTH` added.
+- **Claim can return 410 `QUESTION_EXPIRED`.** `ACTIVE_CLAIM_EXISTS` carries `details.questionId`.
+- **Waiting is not paged** (bounded: only questions under 30 minutes old are open).
+- The "answer is ready" email to women is sent when the nurse answers.
+
 **Z9 changes (nurse onboarding, admin verification):**
 
 - §10 and §11 are built.
@@ -339,18 +348,42 @@ Order of middleware is part of the contract:
 
 ## 9. Claiming and answering (nurses)
 
-Only `approved` nurses can claim. One active claim per nurse and per question (enforced by the database). 10-minute lock (`CLAIM_LOCK_MINUTES`). Expired or released claims return the question to `open`.
+**Built in Z7.**
 
-**Visibility ("Waiting" tab).** An open question is visible to a nurse when: she is approved; `femaleOnly` is false or her gender is `female`; and either the question has no chosen nurse, the chosen window has passed, or she is the chosen nurse. Topics control **alerts only**: all eligible open questions stay visible.
+- **Claims:**
+  - Only `approved` nurses can claim (403 `NURSE_NOT_APPROVED` on every route below except `/nurse/dashboard`).
+  - One active claim per nurse and per question, enforced by the database. Two nurses claiming at once: exactly one wins.
+  - 10-minute lock (`CLAIM_LOCK_MINUTES`).
+  - When a claim is released or expires, the question returns to `open`, or becomes `expired` if claims have already closed.
+- **Visibility ("Waiting" tab).** An open question is visible to a nurse when all of these hold:
+  - She is approved.
+  - Claims are still open (under 30 minutes).
+  - `femaleOnly` is false, or her gender is `female`.
+  - The question has no chosen nurse, or the chosen window has passed (or fell back), or she is the chosen nurse.
 
-| Method | Path                           | Auth  | Request                                                           | Response                                                                                 | Errors                                                                                                                                             |
-| ------ | ------------------------------ | ----- | ----------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
-| GET    | `/nurse/questions`             | nurse | `?tab=waiting\|active\|completed` (default waiting) + `PageQuery` | 200 `Page<NurseQuestionView>`                                                            | 401; 403 `NURSE_NOT_APPROVED`                                                                                                                      |
-| GET    | `/nurse/questions/:id`         | nurse | none                                                              | 200 `NurseQuestionView`                                                                  | 401; 404                                                                                                                                           |
-| GET    | `/nurse/claim`                 | nurse | none                                                              | 200 `NurseQuestionView \| null` (current claim, with `claimExpiresAt` for the countdown) | 401                                                                                                                                                |
-| POST   | `/nurse/questions/:id/claim`   | nurse | none                                                              | 200 `Claim` `{ questionId, expiresAt }`                                                  | 403 `NURSE_NOT_APPROVED`; 409 `QUESTION_ALREADY_CLAIMED`; 409 `ACTIVE_CLAIM_EXISTS`; 409 `CLAIMS_CLOSED` (after 30 min); 404 if not visible to her |
-| POST   | `/nurse/questions/:id/release` | nurse | none                                                              | 204 (question back to `open`; a chosen-nurse question opens to everyone)                 | 403 `NOT_CLAIM_OWNER`; 410 `CLAIM_EXPIRED`                                                                                                         |
-| POST   | `/nurse/questions/:id/answer`  | nurse | `SubmitAnswerBody` `{ text, recommendSeeSomeoneToday? }`          | 201 `Answer`                                                                             | 400; 403 `NOT_CLAIM_OWNER`; 410 `CLAIM_EXPIRED`                                                                                                    |
+  Topics control **alerts only**: all eligible open questions stay visible.
+
+- **Time-based changes** are applied on every request **and** by a background sweeper every 30 s:
+  - claims past their lock expire;
+  - chosen-nurse questions open to everyone after 10 minutes, and the other eligible nurses are emailed;
+  - open questions expire after 30 minutes.
+
+  A late sweeper never makes a response wrong.
+
+- **When a nurse answers:**
+  - The question becomes `answered`.
+  - The nurse's average response time is recomputed.
+  - If the woman turned on `notifyWhenAnswered`, she gets an email that only says a health worker replied, with a link to the question. It contains no answer text and no health detail.
+
+| Method | Path                           | Auth               | Request                                                                                            | Response                                                                                                                                                                                                     | Errors                                                                                                                                                                                                                |
+| ------ | ------------------------------ | ------------------ | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/nurse/dashboard`             | nurse (any status) | none                                                                                               | 200 `NurseDashboard` `{ verificationStatus, available, topics, activeClaim, waitingCount, chosenForYouCount, answeredToday, answeredThisWeek, avgResponseMinutes, helpful }` (Lagos days, weeks from Monday) | 401                                                                                                                                                                                                                   |
+| GET    | `/nurse/questions`             | nurse              | `?tab=waiting\|active\|completed` (default waiting) + `PageQuery`                                  | 200 `Page<NurseQuestionView>`. `waiting`: chosen-for-you first, then oldest first, up to `limit`, `nextCursor: null`. `active`: 0 or 1 item. `completed`: newest first, cursor pages.                        | 400 (bad tab or cursor); 401; 403 `NURSE_NOT_APPROVED`                                                                                                                                                                |
+| GET    | `/nurse/questions/:id`         | nurse              | none                                                                                               | 200 `NurseQuestionView` (visible to her, or one she has claimed or answered)                                                                                                                                 | 401; 404                                                                                                                                                                                                              |
+| GET    | `/nurse/claim`                 | nurse              | none                                                                                               | 200 `NurseQuestionView \| null` (current claim, with `claimExpiresAt` for the countdown)                                                                                                                     | 401                                                                                                                                                                                                                   |
+| POST   | `/nurse/questions/:id/claim`   | nurse              | none                                                                                               | 200 `Claim` `{ questionId, expiresAt }`                                                                                                                                                                      | 403 `NURSE_NOT_APPROVED`; 409 `QUESTION_ALREADY_CLAIMED`; 409 `ACTIVE_CLAIM_EXISTS` (`details.questionId` = the one she holds); 409 `CLAIMS_CLOSED` (after 30 min); 410 `QUESTION_EXPIRED`; 404 if not visible to her |
+| POST   | `/nurse/questions/:id/release` | nurse              | none                                                                                               | 204 (question back to `open`; a chosen-nurse question opens to everyone)                                                                                                                                     | 403 `NOT_CLAIM_OWNER`; 410 `CLAIM_EXPIRED`                                                                                                                                                                            |
+| POST   | `/nurse/questions/:id/answer`  | nurse              | `SubmitAnswerBody` `{ text (1–5,000 chars, `ANSWER_TEXT_MAX_LENGTH`), recommendSeeSomeoneToday? }` | 201 `Answer`                                                                                                                                                                                                 | 400; 403 `NOT_CLAIM_OWNER`; 410 `CLAIM_EXPIRED` (lock ran out: nothing is saved)                                                                                                                                      |
 
 `NurseQuestionView = { id, status, category, cleanedText, originalText (null if not shared), assistantNotes, ageRange, pregnancyWeeks, femaleOnly, chosenForYou, claimsCloseAt, createdAt, claimExpiresAt }`. The woman is anonymous: no name, email, wallet, location or chat history.
 

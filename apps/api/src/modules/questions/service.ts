@@ -38,6 +38,7 @@ import { recordEmergency } from '../emergency/service.js';
 import { matchRedFlags, type RedFlag } from '../emergency/red-flags.js';
 import type { Assistant } from '../llm/assistant.js';
 import { llmToAppError } from '../llm/errors.js';
+import { alertNurses } from './alerts.js';
 import { verifyDraftToken } from './draft-token.js';
 import { moneyFromKobo, quoteFor } from './pricing.js';
 
@@ -179,44 +180,6 @@ export function createQuestionService(d: QuestionServiceDeps) {
     return nurse;
   }
 
-  /** Email the nurses who can take it. Never throws; failures are logged per nurse. */
-  async function alertNurses(q: {
-    id: string;
-    topicSlug: string;
-    femaleOnly: boolean;
-    chosenNurseId: string | null;
-  }) {
-    const topic = await d.db.topic.findUnique({ where: { slug: q.topicSlug } });
-    const nurses = await d.db.nurseProfile.findMany({
-      where: q.chosenNurseId
-        ? { userId: q.chosenNurseId }
-        : {
-            verificationStatus: 'APPROVED',
-            available: true,
-            topics: { some: { topicSlug: q.topicSlug } },
-            ...(q.femaleOnly ? { gender: 'FEMALE' as const } : {}),
-          },
-      select: { user: { select: { email: true } } },
-    });
-    const results = await Promise.allSettled(
-      nurses.map((n) =>
-        d.email.sendNurseAlert({
-          to: n.user.email,
-          topicLabel: topic?.label ?? 'Health',
-          chosenForYou: q.chosenNurseId !== null,
-          url: `${d.config.nurseAppUrl}/cases`,
-          questionId: q.id,
-        }),
-      ),
-    );
-    const failed = results.filter((r) => r.status === 'rejected').length;
-    d.logger.info('nurse_alerts', {
-      questionId: q.id,
-      sent: results.length - failed,
-      failed,
-    });
-  }
-
   return {
     async create(
       womanId: string,
@@ -296,8 +259,10 @@ export function createQuestionService(d: QuestionServiceDeps) {
         isFree: q.isFree,
         fromDraft: Boolean(body.draftToken),
       });
-      void alertNurses(q).catch((err) =>
-        d.logger.error('nurse_alerts_crashed', { questionId: q.id, error: (err as Error).message }),
+      void alertNurses(
+        { db: d.db, email: d.email, logger: d.logger, nurseAppUrl: d.config.nurseAppUrl },
+        q,
+        q.chosenNurseId ? { onlyNurseId: q.chosenNurseId } : {},
       );
 
       return {

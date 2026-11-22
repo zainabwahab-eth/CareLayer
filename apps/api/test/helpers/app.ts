@@ -8,6 +8,7 @@ import type {
   EmailSender,
   NurseAlertEmail,
   NurseReviewEmail,
+  AnswerReadyEmail,
 } from '../../src/modules/auth/email.js';
 import {
   LlmUnavailableError,
@@ -91,10 +92,12 @@ export function memoryEmailSender() {
   const sent: CodeEmail[] = [];
   const alerts: NurseAlertEmail[] = [];
   const reviews: NurseReviewEmail[] = [];
+  const answersReady: AnswerReadyEmail[] = [];
   return {
     sent,
     alerts,
     reviews,
+    answersReady,
     async sendCode(email: CodeEmail) {
       sent.push(email);
     },
@@ -103,6 +106,9 @@ export function memoryEmailSender() {
     },
     async sendNurseReview(email: NurseReviewEmail) {
       reviews.push(email);
+    },
+    async sendAnswerReady(email: AnswerReadyEmail) {
+      answersReady.push(email);
     },
     /** The latest code sent to this address. */
     lastCode(to: string): string {

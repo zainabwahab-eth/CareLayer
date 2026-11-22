@@ -9,14 +9,23 @@
 //   PATCH  /nurse/preferences             nurse: { topics?, available? }                  (Z9)
 //   PUT    /nurse/payout-address          nurse + fresh code                              (Z9)
 //   GET    /files/nurse-documents/:id     signed admin link only (no bearer)              (Z9)
-// Later: /nurse/questions*, /nurse/claim (Z7), /nurse/earnings, /nurse/withdrawals (Z10).
+//   GET    /nurse/dashboard               nurse: Today screen (any verification status)   (Z7)
+//   GET    /nurse/questions?tab=          approved nurse: waiting | active | completed    (Z7)
+//   GET    /nurse/questions/:id           approved nurse                                  (Z7)
+//   GET    /nurse/claim                   approved nurse: current claim or null           (Z7)
+//   POST   /nurse/questions/:id/claim     approved nurse                                  (Z7)
+//   POST   /nurse/questions/:id/release   approved nurse                                  (Z7)
+//   POST   /nurse/questions/:id/answer    approved nurse: { text, recommendSeeSomeoneToday }(Z7)
+// Later: /nurse/earnings, /nurse/withdrawals (Z10).
 //
 // Everything under /nurse/* requires a signed-in NURSE (guard on the prefix). /nurse/questions*
 // and /nurse/claim also require an APPROVED nurse, mounted now so Z7's routes are protected by
 // default. (/nurses, the directory, is a different path.)
 import {
+  ANSWER_TEXT_MAX_LENGTH,
   NURSE_DOCUMENT_TYPES,
   NURSE_DOCUMENT_UPLOAD,
+  NURSE_QUESTION_TABS,
   QUESTION_CATEGORIES,
 } from '@carelayer/shared';
 import { Router, type RequestHandler } from 'express';
@@ -25,6 +34,7 @@ import { z } from 'zod';
 import type { AppDeps } from '../../deps.js';
 import { AppError } from '../../lib/errors.js';
 import { getAuth, requireAuth, requireFreshCode, requireRole } from '../auth/middleware.js';
+import type { CaseService } from './cases.js';
 import { listNurseDirectory } from './directory.js';
 import { readDocumentFile, verifyDocumentLink } from './documents.js';
 import {
@@ -33,6 +43,28 @@ import {
   UpdatePreferencesSchema,
   type NurseProfileService,
 } from './profile.js';
+
+const CasesQuerySchema = z.object({
+  tab: z.enum(NURSE_QUESTION_TABS).default('waiting'),
+  cursor: z.string().max(200).optional(),
+  limit: z.coerce
+    .number()
+    .int()
+    .min(1, 'limit must be 1-100')
+    .max(100, 'limit must be 1-100')
+    .default(20),
+});
+
+const AnswerSchema = z
+  .object({
+    text: z
+      .string({ error: 'Write your answer.' })
+      .trim()
+      .min(1, 'Write your answer.')
+      .max(ANSWER_TEXT_MAX_LENGTH, `Answers can be up to ${ANSWER_TEXT_MAX_LENGTH} characters.`),
+    recommendSeeSomeoneToday: z.boolean().optional(),
+  })
+  .strict();
 
 const DirectoryQuerySchema = z.object({
   topic: z.enum(QUESTION_CATEGORIES).optional(),
@@ -72,7 +104,11 @@ function singleUpload(): RequestHandler {
   };
 }
 
-export function createNursesRouter(deps: AppDeps, profiles: NurseProfileService): Router {
+export function createNursesRouter(
+  deps: AppDeps,
+  profiles: NurseProfileService,
+  cases: CaseService,
+): Router {
   const router = Router();
   const now = deps.clock ?? (() => new Date());
   const authed = requireAuth({
@@ -185,6 +221,41 @@ export function createNursesRouter(deps: AppDeps, profiles: NurseProfileService)
   router.put('/nurse/payout-address', requireFreshCode(now), async (req, res) => {
     const { stellarAddress } = PayoutAddressSchema.parse(req.body);
     res.json(await profiles.setPayoutAddress(getAuth(res).userId, stellarAddress || null));
+  });
+
+  // ---- Cases (Z7) ----
+  router.get('/nurse/dashboard', async (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(await cases.dashboard(getAuth(res).userId));
+  });
+
+  router.get('/nurse/questions', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(await cases.list(getAuth(res).userId, CasesQuerySchema.parse(req.query)));
+  });
+
+  router.get('/nurse/questions/:id', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(await cases.get(getAuth(res).userId, String(req.params.id)));
+  });
+
+  router.get('/nurse/claim', async (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(await cases.current(getAuth(res).userId));
+  });
+
+  router.post('/nurse/questions/:id/claim', async (req, res) => {
+    res.json(await cases.claim(getAuth(res).userId, String(req.params.id)));
+  });
+
+  router.post('/nurse/questions/:id/release', async (req, res) => {
+    await cases.release(getAuth(res).userId, String(req.params.id));
+    res.status(204).end();
+  });
+
+  router.post('/nurse/questions/:id/answer', async (req, res) => {
+    const body = AnswerSchema.parse(req.body);
+    res.status(201).json(await cases.answer(getAuth(res).userId, String(req.params.id), body));
   });
 
   return router;
