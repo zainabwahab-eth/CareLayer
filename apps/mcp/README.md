@@ -56,7 +56,7 @@ Hosted (no local install). The token travels as a header and is passed straight 
 
 ```bash
 claude mcp add --transport http carelayer \
-  "$(apps/api/deploy/cloudrun.sh mcp-url)" \
+  https://carelayer-mcp-598920525559.europe-west2.run.app/mcp \
   --header "Authorization: Bearer clat_..."
 ```
 

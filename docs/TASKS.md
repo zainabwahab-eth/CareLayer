@@ -457,6 +457,7 @@ Implement everything in "Accounts and auth" (section 2): `POST /auth/code/reques
   - **Claude pays through the same internal agent as the web app** (`collect` → x402 from her custodial wallet), so both "agents" are paid via x402.
   - **Not built:** `X-Question-Key` for public third-party agents (decisions log item 3). Questions still need a CareLayer account.
   - **End to end:** `npm run two-agent:e2e -w @carelayer/api` (with `E2E_LLM_ENV_FILE=deploy/.env.production` when the local LLM key is empty).
+  - **Deployed (22 November 2026):** the API with Z12, and the hosted MCP server at https://carelayer-mcp-598920525559.europe-west2.run.app/mcp (Cloud Run `carelayer-mcp`, scales to zero, `cloudrun.sh deploy-mcp`).
 - **For Hikmah (account screen "Use CareLayer in Claude"):**
   - Create (`POST /auth/agent-tokens`, show the token once with a copy button), list (`GET`) and remove (`DELETE`) connections.
   - Show the connection steps from `apps/mcp/README.md`.
