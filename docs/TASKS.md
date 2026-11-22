@@ -428,6 +428,8 @@ Implement everything in "Accounts and auth" (section 2): `POST /auth/code/reques
 
   - **Privacy:** OpenAI does not train on API data by default but keeps requests up to 30 days for abuse monitoring. Questions contain no name, email or phone (decisions log), but the woman's own words are sent.
   - Runbook: `apps/api/README.md` → "Deploy". Postman environment: "CareLayer Cloud Run".
+  - **Deployed (22 November 2026):** https://carelayer-api-598920525559.europe-west2.run.app (project `carelayer`, `europe-west2`). Migrations applied and the demo data seeded; the admin is Zainab's email. Email is sent from Zainab's verified domain `info.zapescrow.xyz` until CareLayer has its own domain. Then update `EMAIL_FROM` + `EMAIL_API_KEY`, run `secrets` and `deploy`.
+  - **Open:** Hikmah's frontend URLs (`CORS_ORIGINS`, `WEB_APP_URL`, `NURSE_APP_URL`, `PAYSTACK_CALLBACK_URL`; then `deploy`), and the phone test ("Done when").
 - **For Hikmah (deploying the frontends):**
   - **API URL:** `apps/api/deploy/cloudrun.sh url` (Zainab shares it). The frontends call it directly, with `credentials: 'include'` so the refresh cookie (`SameSite=None; Secure`) is sent.
   - **Send Zainab both final frontend URLs.** They go in `CORS_ORIGINS`, `WEB_APP_URL`, `NURSE_APP_URL` and `PAYSTACK_CALLBACK_URL` (`<web>/account/wallet`). Until then the browser blocks calls (CORS).
