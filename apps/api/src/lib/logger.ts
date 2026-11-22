@@ -16,6 +16,14 @@ export interface Logger {
 
 export type LogSink = (level: Level, line: string) => void;
 
+/** Google Cloud Logging reads the level from `severity` (Cloud Run, Z11). */
+const SEVERITY: Record<Level, string> = {
+  debug: 'DEBUG',
+  info: 'INFO',
+  warn: 'WARNING',
+  error: 'ERROR',
+};
+
 const defaultSink: LogSink = (level, line) => {
   if (level === 'error' || level === 'warn') process.stderr.write(line + '\n');
   else process.stdout.write(line + '\n');
@@ -26,7 +34,16 @@ export function createLogger(minLevel: LogLevel, sink: LogSink = defaultSink): L
     (level: Level) =>
     (event: string, fields: LogFields = {}) => {
       if (ORDER[level] < ORDER[minLevel]) return;
-      sink(level, JSON.stringify({ time: new Date().toISOString(), level, event, ...fields }));
+      sink(
+        level,
+        JSON.stringify({
+          time: new Date().toISOString(),
+          level,
+          severity: SEVERITY[level],
+          event,
+          ...fields,
+        }),
+      );
     };
   return { debug: log('debug'), info: log('info'), warn: log('warn'), error: log('error') };
 }

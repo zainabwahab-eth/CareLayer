@@ -127,6 +127,46 @@ npm run test:testnet -w @carelayer/api    # same, as assertions (real testnet, n
 - `testnet:setup` only fills empty `.env` values and never prints secrets. Re-running it is safe.
 - First proof payment: https://stellar.expert/explorer/testnet/tx/b2ce568136e4372c5b5faa5ab963ebeac8ad94afaa661bb2ccbf2f6b09ef30ed
 
+## Deploy (Z11): Google Cloud Run + Neon
+
+At most one Cloud Run instance, scaled to zero when idle (pay per use: the background loops only run while requests are served, so some work is delayed until the next request; see Z11 in `docs/TASKS.md` for the trade-off and the planned Cloud Scheduler tick). A Neon Postgres, secrets in Google Secret Manager. Region `europe-west2` (London), next to the Neon database (`eu-west-2`); set `GCP_REGION` if your Neon project is elsewhere. The image is the repo-root `Dockerfile`; `deploy/cloudrun.sh` does every step.
+
+**Accounts (once, by you):**
+
+1. **Neon** (free): create a project (ours: AWS Europe West 2, London). Copy the connection string with **pooling off**: the host must not contain `-pooler`. Use `sslmode=verify-full`.
+2. **Resend:** verify your domain (DNS records), create an API key with sending access.
+3. **Google Cloud:** a project with billing on.
+   - `gcloud auth login && gcloud config set project <id>`.
+   - Or use **Cloud Shell** in the browser: gcloud is already there. `git clone` the repo and upload `.env.production` with the Upload button.
+
+**Fill the production env file** (gitignored, never commit it):
+
+```bash
+cp apps/api/deploy/.env.production.example apps/api/deploy/.env.production
+# A separate testnet treasury + facilitator key for the deployed API:
+CARELAYER_ENV_FILE=deploy/.env.production npm run testnet:setup -w @carelayer/api
+# Then fill: DATABASE_URL (Neon), the 3 generated secrets, EMAIL_FROM + EMAIL_API_KEY (Resend),
+# LLM_API_KEY, PAYSTACK_* (test keys), GOOGLE_CLIENT_ID, and Hikmah's frontend URLs.
+```
+
+**Deploy:**
+
+```bash
+apps/api/deploy/cloudrun.sh setup     # once: APIs, image registry, service account
+apps/api/deploy/cloudrun.sh secrets   # uploads the secrets to Secret Manager (values never printed)
+apps/api/deploy/cloudrun.sh release   # Cloud Build image -> migrations job -> deploy service
+SEED_ADMIN_EMAIL=you@yourdomain.com \
+  apps/api/deploy/cloudrun.sh seed    # ONCE, on the fresh database: demo accounts + your admin
+apps/api/deploy/cloudrun.sh url       # the API URL: check <url>/health
+```
+
+- **Every later release:** `secrets` if a secret changed, then `release`. Migrations run as a Cloud Run job before the new revision.
+- **Changing a plain setting** (e.g. Hikmah's URLs in `CORS_ORIGINS`): edit `.env.production`, then run `deploy`.
+- **The seed wipes every table.** In production it needs `CARELAYER_SEED_PRODUCTION=wipe-and-seed` (the `seed` command sets it). It still refuses once any real account (an email not ending in `@example.com`) exists.
+- **The seeded admin** gets `SEED_ADMIN_EMAIL` (an inbox you own), because `/admin-console` sign-in codes are emailed. Locally it stays `admin@example.com`.
+- **Logs:** Cloud Run → `carelayer-api` → Logs. Every line is JSON with a `severity`.
+- **Postman:** the environment "CareLayer Cloud Run" (`docs/postman/carelayer.cloudrun.postman_environment.json`). Set `baseUrl` to the URL.
+
 ## Layout
 
 - `src/app.ts`: Express app factory. Takes `AppDeps` (`config`, `db`, `logger`) so tests inject their own.

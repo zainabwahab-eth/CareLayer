@@ -24,14 +24,16 @@ npm run db:seed -w @carelayer/api      # demo data (Tolu, three midwives, a pend
 npm run dev
 ```
 
-| App                   | URL                          | Check                               |
-| --------------------- | ---------------------------- | ----------------------------------- |
+| App                   | URL                          | Check                                                            |
+| --------------------- | ---------------------------- | ---------------------------------------------------------------- |
 | API                   | http://localhost:4000/health | `{ "status": "ok", "database": "ok" }` (503 if Postgres is down) |
-| Women's app + landing | http://localhost:5173        | "Hello CareLayer"                   |
-| Health worker app     | http://localhost:5174        | "Hello CareLayer"                   |
-| MCP server            | `npm run dev:mcp` (stdio)    | `npm run inspect -w @carelayer/mcp` |
+| Women's app + landing | http://localhost:5173        | "Hello CareLayer"                                                |
+| Health worker app     | http://localhost:5174        | "Hello CareLayer"                                                |
+| MCP server            | `npm run dev:mcp` (stdio)    | `npm run inspect -w @carelayer/mcp`                              |
 
 Other root scripts: `npm run build`, `npm run lint`, `npm run typecheck`, `npm test`, `npm run format`.
+
+Deploying the API (Google Cloud Run + Neon): see "Deploy" in [`apps/api/README.md`](apps/api/README.md).
 
 ## Repository layout
 

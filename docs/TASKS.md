@@ -402,8 +402,47 @@ Implement everything in "Accounts and auth" (section 2): `POST /auth/code/reques
 
 ### Z11. Deploy
 
+- **Decided in Z11:**
+  - **Google Cloud Run + Neon (free), chosen by Zainab.** Region `europe-west2` (London), next to the Neon database (`eu-west-2`); Neon has no African region. The database URL is Neon's direct host (no `-pooler`), because Prisma migrations need a direct connection.
+  - **At most one instance, scaled to zero, CPU only during requests** (`--min-instances 0 --max-instances 1 --cpu-throttling`). This was changed on 22 November 2026 for cost, chosen by Zainab: the Google Cloud trial credit had expired.
+    - Always-on (`--min-instances 1 --no-cpu-throttling`) is instance-based billing: about $44 a month at Google's list rate, $50–60 in London. Pay-per-use is about $0 at demo traffic.
+    - Max one instance: the in-memory chat rate limit and the in-process loops must not run twice.
+    - **The trade-off:** the background loops (claim expiry, chosen-window fallback emails, payouts, top-up credits, wallet activation, unclear withdrawals) only run while requests are being served. Work is **delayed, never lost or doubled** (claims, memos, stored hashes).
+    - Every request applies the claim and question time rules itself (Z7), so screens stay correct.
+    - What can lag until the next request: nurse payouts (visible on the explorer late), top-up credits and wallet activation (finished when she opens her wallet), and the 10-minute fallback emails.
+    - After about 15 minutes idle, the first request takes a few seconds (cold start).
+  - **Follow-up (option 2, not done):** Cloud Scheduler calls a secret-protected `POST /internal/tick` every minute, which runs one pass of every loop. The in-process timers are switched off in production by a setting. Pay-per-use stays (~43k ticks a month is inside the free tier; 1 of the 3 free scheduler jobs). The loops run every minute again, and the instance stays warm. Also add an Artifact Registry cleanup policy. Do it before the live demo, or switch back to always-on for the demo days (about $1.50 a day).
+  - **Image:** repo-root `Dockerfile` (API + `packages/shared` only), built by Cloud Build, so no local Docker is needed.
+  - **The same image runs the migrations** (Cloud Run job `prisma migrate deploy`, before every deploy) and the one-time seed (Cloud Run job).
+  - **Secrets** live in Google Secret Manager, uploaded from a gitignored `apps/api/deploy/.env.production` by `deploy/cloudrun.sh secrets`. Values are never printed. Plain settings are env vars on the service.
+  - **A separate testnet treasury and facilitator key for the deployed API** (`CARELAYER_ENV_FILE=deploy/.env.production npm run testnet:setup`), not the local one.
+  - **Production seed:** the seed wipes every table, so in production it needs `CARELAYER_SEED_PRODUCTION=wipe-and-seed`, and it refuses once any real account (not `@example.com`) exists. The admin's email comes from `SEED_ADMIN_EMAIL`, because `/admin-console` codes are emailed.
+  - **Cookies across domains:** the frontends and the API are on different domains, so `AUTH_COOKIE_SAMESITE=none` + `Secure`.
+  - **Logs** carry a Cloud Logging `severity`.
+  - **Production LLM: OpenAI `gpt-4.1`** (Zainab's paid key), not NVIDIA's free tier. NVIDIA took 9–12 s per reply and is limited to about 40 requests a minute shared by everyone. No code change: `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`. Chosen by `npm run eval:assistant` (November 2026):
+
+    | Model          | Result   | Emergency recall | Action | Category | Invalid replies | Latency   |
+    | -------------- | -------- | ---------------- | ------ | -------- | --------------- | --------- |
+    | `gpt-4o-mini`  | pass     | 100%             | 87.9%  | 91.3%    | 2 / 33          | 1.7–4.4 s |
+    | `gpt-4.1-mini` | **fail** | 100%             | 69.7%  | 100%     | 0               |           |
+    | `gpt-4.1`      | pass     | 100%             | 81.8%  | 100%     | 0               | 1.7–1.8 s |
+    - `gpt-4.1` has no invalid replies and 100% categories.
+    - Its misses are safe-side: it offers a nurse where a direct answer was expected (the known over-offering, H2), and q02 (32 weeks, baby moving less) goes to emergency, which midwives would also say.
+    - `gpt-4o-mini` is about 13x cheaper, but 1 question in about 16 gets a "try again" error.
+    - Cost is about 3,170 tokens in and 180 out per call, roughly $0.008 at list price, less with OpenAI's automatic prompt caching.
+    - The key's account should have a spending limit.
+    - Newer models (`gpt-5.x`, `gpt-6.x`, o-series) reject `max_tokens`, so they would need the client to send `max_completion_tokens` (and no `temperature`).
+
+  - **Privacy:** OpenAI does not train on API data by default but keeps requests up to 30 days for abuse monitoring. Questions contain no name, email or phone (decisions log), but the woman's own words are sent.
+  - Runbook: `apps/api/README.md` → "Deploy". Postman environment: "CareLayer Cloud Run".
+  - **Deployed (22 November 2026):** https://carelayer-api-598920525559.europe-west2.run.app (project `carelayer`, `europe-west2`). Migrations applied and the demo data seeded; the admin is Zainab's email. Email is sent from Zainab's verified domain `info.zapescrow.xyz` until CareLayer has its own domain. Then update `EMAIL_FROM` + `EMAIL_API_KEY`, run `secrets` and `deploy`.
+  - **Open:** Hikmah's frontend URLs (`CORS_ORIGINS`, `WEB_APP_URL`, `NURSE_APP_URL`, `PAYSTACK_CALLBACK_URL`; then `deploy`), and the phone test ("Done when").
+- **For Hikmah (deploying the frontends):**
+  - **API URL:** `apps/api/deploy/cloudrun.sh url` (Zainab shares it). The frontends call it directly, with `credentials: 'include'` so the refresh cookie (`SameSite=None; Secure`) is sent.
+  - **Send Zainab both final frontend URLs.** They go in `CORS_ORIGINS`, `WEB_APP_URL`, `NURSE_APP_URL` and `PAYSTACK_CALLBACK_URL` (`<web>/account/wallet`). Until then the browser blocks calls (CORS).
+  - **Google sign-in:** the Google OAuth client needs both frontend origins as authorised JavaScript origins.
 - Deploy API + Postgres (Cloud Run or similar), set env vars, run migrations and seed, share the URL. Add a Postman environment for the deployed API.
-- **Before the demo:** the hosted OpenZeppelin facilitator key from Z2 is anonymous with undocumented rate limits. Get a non-anonymous key, or stand up the self-hosted OpenZeppelin Relayer x402 plugin as a fallback (switching is only `X402_FACILITATOR_URL` + `X402_FACILITATOR_API_KEY`).
+- **Before the demo:** the hosted OpenZeppelin facilitator key is anonymous with undocumented rate limits. Checked in Z11: the GitHub-login keys (`channels.openzeppelin.com/gen`) are for the **mainnet** facilitator only; testnet keys are always anonymous (`/testnet/gen`). So for the testnet demo, keep a spare testnet key ready, or stand up the self-hosted OpenZeppelin Relayer x402 plugin as a fallback. Switching is only `X402_FACILITATOR_URL` + `X402_FACILITATOR_API_KEY`.
 
 **Done when:** both frontends work against the deployed API on a phone.
 
