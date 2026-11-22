@@ -31,9 +31,49 @@ export interface NurseAlertEmail {
   questionId: string;
 }
 
+/** Verification result for a nurse (Z9). */
+export interface NurseReviewEmail {
+  to: string;
+  fullName: string;
+  approved: boolean;
+  /** Rejections only: what the admin wrote. */
+  reason: string | null;
+  /** Nurse app. */
+  url: string;
+  /** Idempotency: one email per decision. */
+  reviewedAt: Date;
+}
+
 export interface EmailSender {
   sendCode(email: CodeEmail): Promise<void>;
   sendNurseAlert(email: NurseAlertEmail): Promise<void>;
+  sendNurseReview(email: NurseReviewEmail): Promise<void>;
+}
+
+export function nurseReviewEmailText(email: NurseReviewEmail): {
+  subject: string;
+  text: string;
+  html: string;
+} {
+  const subject = email.approved
+    ? 'You are verified on CareLayer'
+    : 'Your CareLayer verification needs changes';
+  const lead = email.approved
+    ? `Hi ${email.fullName}, your licence has been checked and your profile is approved. Turn on "Available" in the app to start receiving questions.`
+    : `Hi ${email.fullName}, we could not approve your profile yet.`;
+  const reason = email.approved
+    ? ''
+    : `Reason: ${email.reason ?? 'not given'}. Fix it in the app and submit again.`;
+  const text = [lead, reason, `Open CareLayer: ${email.url}`].filter(Boolean).join('\n\n');
+  const html = `<!doctype html><html><body style="margin:0;padding:24px;background:#F3F5F2;font-family:Arial,Helvetica,sans-serif;color:#13201D">
+<div style="max-width:440px;margin:0 auto;background:#FFFFFF;border-radius:20px;padding:32px">
+<p style="margin:0 0 8px;font-size:15px;color:#55635F">CareLayer</p>
+<h1 style="margin:0 0 16px;font-size:22px;font-weight:600">${escapeHtml(subject)}</h1>
+<p style="margin:0 0 16px;font-size:15px">${escapeHtml(lead)}</p>
+${reason ? `<p style="margin:0 0 16px;font-size:15px">${escapeHtml(reason)}</p>` : ''}
+<a href="${escapeHtml(email.url)}" style="display:inline-block;background:#0F4A43;color:#FFFFFF;text-decoration:none;font-size:15px;font-weight:600;padding:14px 20px;border-radius:14px">Open CareLayer</a>
+</div></body></html>`;
+  return { subject, text, html };
 }
 
 const SUBJECTS: Record<CodePurpose, string> = {
@@ -98,6 +138,10 @@ export function createConsoleEmailSender(logger: Logger): EmailSender {
       const { subject } = nurseAlertEmailText(email);
       logger.info('dev_email_nurse_alert', { to: email.to, subject, url: email.url });
     },
+    async sendNurseReview(email) {
+      const { subject } = nurseReviewEmailText(email);
+      logger.info('dev_email_nurse_review', { to: email.to, subject, approved: email.approved });
+    },
   };
 }
 
@@ -158,6 +202,13 @@ export function createResendEmailSender(
     },
     async sendNurseAlert(email) {
       await send(email.to, nurseAlertEmailText(email), `alert\0${email.to}\0${email.questionId}`);
+    },
+    async sendNurseReview(email) {
+      await send(
+        email.to,
+        nurseReviewEmailText(email),
+        `review\0${email.to}\0${email.reviewedAt.toISOString()}`,
+      );
     },
   };
 }

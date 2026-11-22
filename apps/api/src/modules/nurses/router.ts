@@ -1,18 +1,38 @@
-// Nurses module. Z6: the public directory. Z7 (claims), Z9 (onboarding), Z10 (earnings) add the rest.
+// Nurses module. Contract: docs/API_CONTRACT.md §8.0, §10.
 //
-//   GET /nurses?topic=&femaleOnly=   woman: approved, available nurses, public profile fields only (Z6)
-// Planned (docs/API_CONTRACT.md):
-//   GET/PATCH /nurse/profile, POST /nurse/documents, POST /nurse/profile/submit,
-//   GET /nurse/questions, POST /nurse/questions/:id/claim|release|answer, GET /nurse/earnings, POST /nurse/withdrawals
+//   GET    /nurses?topic=&femaleOnly=     woman: approved, available nurses, public fields (Z6)
+//   GET    /nurse/profile                 nurse: her own profile                          (Z9)
+//   PATCH  /nurse/profile                 nurse: onboarding fields                        (Z9)
+//   POST   /nurse/documents               nurse: multipart { type, file }                 (Z9)
+//   DELETE /nurse/documents/:id           nurse                                           (Z9)
+//   POST   /nurse/profile/submit          nurse: send for admin review                    (Z9)
+//   PATCH  /nurse/preferences             nurse: { topics?, available? }                  (Z9)
+//   PUT    /nurse/payout-address          nurse + fresh code                              (Z9)
+//   GET    /files/nurse-documents/:id     signed admin link only (no bearer)              (Z9)
+// Later: /nurse/questions*, /nurse/claim (Z7), /nurse/earnings, /nurse/withdrawals (Z10).
 //
-// Z3: everything under /nurse/* requires a signed-in NURSE. The guard is mounted on the prefix, so
-// routes added later are protected by default. (/nurses, the public directory, is a different path.)
-import { QUESTION_CATEGORIES } from '@carelayer/shared';
-import { Router } from 'express';
+// Everything under /nurse/* requires a signed-in NURSE (guard on the prefix). /nurse/questions*
+// and /nurse/claim also require an APPROVED nurse, mounted now so Z7's routes are protected by
+// default. (/nurses, the directory, is a different path.)
+import {
+  NURSE_DOCUMENT_TYPES,
+  NURSE_DOCUMENT_UPLOAD,
+  QUESTION_CATEGORIES,
+} from '@carelayer/shared';
+import { Router, type RequestHandler } from 'express';
+import multer from 'multer';
 import { z } from 'zod';
 import type { AppDeps } from '../../deps.js';
-import { requireAuth, requireRole } from '../auth/middleware.js';
+import { AppError } from '../../lib/errors.js';
+import { getAuth, requireAuth, requireFreshCode, requireRole } from '../auth/middleware.js';
 import { listNurseDirectory } from './directory.js';
+import { readDocumentFile, verifyDocumentLink } from './documents.js';
+import {
+  PayoutAddressSchema,
+  UpdateNurseProfileSchema,
+  UpdatePreferencesSchema,
+  type NurseProfileService,
+} from './profile.js';
 
 const DirectoryQuerySchema = z.object({
   topic: z.enum(QUESTION_CATEGORIES).optional(),
@@ -22,12 +42,43 @@ const DirectoryQuerySchema = z.object({
     .transform((v) => v === 'true' || v === '1'),
 });
 
-export function createNursesRouter(deps: AppDeps): Router {
+const DocumentTypeSchema = z.enum(NURSE_DOCUMENT_TYPES, {
+  error: `type must be one of: ${NURSE_DOCUMENT_TYPES.join(', ')}`,
+});
+
+/** One file in memory, size-capped; multer errors become contract-shaped 400/413s. */
+function singleUpload(): RequestHandler {
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: NURSE_DOCUMENT_UPLOAD.maxBytes, files: 1, fields: 5, fieldSize: 1024 },
+  }).single('file');
+  return (req, res, next) => {
+    upload(req, res, (err: unknown) => {
+      if (!err) return next();
+      if (err instanceof multer.MulterError) {
+        if (err.code === 'LIMIT_FILE_SIZE') {
+          return next(
+            new AppError(413, 'VALIDATION_FAILED', 'Files can be up to 10 MB.', { field: 'file' }),
+          );
+        }
+        return next(
+          new AppError(400, 'VALIDATION_FAILED', 'Send one file in the "file" field.', {
+            field: err.field ?? 'file',
+          }),
+        );
+      }
+      next(err);
+    });
+  };
+}
+
+export function createNursesRouter(deps: AppDeps, profiles: NurseProfileService): Router {
   const router = Router();
+  const now = deps.clock ?? (() => new Date());
   const authed = requireAuth({
     db: deps.db,
     jwtAccessSecret: deps.config.auth.jwtAccessSecret,
-    now: deps.clock ?? (() => new Date()),
+    now,
   });
 
   router.get('/nurses', authed, requireRole('woman'), async (req, res) => {
@@ -36,6 +87,105 @@ export function createNursesRouter(deps: AppDeps): Router {
     res.json(await listNurseDirectory(deps.db, query));
   });
 
+  // Signed, short-lived document links for admins (from GET /admin/nurses/:id). No bearer: the
+  // link itself is the credential, so it can open in a new tab or an <img>.
+  router.get('/files/nurse-documents/:id', async (req, res) => {
+    const id = String(req.params.id);
+    const check = verifyDocumentLink(deps.config.auth.jwtAccessSecret, id, req.query, now());
+    if (check !== 'ok') {
+      throw check === 'expired'
+        ? new AppError(
+            410,
+            'LINK_EXPIRED',
+            'This link has expired. Open the nurse again for a new one.',
+          )
+        : new AppError(403, 'FORBIDDEN', 'This link is not valid.');
+    }
+    const doc = await deps.db.nurseDocument.findUnique({ where: { id } });
+    const bytes = doc ? await readDocumentFile(deps.db, doc.storageKey) : null;
+    if (!doc || !bytes) throw new AppError(404, 'NOT_FOUND', 'Document not found.');
+    deps.logger.info('nurse_document_viewed', { documentId: id, adminId: String(req.query.a) });
+    res.set({
+      'Content-Type': doc.mimeType,
+      'Content-Length': String(bytes.length),
+      'Content-Disposition': `inline; filename="${doc.fileName.replace(/[^\w.() -]/g, '_')}"`,
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
+      'Content-Security-Policy':
+        "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox",
+      'Referrer-Policy': 'no-referrer',
+    });
+    res.end(Buffer.from(bytes));
+  });
+
   router.use('/nurse', authed, requireRole('nurse'));
+
+  // Z7's claim routes are for approved nurses only.
+  const approvedOnly: RequestHandler = async (_req, res, next) => {
+    try {
+      const n = await deps.db.nurseProfile.findUnique({ where: { userId: getAuth(res).userId } });
+      if (n?.verificationStatus !== 'APPROVED') {
+        return next(
+          new AppError(
+            403,
+            'NURSE_NOT_APPROVED',
+            'Your profile must be approved before you can see questions.',
+          ),
+        );
+      }
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
+  router.use(['/nurse/questions', '/nurse/claim'], approvedOnly);
+
+  router.get('/nurse/profile', async (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(await profiles.get(getAuth(res).userId));
+  });
+
+  router.patch('/nurse/profile', async (req, res) => {
+    const body = UpdateNurseProfileSchema.parse(req.body);
+    res.json(await profiles.update(getAuth(res).userId, body));
+  });
+
+  router.post('/nurse/profile/submit', async (_req, res) => {
+    res.json(await profiles.submit(getAuth(res).userId));
+  });
+
+  router.post('/nurse/documents', singleUpload(), async (req, res) => {
+    const type = DocumentTypeSchema.safeParse((req.body as { type?: unknown } | undefined)?.type);
+    if (!type.success) {
+      throw new AppError(400, 'VALIDATION_FAILED', type.error.issues[0]!.message, {
+        field: 'type',
+      });
+    }
+    if (!req.file) {
+      throw new AppError(400, 'VALIDATION_FAILED', 'Choose a file to upload.', { field: 'file' });
+    }
+    const doc = await profiles.uploadDocument(getAuth(res).userId, {
+      type: type.data,
+      originalName: req.file.originalname,
+      bytes: req.file.buffer,
+    });
+    res.status(201).json(doc);
+  });
+
+  router.delete('/nurse/documents/:id', async (req, res) => {
+    await profiles.removeDocument(getAuth(res).userId, String(req.params.id));
+    res.status(204).end();
+  });
+
+  router.patch('/nurse/preferences', async (req, res) => {
+    const body = UpdatePreferencesSchema.parse(req.body);
+    res.json(await profiles.updatePreferences(getAuth(res).userId, body));
+  });
+
+  router.put('/nurse/payout-address', requireFreshCode(now), async (req, res) => {
+    const { stellarAddress } = PayoutAddressSchema.parse(req.body);
+    res.json(await profiles.setPayoutAddress(getAuth(res).userId, stellarAddress || null));
+  });
+
   return router;
 }

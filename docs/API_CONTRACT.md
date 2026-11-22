@@ -47,6 +47,18 @@ Every type named here is exported from `@carelayer/shared` (`packages/shared/src
 - `GET /nurses` and the question endpoints are **woman-only for now**. Agent tokens (Claude) and third-party agents (`X-Question-Key`) come with Z12.
 - **Settings (same PR):** **`/me/settings` and `/me/notifications` are built.** **A women-only setting sent by a nurse or admin is now a 400, not silently ignored.** Added `SPENDING_LIMIT_KOBO`, `DEFAULT_USER_SETTINGS` and `WOMEN_ONLY_SETTINGS` to `@carelayer/shared`.
 
+**Z9 changes (nurse onboarding, admin verification):**
+
+- §10 and §11 are built.
+- **`UpdateNurseProfileBody` adds `fullName`.**
+- **`NurseDocument` adds `mimeType` and `sizeBytes`.**
+- **Licence fields and documents are locked while `pending_review`, not only once `approved`.**
+- **Reject is also 409 when the profile is not `pending_review`.**
+- New `GET /files/nurse-documents/:id` (signed links) and `GET /admin-console`.
+- New error `LINK_EXPIRED` (410).
+- Added `NURSE_DOCUMENT_TYPES`, `NURSE_DOCUMENT_UPLOAD`, `ONBOARDING_REQUIREMENTS`, `OnboardingRequirement` and `LICENCE_FIELDS`.
+- The TASKS.md screen map's `PATCH /nurse/availability` is `PATCH /nurse/preferences { available }`.
+
 **Z5 changes (top-ups):** **`TopupStatus` adds `"paid"`.** `TOPUP_LIMITS_KOBO` added to `@carelayer/shared`. Route names stay `/topups` (the TASKS.md screen map said `/me/topups`).
 
 **Z4 changes (wallet):** **`WalletResponse` adds `status: "pending"|"active"` and `balanceSyncedAt`** (required). **`WalletTransaction` lists confirmed movements only.** `stellarExplorerUrl()` added to `@carelayer/shared`. Hikmah: `getWallet` in `apps/web/src/api/mock/mock-api.ts` needs the two new fields.
@@ -344,30 +356,49 @@ Only `approved` nurses can claim. One active claim per nurse and per question (e
 
 ## 10. Nurse onboarding and profile
 
-| Method | Path                    | Auth            | Request                                                                                                                                                                    | Response                                                       | Errors                                                          |
-| ------ | ----------------------- | --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------- |
-| GET    | `/nurse/profile`        | nurse           | none                                                                                                                                                                       | 200 `NurseProfile`                                             | 401                                                             |
-| PATCH  | `/nurse/profile`        | nurse           | `UpdateNurseProfileBody` `{ role?, fullNameConfirmed?, gender?, practiceArea?, yearsOfPractice?, bio? (≤280), languages?, licenceNumber?, guidanceNotDiagnosisAccepted? }` | 200 `NurseProfile` (`topics` defaulted from role on first set) | 400; 401; 409 if already `approved` and changing licence fields |
-| POST   | `/nurse/documents`      | nurse           | multipart: `type` (`NurseDocumentType`), `file` (image/PDF, max 10 MB)                                                                                                     | 201 `NurseDocument`. Private storage, never a public URL.      | 400; 401                                                        |
-| DELETE | `/nurse/documents/:id`  | nurse           | none                                                                                                                                                                       | 204                                                            | 401; 404; 409 if `pending_review`/`approved`                    |
-| POST   | `/nurse/profile/submit` | nurse           | none                                                                                                                                                                       | 200 `NurseProfile` with `verificationStatus: "pending_review"` | 409 `ONBOARDING_INCOMPLETE` (`details.missing: string[]`)       |
-| PATCH  | `/nurse/preferences`    | nurse           | `UpdateNursePreferencesBody` `{ topics?, available? }`                                                                                                                     | 200 `NurseProfile`                                             | 400 `TOPICS_REQUIRED` (empty topics)                            |
-| PUT    | `/nurse/payout-address` | nurse + step-up | `UpdatePayoutAddressBody` `{ stellarAddress \| null }`                                                                                                                     | 200 `NurseProfile`                                             | 400 `STELLAR_ADDRESS_INVALID`; 403 `STEP_UP_REQUIRED`           |
+**Built in Z9.** Lifecycle: `draft` → (submit) `pending_review` → (admin) `approved` | `rejected` → fix and submit again.
+
+| Method | Path                    | Auth            | Request                                                                                                                                                                               | Response                                                                                                        | Errors                                                                                                                                 |
+| ------ | ----------------------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/nurse/profile`        | nurse           | none                                                                                                                                                                                  | 200 `NurseProfile` (created at sign-up as `draft` with her sign-up name)                                        | 401                                                                                                                                    |
+| PATCH  | `/nurse/profile`        | nurse           | `UpdateNurseProfileBody` `{ fullName?, role?, fullNameConfirmed?, gender?, practiceArea?, yearsOfPractice?, bio? (≤280), languages?, licenceNumber?, guidanceNotDiagnosisAccepted? }` | 200 `NurseProfile` (`topics` defaulted from role the first time a role is set)                                  | 400 (`details.field`; unknown fields refused); 409 `CONFLICT` (licence number already registered, or licence fields locked: see below) |
+| POST   | `/nurse/documents`      | nurse           | multipart: `type` (`NurseDocumentType`), `file` (PDF, JPEG, PNG, WebP or HEIC, max 10 MB)                                                                                             | 201 `NurseDocument` `{ id, type, fileName, mimeType, sizeBytes, uploadedAt }`. Re-uploading a type replaces it. | 400 (`details.field: "type"` or `"file"`: missing, or not an allowed type by content); 413 (over 10 MB); 409 `CONFLICT` (locked)       |
+| DELETE | `/nurse/documents/:id`  | nurse           | none                                                                                                                                                                                  | 204                                                                                                             | 401; 404; 409 if `pending_review`/`approved`                                                                                           |
+| POST   | `/nurse/profile/submit` | nurse           | none                                                                                                                                                                                  | 200 `NurseProfile` with `verificationStatus: "pending_review"` (again: no change)                               | 409 `ONBOARDING_INCOMPLETE` (`details.missing: OnboardingRequirement[]`); 409 `CONFLICT` if already approved                           |
+| PATCH  | `/nurse/preferences`    | nurse           | `UpdateNursePreferencesBody` `{ topics?, available? }`                                                                                                                                | 200 `NurseProfile`                                                                                              | 400 `TOPICS_REQUIRED` (empty topics)                                                                                                   |
+| PUT    | `/nurse/payout-address` | nurse + step-up | `UpdatePayoutAddressBody` `{ stellarAddress \| null }`                                                                                                                                | 200 `NurseProfile`                                                                                              | 400 `STELLAR_ADDRESS_INVALID`; 403 `STEP_UP_REQUIRED`                                                                                  |
 
 Roles: `nurse` or `midwife` only. All are registered with the Nursing and Midwifery Council of Nigeria (`NURSE_REGULATOR = "NMCN"`). Topic defaults (`DEFAULT_TOPICS_BY_ROLE`): midwives get Pregnancy + Periods; nurses get all. Languages from a fixed list: `english`, `pidgin`, `yoruba`, `hausa`, `igbo`.
 
-Required to submit: role, full name confirmed, years, licence number, all four documents (`practising_licence`, `registration_certificate`, `government_id`, `selfie_with_id`), guidance-not-diagnosis agreement.
+- **Required to submit (`ONBOARDING_REQUIREMENTS`):** role, full name confirmed, years, licence number, the guidance-not-diagnosis agreement, and all four documents (`practising_licence`, `registration_certificate`, `government_id`, `selfie_with_id`). Topics are defaulted from the role.
+- **Locked while `pending_review` and once `approved`:**
+  - The licence fields (`LICENCE_FIELDS`: full name, role, licence number, name confirmation) → 409 with `details.field`.
+  - The documents (upload or delete) → 409.
+  - The admin reviewed exactly these. Everything else (bio, languages, practice area, years, gender, topics, available) stays editable.
+- **`fullName`** is her name as on the licence. Changing it also changes her display name (`GET /me`).
+- **Documents:**
+  - The type is detected from the file's bytes, never from the name or the browser's claim (`NURSE_DOCUMENT_UPLOAD`).
+  - Files are stored privately in the database. The nurse never gets a URL, and nobody gets a public one.
+- **Approved only:** `/nurse/questions*` and `/nurse/claim` answer **403 `NURSE_NOT_APPROVED`** unless she is approved. The routes themselves come in Z7.
 
 ## 11. Admin verification
 
-| Method | Path                        | Auth  | Request                                          | Response                                                              | Errors                                |
-| ------ | --------------------------- | ----- | ------------------------------------------------ | --------------------------------------------------------------------- | ------------------------------------- |
-| GET    | `/admin/nurses`             | admin | `?status=pending_review` (default) + `PageQuery` | 200 `Page<AdminNurseSummary>`                                         | 401; 403                              |
-| GET    | `/admin/nurses/:id`         | admin | none                                             | 200 `AdminNurseDetail` (profile + email + short-lived `documentUrls`) | 401; 403; 404                         |
-| POST   | `/admin/nurses/:id/approve` | admin | none                                             | 200 `AdminNurseSummary` (`approved`)                                  | 403; 404; 409 if not `pending_review` |
-| POST   | `/admin/nurses/:id/reject`  | admin | `RejectNurseBody` `{ reason }`                   | 200 `AdminNurseSummary` (`rejected`)                                  | 400; 403; 404                         |
+| Method | Path                         | Auth        | Request                                                                                      | Response                                                                                                               | Errors                                                                             |
+| ------ | ---------------------------- | ----------- | -------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| GET    | `/admin/nurses`              | admin       | `?status=draft\|pending_review\|approved\|rejected` (default `pending_review`) + `PageQuery` | 200 `Page<AdminNurseSummary>`, oldest first                                                                            | 400; 401; 403                                                                      |
+| GET    | `/admin/nurses/:id`          | admin       | none                                                                                         | 200 `AdminNurseDetail` (profile + email + `documentUrls`: document id → signed link, 10 minutes)                       | 401; 403; 404                                                                      |
+| POST   | `/admin/nurses/:id/approve`  | admin       | none                                                                                         | 200 `AdminNurseSummary` (`approved`)                                                                                   | 403; 404; 409 if not `pending_review`                                              |
+| POST   | `/admin/nurses/:id/reject`   | admin       | `RejectNurseBody` `{ reason }` (5–500 characters; she sees it)                               | 200 `AdminNurseSummary` (`rejected`; she is set unavailable)                                                           | 400; 403; 404; 409 if not `pending_review`                                         |
+| GET    | `/files/nurse-documents/:id` | signed link | `?exp=&a=&sig=` (from `documentUrls`)                                                        | 200 the file, with its detected `Content-Type`, `Cache-Control: private, no-store`, `nosniff` and a sandboxing CSP     | 403 (no or invalid signature, or another document's link); 410 `LINK_EXPIRED`; 404 |
+| GET    | `/admin-console`             | public page | none                                                                                         | Minimal admin page (HTML). It signs in with a code (`app: "admin"`) and uses the routes above; the page holds no data. | none                                                                               |
 
-Admin checks the licence manually against the NMCN register.
+- **The admin checks the licence by hand against the NMCN register,** using the documents.
+- **Decisions are conditional on `pending_review`,** so two admins deciding at once cannot both win (the second gets 409).
+- **She is emailed the result** (approved, or rejected with the reason).
+- **Document links:**
+  - Signed (HMAC), valid 10 minutes, bound to the admin who opened the nurse, so every view is logged with the admin's id.
+  - Not bearer-authenticated, so they open in a new tab or an `<img>`.
+  - Open the nurse again for fresh links.
 
 ## 12. Earnings and withdrawals (nurses)
 

@@ -24,13 +24,39 @@ export const NURSE_BIO_MAX_LENGTH = 280;
 
 export type VerificationStatus = 'draft' | 'pending_review' | 'approved' | 'rejected';
 
-export type NurseDocumentType =
-  'practising_licence' | 'registration_certificate' | 'government_id' | 'selfie_with_id';
+export const NURSE_DOCUMENT_TYPES = [
+  'practising_licence',
+  'registration_certificate',
+  'government_id',
+  'selfie_with_id',
+] as const;
+export type NurseDocumentType = (typeof NURSE_DOCUMENT_TYPES)[number];
+
+/** Upload rules for POST /nurse/documents. The type is detected from the file's bytes. */
+export const NURSE_DOCUMENT_UPLOAD = {
+  maxBytes: 10 * 1024 * 1024,
+  /** Detected from content, not from the file name or the browser's claim. */
+  allowedTypes: ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'image/heic'],
+} as const;
+
+/** Everything POST /nurse/profile/submit checks. `details.missing` lists the ones not done. */
+export const ONBOARDING_REQUIREMENTS = [
+  'role',
+  'fullNameConfirmed',
+  'yearsOfPractice',
+  'licenceNumber',
+  'guidanceNotDiagnosisAccepted',
+  ...NURSE_DOCUMENT_TYPES,
+] as const;
+export type OnboardingRequirement = (typeof ONBOARDING_REQUIREMENTS)[number];
 
 export interface NurseDocument {
   id: Id;
   type: NurseDocumentType;
   fileName: string;
+  /** Detected type, one of NURSE_DOCUMENT_UPLOAD.allowedTypes. */
+  mimeType: string;
+  sizeBytes: number;
   uploadedAt: IsoDateTime;
 }
 
@@ -95,6 +121,9 @@ export interface NurseProfile {
 
 // PATCH /nurse/profile
 export interface UpdateNurseProfileBody {
+  /** Full name exactly as on the licence (also her display name). Locked once submitted. */
+  fullName?: string;
+  /** Locked once submitted. */
   role?: NurseRole;
   fullNameConfirmed?: boolean;
   gender?: Gender | null;
@@ -103,9 +132,13 @@ export interface UpdateNurseProfileBody {
   /** Max NURSE_BIO_MAX_LENGTH characters. */
   bio?: string;
   languages?: NurseLanguage[];
+  /** Locked once submitted. Unique across nurses. */
   licenceNumber?: string;
   guidanceNotDiagnosisAccepted?: boolean;
 }
+
+/** Locked while the profile is pending review or approved (the admin checked these). */
+export const LICENCE_FIELDS = ['fullName', 'role', 'licenceNumber', 'fullNameConfirmed'] as const;
 
 // PATCH /nurse/preferences
 export interface UpdateNursePreferencesBody {

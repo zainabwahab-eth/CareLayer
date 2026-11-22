@@ -571,7 +571,8 @@ describe('role guards', () => {
     expect(
       (
         await request(app)
-          .get('/nurse/questions')
+          .get('/nurse/earnings') // Z10: not built yet, so past the guard means 404
+
           .set('Authorization', `Bearer ${nurse.accessToken}`)
       ).status,
     ).toBe(404);
@@ -594,7 +595,7 @@ describe('role guards', () => {
           .get('/admin/nurses')
           .set('Authorization', `Bearer ${res.body.accessToken}`)
       ).status,
-    ).toBe(404);
+    ).toBe(200); // Z9 built the route
   });
 });
 

@@ -69,6 +69,8 @@ export type ApiErrorCode =
   | 'CLAIM_EXPIRED'
   | 'NOT_CLAIM_OWNER'
   | 'NURSE_NOT_APPROVED'
+  /** A signed document link (admin) is past its 10 minutes. Open the nurse again. */
+  | 'LINK_EXPIRED'
   | 'ONBOARDING_INCOMPLETE'
   | 'TOPICS_REQUIRED';
 
