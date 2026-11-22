@@ -566,16 +566,15 @@ describe('role guards', () => {
     expect((await request(app).get('/nurse/questions')).status).toBe(401);
   });
 
-  it('a nurse passes the /nurse guard (404: no route yet) but not /admin', async () => {
+  it('a nurse passes the /nurse guard but not /admin', async () => {
     const nurse = await signUp('nurses', newEmail('n'), 'Funmilayo Bello');
     expect(
       (
         await request(app)
-          .get('/nurse/earnings') // Z10: not built yet, so past the guard means 404
-
+          .get('/nurse/earnings') // any nurse, whatever her verification status (Z10)
           .set('Authorization', `Bearer ${nurse.accessToken}`)
       ).status,
-    ).toBe(404);
+    ).toBe(200);
     expect(
       (await request(app).get('/admin/nurses').set('Authorization', `Bearer ${nurse.accessToken}`))
         .status,

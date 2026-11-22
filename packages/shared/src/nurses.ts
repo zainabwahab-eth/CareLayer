@@ -153,40 +153,112 @@ export interface UpdatePayoutAddressBody {
   stellarAddress: string | null;
 }
 
-// GET /nurse/earnings
+// GET /nurse/earnings  (N09). Days and weeks are Lagos time; weeks start on Monday.
 export interface EarningsResponse {
+  /** "Available to withdraw": USDC in her CareLayer wallet, minus withdrawals still in progress. */
+  available: Money;
+  /** USDC in her CareLayer wallet as last read from Stellar. */
   balance: Money;
+  /** When `balance` was read. Older than the request = Stellar was slow; last known value. */
+  balanceSyncedAt: IsoDateTime | null;
+  /** Her CareLayer wallet (custodial). */
+  stellarAddress: string;
+  /** Her own payout address, if she set one: payouts then go there, not to `stellarAddress`. */
+  payoutAddress: string | null;
+  /** All time: the nurse's 80% of every collected answer (free ones included). */
   totalEarned: Money;
   answersCount: number;
-  recent: EarningEntry[];
+  thisWeek: EarningsPeriod & {
+    /** Monday to Sunday, always 7 entries (the N09 chart). */
+    days: EarningsDay[];
+  };
+  thisMonth: EarningsPeriod;
+  /** Latest 10 money movements, newest first (N09 "Recent payments"). "See all": GET /wallet/transactions. */
+  recent: EarningsActivity[];
 }
 
+export interface EarningsPeriod {
+  /** First day of the period, YYYY-MM-DD (Lagos). */
+  from: string;
+  total: Money;
+  answersCount: number;
+}
+
+export interface EarningsDay {
+  /** YYYY-MM-DD (Lagos). */
+  date: string;
+  weekday: 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun';
+  total: Money;
+  answersCount: number;
+  isToday: boolean;
+}
+
+export type EarningsActivity = EarningEntry | WithdrawalEntry;
+
+/** One answer's 80% share. */
 export interface EarningEntry {
+  kind: 'earning';
+  id: Id;
   questionId: Id;
   category: QuestionCategory;
-  /** The nurse's 80% share. */
+  /** Short label for the list (start of the question she answered), e.g. "Swollen feet at 24 weeks…". */
+  title: string;
   amount: Money;
   paidFromTreasury: boolean;
+  /** pending = being sent to her wallet (retried automatically). */
+  status: 'pending' | 'confirmed';
   stellarTxHash: string | null;
   earnedAt: IsoDateTime;
 }
 
+export interface WithdrawalEntry {
+  kind: 'withdrawal';
+  id: Id;
+  /** Negative (money out), on both fields. */
+  amount: Money;
+  destinationAddress: string;
+  destinationMemo: WithdrawalMemo | null;
+  status: WithdrawalStatus;
+  stellarTxHash: string | null;
+  createdAt: IsoDateTime;
+}
+
+/** Smallest withdrawal: ₦100. */
+export const MIN_WITHDRAWAL_KOBO = 10_000;
+
 // POST /nurse/withdrawals  (requires a fresh code)
 export interface CreateWithdrawalBody {
   amountKobo: number;
-  /** Bank withdrawals are "coming soon". */
-  destination: { kind: 'stellar'; address: string };
+  /**
+   * Bank withdrawals are "coming soon". `memo`: only when the receiving wallet asks for one
+   * (exchanges credit deposits by memo; without it the money can be lost).
+   */
+  destination: { kind: 'stellar'; address: string; memo?: WithdrawalMemo };
+}
+
+/** Stellar memo: "text" up to 28 bytes, or "id" = an unsigned 64-bit number (digits, as a string). */
+export interface WithdrawalMemo {
+  type: 'text' | 'id';
+  value: string;
 }
 
 export type WithdrawalStatus = 'pending' | 'submitted' | 'confirmed' | 'failed';
 
 export interface Withdrawal {
   id: Id;
+  /**
+   * confirmed = on Stellar (`stellarTxHash`). submitted = sent, outcome not known yet (Stellar was
+   * slow): it settles to confirmed or failed within about a minute; poll GET /nurse/withdrawals.
+   * failed = nothing left her wallet (`failureReason`).
+   */
   status: WithdrawalStatus;
   amount: Money;
   destinationAddress: string;
+  destinationMemo: WithdrawalMemo | null;
   stellarTxHash: string | null;
+  failureReason: string | null;
   createdAt: IsoDateTime;
+  confirmedAt: IsoDateTime | null;
 }
 
 // Admin views

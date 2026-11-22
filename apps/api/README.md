@@ -99,6 +99,19 @@ Placeholders, clearly not real: wallet keys start with `GSEED` (no secret; Z4 cr
   - `src/modules/questions/answers.ts`.
   - `src/modules/payments/`: `answer-x402.ts`, `payouts.ts`, `chain.ts`.
 
+## Earnings and withdrawals (Z10)
+
+- **`GET /nurse/earnings`** serves N09:
+  - Available to withdraw.
+  - The Mon–Sun chart, this week, this month and all time.
+  - Recent earnings and withdrawals.
+- **`POST /nurse/withdrawals`** needs a fresh code (`POST /auth/step-up`). It is a Stellar address only, ₦100 minimum, one at a time. Her custodial key signs; the treasury pays the fee (fee bump).
+- **Memo:** optional `destination.memo` (`text` or `id`), for exchanges that need one.
+- **`GET /nurse/withdrawals`** lists her withdrawals. A withdrawal whose outcome was unknown (`submitted`) is settled by a loop every minute (`src/index.ts`). The loop looks up the transaction hash stored before submitting.
+- **End to end on testnet:** `npm run withdrawal:e2e -w @carelayer/api` (withdraws ₦100 with a memo ID and checks it arrived).
+- **Trace:** log lines `withdrawal_created`, `withdrawal_confirmed`, `withdrawal_rejected`, `withdrawal_outcome_unknown`, `withdrawal_loop`.
+- **Code:** `src/modules/nurses/earnings.ts`, `src/modules/payments/withdrawal-chain.ts`.
+
 ## x402 on Stellar testnet (Z2)
 
 ```bash

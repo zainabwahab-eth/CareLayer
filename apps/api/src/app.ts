@@ -8,6 +8,8 @@ import { requestLogger } from './lib/request-logger.js';
 import { createAdminRouter } from './modules/admin/router.js';
 import { createAdminService, type AdminService } from './modules/admin/service.js';
 import { createCaseService, type CaseService } from './modules/nurses/cases.js';
+import { createEarningsService, type EarningsService } from './modules/nurses/earnings.js';
+import { createHorizonWithdrawalChain } from './modules/payments/withdrawal-chain.js';
 import { createNurseProfileService, type NurseProfileService } from './modules/nurses/profile.js';
 import { createEmailSender } from './modules/auth/email.js';
 import { createAuthRouter } from './modules/auth/router.js';
@@ -135,8 +137,29 @@ export function buildAnswerServices(deps: AppDeps, wallets: WalletService) {
   return { payouts, answers };
 }
 
+/** Z10: nurse earnings (N09) and withdrawals. */
+export function buildEarningsService(deps: AppDeps, wallets: WalletService): EarningsService {
+  const { config } = deps;
+  return createEarningsService({
+    db: deps.db,
+    config,
+    wallets,
+    chain:
+      deps.withdrawalChain ??
+      (config.wallet.treasurySecret
+        ? createHorizonWithdrawalChain({
+            horizonUrl: config.wallet.horizonUrl,
+            treasurySecret: config.wallet.treasurySecret,
+          })
+        : undefined),
+    logger: deps.logger,
+    now: deps.clock ?? (() => new Date()),
+  });
+}
+
 export interface AppServices {
   wallets: WalletService;
+  earnings: EarningsService;
   payouts: PayoutService;
   answers: AnswerService;
   topups: TopupService;
@@ -207,6 +230,7 @@ export function buildServices(deps: AppDeps): AppServices {
     wallets,
     topups: buildTopupService(deps, wallets),
     ...buildAnswerServices(deps, wallets),
+    earnings: buildEarningsService(deps, wallets),
     ...buildChatAndQuestionServices(deps),
     ...buildNurseServices(deps),
   };
@@ -230,7 +254,7 @@ export function createApp(deps: AppDeps, services: AppServices = buildServices(d
   app.use(createTopupsRouter(deps, services.topups));
   app.use(createChatRouter(deps, services.chat));
   app.use(createQuestionsRouter(deps, services.questions, services.answers));
-  app.use(createNursesRouter(deps, services.nurseProfiles, services.cases));
+  app.use(createNursesRouter(deps, services.nurseProfiles, services.cases, services.earnings));
   app.use(createPaymentsRouter(deps));
   app.use(createAdminRouter(deps, services.admin));
 
