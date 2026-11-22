@@ -92,7 +92,7 @@ These override anything older in other docs. If you change one, update this list
 - Fixed demo exchange rate from `NGN_PER_USDC`.
 - Every user gets a custodial Stellar testnet wallet at sign-up; secrets encrypted with `WALLET_ENCRYPTION_KEY`; the treasury sponsors reserves and adds the USDC trustline.
 - Top-up: Paystack test mode → test USDC from the treasury.
-- Women: **no withdrawals** for now. Nurses: withdraw to a Stellar address; bank withdrawal shown as "Coming soon".
+- Women: **no withdrawals** for now. Nurses: withdraw to a Stellar address; bank withdrawal shown as "Coming soon". Optional destination memo (text or ID) for exchanges; the treasury pays the fee (fee bump). Decided in Z10.
 - Store the Stellar transaction hash on every payment, payout, top-up and withdrawal.
 
 **x402 (decided in Z2, November 2026)**
