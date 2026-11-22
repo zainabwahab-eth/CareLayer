@@ -88,6 +88,12 @@ cmd_setup() {
     gcloud artifacts repositories create "$REPO" --repository-format docker \
       --location "$REGION" --project "$PROJECT" --description "CareLayer images"
   fi
+  # Newer projects run Cloud Build as the default compute service account, which has no build
+  # permissions by default (403 reading the uploaded source). Give it Cloud Build's builder role.
+  local number; number="$(gcloud projects describe "$PROJECT" --format 'value(projectNumber)')"
+  gcloud projects add-iam-policy-binding "$PROJECT" \
+    --member "serviceAccount:$number-compute@developer.gserviceaccount.com" \
+    --role roles/cloudbuild.builds.builder --condition None >/dev/null
   if ! gcloud iam service-accounts describe "$SA" --project "$PROJECT" >/dev/null 2>&1; then
     gcloud iam service-accounts create "$SA_NAME" --project "$PROJECT" \
       --display-name "CareLayer API (Cloud Run)"
