@@ -2,6 +2,7 @@
 // Used by scripts/pay-x402.ts and the testnet integration test now; Z8's internal agent (paying
 // from a woman's custodial wallet) will use the same function with her decrypted secret.
 import { decodePaymentResponseHeader, wrapFetchWithPayment, x402Client } from '@x402/fetch';
+import { decodePaymentRequiredHeader, encodePaymentSignatureHeader } from '@x402/core/http';
 import { createEd25519Signer } from '@x402/stellar';
 import { ExactStellarScheme } from '@x402/stellar/exact/client';
 import type { X402Config } from '../../config.js';
@@ -29,3 +30,24 @@ export function readSettlement(
 
 export const testnetExplorerTxUrl = (hash: string) =>
   `https://stellar.expert/explorer/testnet/tx/${hash}`;
+
+/**
+ * Z8 internal agent: signs an x402 payment for a PAYMENT-REQUIRED header with a custodial wallet's
+ * secret and returns the PAYMENT-SIGNATURE header value. Behind an interface so tests use a fake
+ * (the real signer simulates the transfer on Soroban RPC).
+ */
+export interface AnswerPayer {
+  createPaymentHeader(secret: string, paymentRequiredHeader: string): Promise<string>;
+}
+
+export function createAnswerPayer(network: X402Config['network']): AnswerPayer {
+  return {
+    async createPaymentHeader(secret, paymentRequiredHeader) {
+      const signer = createEd25519Signer(secret, network);
+      const client = new x402Client().register(network, new ExactStellarScheme(signer));
+      const required = decodePaymentRequiredHeader(paymentRequiredHeader);
+      const payload = await client.createPaymentPayload(required);
+      return encodePaymentSignatureHeader(payload);
+    },
+  };
+}

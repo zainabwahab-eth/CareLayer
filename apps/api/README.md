@@ -86,6 +86,19 @@ Placeholders, clearly not real: wallet keys start with `GSEED` (no secret; Z4 cr
   - `src/modules/nurses/`: `profile.ts`, `documents.ts`, `router.ts`.
   - `src/modules/admin/`: `service.ts`, `router.ts`, `console.ts`.
 
+## Pay on delivery and nurse payouts (Z8)
+
+- **Web app:** `POST /me/questions/:id/collect` once the question is `answered`. The API's own agent decides free or paid. For a paid answer it checks her limit and balance, then pays over x402 from her custodial wallet.
+- **Any x402 agent:** `GET /questions/:id/answer` answers 409 (not answered, no payment asked), then 402 + `PAYMENT-REQUIRED`. The paid retry carries `PAYMENT-SIGNATURE` and gets the answer + `PAYMENT-RESPONSE`.
+- **The answer is only read after settlement succeeds** (manual x402 flow, not `paymentMiddleware`: see the Z8 decisions in `docs/TASKS.md`). An unclear settle (timeout) stays pending and is found on chain before she is ever asked to pay again.
+- **Payouts:** the nurse's 80% is a treasury USDC payment (memo = payout id), sent right after collection. A loop retries it every minute (`src/index.ts`). Free answers are paid the same way.
+- **Feedback:** `POST /questions/:id/feedback { helpful }` after collection. It recomputes her % helpful.
+- **End to end on testnet:** `npm run answer:e2e -w @carelayer/api` prints both explorer links: her payment and the nurse payout. It needs `testnet:setup` and a migrated dev database.
+- **Trace:** log lines `answer_collected`, `x402_settle_rejected` / `x402_settle_indeterminate` / `x402_settle_failed`, `payment_reconciled`, `payout_confirmed`, `payout_failed`, `payout_loop`.
+- **Code:**
+  - `src/modules/questions/answers.ts`.
+  - `src/modules/payments/`: `answer-x402.ts`, `payouts.ts`, `chain.ts`.
+
 ## x402 on Stellar testnet (Z2)
 
 ```bash

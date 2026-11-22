@@ -543,7 +543,7 @@ model Feedback {
 // Money (kobo Int, stroops BigInt)
 // ============================================================================
 
-/// What was charged for an answer (x402 settlement to the platform). One per question.
+/// What was charged for an answer (x402 settlement to the platform address). One per question.
 /// Free answers: source TREASURY_FREE, amounts 0, no stellarTxHash (no on-chain charge to her).
 model Payment {
   id                 String        @id @default(cuid())
@@ -557,13 +557,24 @@ model Payment {
   platformFeeStroops BigInt
   status             TxStatus
   stellarTxHash      String?       @unique
-  /// Facilitator settlement reference, for reconciliation.
+  /// sha256 of the signed x402 payment payload being settled (which attempt this row describes).
   x402Reference      String?
   createdAt          DateTime      @default(now())
   settledAt          DateTime?
+  /// Z8: PENDING = an x402 settle was started and its outcome is not known yet (e.g. the facilitator
+  /// timed out). It is reconciled on the chain before any new payment is asked for.
+  /// FAILED = settlement did not happen; she can pay again (the row is reused).
+  attemptAt          DateTime?
+  attempts           Int           @default(0)
+  /// After this the signed payment can no longer settle, so an unconfirmed PENDING attempt is FAILED.
+  settleDeadline     DateTime?
+  failureReason      String?
 
   question Question @relation(fields: [questionId], references: [id], onDelete: Restrict)
   payout   Payout?
+
+  /// Reconciliation of indeterminate attempts.
+  @@index([status, attemptAt])
 }
 
 /// The nurse's 80% (₦400 on a ₦500 answer). Paid from the treasury, also for free answers.
@@ -580,12 +591,19 @@ model Payout {
   stellarTxHash      String?   @unique
   createdAt          DateTime  @default(now())
   confirmedAt        DateTime?
+  /// Z8: send claim and retry state (same pattern as top-up credits). The Stellar payment carries
+  /// memo = this payout's id, so a retry finds an earlier send instead of paying twice.
+  attemptAt          DateTime?
+  attempts           Int       @default(0)
+  failureReason      String?
 
   payment Payment      @relation(fields: [paymentId], references: [id], onDelete: Restrict)
   nurse   NurseProfile @relation(fields: [nurseId], references: [userId], onDelete: Restrict)
 
   /// Nurse earnings.
   @@index([nurseId, createdAt(sort: Desc)])
+  /// Background loop: payouts still to send.
+  @@index([status, createdAt])
 }
 
 /// Paystack test payment -> test USDC from the treasury.

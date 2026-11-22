@@ -9,6 +9,8 @@ import type { LlmClient } from './modules/llm/client.js';
 import type { TopupChain } from './modules/topups/chain.js';
 import type { PaystackClient } from './modules/topups/paystack.js';
 import type { WalletChain } from './modules/wallets/chain.js';
+import type { AnswerPaymentChain } from './modules/payments/chain.js';
+import type { AnswerPayer } from './modules/payments/x402-client.js';
 
 export interface AppDeps {
   config: Config;
@@ -31,6 +33,12 @@ export interface AppDeps {
   paystack?: PaystackClient;
   /** Treasury USDC payments for top-ups. Default: Horizon with the treasury, or none. */
   topupChain?: TopupChain;
+  /** Treasury USDC payments for nurse payouts (Z8). Default: same Horizon chain as top-ups. */
+  payoutChain?: TopupChain;
+  /** Finds answer settlements on chain (Z8 reconciliation). Default: Horizon. */
+  answerChain?: AnswerPaymentChain;
+  /** Signs x402 payments for the API's own agent (Z8). Default: @x402/stellar exact client. */
+  answerPayer?: AnswerPayer;
   /** The assistant's LLM. Default: OpenAI-compatible client from LLM_* (no key = chat answers 503). */
   llm?: LlmClient;
 }

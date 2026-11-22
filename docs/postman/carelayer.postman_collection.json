@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "757e009e-9b28-4514-a7f4-6fcbc1c6380e",
     "name": "CareLayer API",
-    "description": "CareLayer backend (apps/api). Contract: docs/API_CONTRACT.md (v1). One folder per module; folders are added by the task that builds each module (Z3 Auth, Z5 Top-up, Z6 Chat + Questions, Z7 Nurse cases, Z9 Nurse profile + Admin). Select the 'CareLayer local' environment ({{baseUrl}} = http://localhost:4000).",
+    "description": "CareLayer backend (apps/api). Contract: docs/API_CONTRACT.md (v1). One folder per module; folders are added by the task that builds each module (Z3 Auth, Z5 Top-up, Z6 Chat + Questions, Z8 answers/collect/feedback in Questions + Nurses, Z7 Nurse cases, Z9 Nurse profile + Admin). Select the 'CareLayer local' environment ({{baseUrl}} = http://localhost:4000).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "createdAt": "2026-11-18T22:32:09.000Z",
     "updatedAt": "2026-11-22T01:19:23.000Z",
@@ -1632,6 +1632,256 @@
           "createdAt": "2026-11-20T20:03:31.000Z",
           "updatedAt": "2026-11-20T20:03:31.000Z",
           "uid": "44554019-0d6383c6-01be-4ba8-bf7a-7745d632102d"
+        },
+        {
+          "name": "Get answer (x402 pay on delivery)",
+          "id": "af69517c-47c0-439c-847a-b2bf5a6874a8",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "PAYMENT-SIGNATURE",
+                "value": "{{paymentSignature}}",
+                "description": "x402 v2 payment (base64 JSON), sent on the paid retry. Leave empty for the first call."
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/questions/{{questionId}}/answer",
+              "host": ["{{baseUrl}}"],
+              "path": ["questions", "{{questionId}}", "answer"]
+            },
+            "description": "Z8. x402-protected answer (contract §8.3): owner check → answered guard (409/410, no payment asked) → already collected (same answer, never charged twice) → free (treasury pays the nurse) → paid: 402 + PAYMENT-REQUIRED, then with PAYMENT-SIGNATURE verify → record attempt → settle → answer + PAYMENT-RESPONSE. Settle failed → 402 without answer text; facilitator busy → 503 retryable; settle timeout → 503 paymentPending, reconciled on chain on the next call."
+          },
+          "response": [
+            {
+              "id": "9bba196b-6ce7-4f6b-a2e2-19755efd5c80",
+              "name": "200 Paid answer (after x402 settlement)",
+              "code": 200,
+              "status": "OK",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "PAYMENT-RESPONSE",
+                  "value": "eyJzdWNjZXNzIjp0cnVlLCJ0cmFuc2FjdGlvbiI6ImIyY2U1Njg..."
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-store"
+                }
+              ],
+              "body": "{\n  \"answer\": {\n    \"questionId\": \"cmi9q2x0f0003s6l1a2b3c4d5\",\n    \"text\": \"Swelling of the feet at 30 weeks is common, especially late in the day. Rest with your feet raised and drink water. If your face or hands swell suddenly, or you have a bad headache or blurred vision, go to a clinic today.\",\n    \"nurse\": {\n      \"id\": \"cmi9pz1aa0001s6l1nurse0001\",\n      \"displayName\": \"Amaka Okafor\",\n      \"role\": \"midwife\",\n      \"verified\": true\n    },\n    \"recommendSeeSomeoneToday\": false,\n    \"answeredAt\": \"2026-11-22T13:40:12.000Z\"\n  },\n  \"payment\": {\n    \"amount\": {\n      \"kobo\": 50000,\n      \"usdc\": \"0.3125000\"\n    },\n    \"stellarTxHash\": \"b2ce568136e4372c5b5faa5ab963ebeac8ad94afaa661bb2ccbf2f6b09ef30ed\",\n    \"paidFromTreasury\": false\n  }\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "c7e088ed-cbf7-4279-8952-31c8e1ead820",
+              "name": "402 Payment required",
+              "code": 402,
+              "status": "Payment Required",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "PAYMENT-REQUIRED",
+                  "value": "eyJ4NDAyVmVyc2lvbiI6MiwicmVzb3VyY2UiOnsidXJsIjoi..."
+                }
+              ],
+              "body": "{\n  \"x402Version\": 2,\n  \"resource\": {\n    \"url\": \"http://localhost:5173/questions/cmi9q2x0f0003s6l1a2b3c4d5/answer\",\n    \"description\": \"CareLayer: one answer from a verified nurse or midwife\",\n    \"mimeType\": \"application/json\"\n  },\n  \"accepts\": [\n    {\n      \"scheme\": \"exact\",\n      \"network\": \"stellar:testnet\",\n      \"asset\": \"CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA\",\n      \"amount\": \"3125000\",\n      \"payTo\": \"GTREASURYPUBLICKEYXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\",\n      \"maxTimeoutSeconds\": 120,\n      \"extra\": {\n        \"areFeesSponsored\": true\n      }\n    }\n  ]\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "a00f3958-38a5-4876-9239-7e0f4924364f",
+              "name": "409 Not answered yet (guard, no payment asked)",
+              "code": 409,
+              "status": "Conflict",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"QUESTION_NOT_ANSWERED\",\n    \"message\": \"There is no answer yet. Nothing has been charged.\"\n  }\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "2dda3471-6ee5-46f8-abfe-86ae805d2683",
+              "name": "503 Payment still being confirmed",
+              "code": 503,
+              "status": "Service Unavailable",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"SERVICE_UNAVAILABLE\",\n    \"message\": \"Your payment is being confirmed. Try again in a moment.\",\n    \"details\": {\n      \"retryable\": true,\n      \"paymentPending\": true,\n      \"retryAfterSeconds\": 30\n    }\n  }\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Collect answer (API agent pays)",
+          "id": "2e9da205-3e8c-4f0c-85ce-5d9938415049",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"approvedAboveLimit\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/me/questions/{{questionId}}/collect",
+              "host": ["{{baseUrl}}"],
+              "path": ["me", "questions", "{{questionId}}", "collect"]
+            },
+            "description": "Z8. The web app's way to get an answer (W11). Free if she has one of her first 3 left; otherwise checks her spending limit (409 unless approvedAboveLimit), her live balance (409 INSUFFICIENT_BALANCE), then pays over x402 from her custodial wallet. Calling again returns the same answer without paying again."
+          },
+          "response": [
+            {
+              "id": "102eb535-407b-4385-8120-222d71cad4d7",
+              "name": "200 Free answer (treasury pays the nurse)",
+              "code": 200,
+              "status": "OK",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"answer\": {\n    \"questionId\": \"cmi9q2x0f0003s6l1a2b3c4d5\",\n    \"text\": \"Spotting in the first three months on the pill is common and usually settles. Keep taking it at the same time every day. If it lasts beyond three months or you have pain, see a health worker.\",\n    \"nurse\": {\n      \"id\": \"cmi9pz1aa0002s6l1nurse0002\",\n      \"displayName\": \"Funmilayo Bello\",\n      \"role\": \"midwife\",\n      \"verified\": true\n    },\n    \"recommendSeeSomeoneToday\": false,\n    \"answeredAt\": \"2026-11-22T13:40:12.000Z\"\n  },\n  \"payment\": {\n    \"amount\": {\n      \"kobo\": 0,\n      \"usdc\": \"0.0000000\"\n    },\n    \"stellarTxHash\": null,\n    \"paidFromTreasury\": true\n  }\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "62030f3b-63a7-48e4-987b-a0b3eeec6a99",
+              "name": "409 Above spending limit",
+              "code": 409,
+              "status": "Conflict",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"SPENDING_LIMIT_EXCEEDED\",\n    \"message\": \"This answer costs more than your limit per answer. Approve it to continue.\",\n    \"details\": {\n      \"priceKobo\": 50000,\n      \"spendingLimitKobo\": 20000\n    }\n  }\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "2ccdcc1b-cff7-44e2-985d-55378cc138d8",
+              "name": "409 Insufficient balance",
+              "code": 409,
+              "status": "Conflict",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"INSUFFICIENT_BALANCE\",\n    \"message\": \"Not enough in your wallet for this answer. Top up to continue.\",\n    \"details\": {\n      \"price\": {\n        \"kobo\": 50000,\n        \"usdc\": \"0.3125000\"\n      },\n      \"balance\": {\n        \"kobo\": 16000,\n        \"usdc\": \"0.1000000\"\n      }\n    }\n  }\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
+        },
+        {
+          "name": "Feedback on answer",
+          "id": "49a4381c-25d7-4a7a-a259-4fc66078c62e",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"helpful\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/questions/{{questionId}}/feedback",
+              "host": ["{{baseUrl}}"],
+              "path": ["questions", "{{questionId}}", "feedback"]
+            },
+            "description": "Z8. Helpful / not helpful on a collected answer. One per answer; sending again changes it. Recomputes the nurse's % helpful."
+          },
+          "response": [
+            {
+              "id": "c48c9dd3-7d46-4ede-8818-0b2f02440785",
+              "name": "200 Feedback saved",
+              "code": 200,
+              "status": "OK",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"questionId\": \"cmi9q2x0f0003s6l1a2b3c4d5\",\n  \"helpful\": true,\n  \"updatedAt\": \"2026-11-22T13:45:02.000Z\"\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "41175f46-c281-40fa-840a-4cdd5e81563a",
+              "name": "409 Not collected yet",
+              "code": 409,
+              "status": "Conflict",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"QUESTION_NOT_ANSWERED\",\n    \"message\": \"You can rate an answer once you have it.\"\n  }\n}",
+              "_postman_previewlanguage": "json"
+            }
+          ]
         }
       ],
       "id": "81c7eaf2-6deb-4efd-b3e4-f616bc31224a",

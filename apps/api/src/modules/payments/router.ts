@@ -1,5 +1,6 @@
-// Payments module. Z2: GET /x402-test proves x402 on Stellar testnet. Z8 adds pay on delivery for
-// GET /questions/:id/answer (same pattern: owner check -> payOnDeliveryGuard -> x402 -> settle + 80/20).
+// Payments module. Z2: GET /x402-test proves x402 on Stellar testnet with @x402/express.
+// Z8's GET /questions/:id/answer lives in the questions router and uses a manual x402 flow
+// (answer-x402.ts, questions/answers.ts): the answer is only read after settlement succeeds.
 //
 // GET /x402-test (only when X402_TEST_ROUTE=true, never in production)
 //   - 0.01 USDC to X402_PAY_TO_ADDRESS (the treasury).

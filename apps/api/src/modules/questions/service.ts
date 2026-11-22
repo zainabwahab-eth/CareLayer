@@ -66,7 +66,11 @@ type QuestionWithRelations = Prisma.QuestionGetPayload<{
   };
 }>;
 
-function publicNurse(n: { userId: string; fullName: string; role: string | null }): PublicNurse {
+export function publicNurse(n: {
+  userId: string;
+  fullName: string;
+  role: string | null;
+}): PublicNurse {
   return {
     id: n.userId,
     displayName: n.fullName,
