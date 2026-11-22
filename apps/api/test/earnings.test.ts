@@ -7,6 +7,7 @@ import { createDb } from '../src/db.js';
 import { lagosMonthStart, questionTitle } from '../src/modules/nurses/earnings.js';
 import {
   StellarRejectedError,
+  type DestinationMemo,
   type DestinationState,
   type WithdrawalChain,
 } from '../src/modules/payments/withdrawal-chain.js';
@@ -30,10 +31,18 @@ const hash = () => randomBytes(32).toString('hex');
 type SendMode = 'ok' | 'reject' | 'unknown';
 
 function fakeWithdrawalChain() {
-  const sent: { from: string; to: string; stroops: bigint; memo: string; txHash: string }[] = [];
-  const onChain = new Map<string, string>(); // memo -> hash (landed even if the send "timed out")
+  type Sent = {
+    from: string;
+    to: string;
+    stroops: bigint;
+    memo: DestinationMemo | null;
+    txHash: string;
+  };
+  const prepared = new Map<string, Sent>(); // xdr -> what it pays
+  const sent: Sent[] = []; // submitted
+  const onChain = new Map<string, 'success' | 'failed'>(); // hash -> outcome Horizon reports
   const chain: WithdrawalChain & {
-    sent: typeof sent;
+    sent: Sent[];
     onChain: typeof onChain;
     mode: SendMode;
     destination: DestinationState;
@@ -45,19 +54,25 @@ function fakeWithdrawalChain() {
     async destinationState() {
       return chain.destination;
     },
-    async send(from, to, stroops, memo) {
-      if (chain.mode === 'reject')
+    async prepare({ from, destination, stroops, memo }) {
+      const tx = { from: from.publicKey(), to: destination, stroops, memo, txHash: hash() };
+      const xdr = `xdr-${tx.txHash}`;
+      prepared.set(xdr, tx);
+      return { hash: tx.txHash, xdr };
+    },
+    async submit({ xdr }) {
+      if (chain.mode === 'reject') {
         throw new StellarRejectedError('stellar: tx_failed [op_underfunded]');
-      const txHash = hash();
-      sent.push({ from: from.publicKey(), to, stroops, memo, txHash });
+      }
+      const tx = prepared.get(xdr)!;
+      sent.push(tx);
+      onChain.set(tx.txHash, 'success');
       if (chain.mode === 'unknown') {
-        onChain.set(memo, txHash);
         throw new Error('stellar request failed: timeout of 30000ms exceeded');
       }
-      return { txHash };
     },
-    async findByMemo(_account, memo) {
-      return onChain.get(memo) ?? null;
+    async transactionStatus(txHash) {
+      return onChain.get(txHash) ?? null;
     },
   };
   return chain;
@@ -342,11 +357,16 @@ describe('POST /nurse/withdrawals', () => {
       from: n.wallet.stellarPublicKey,
       to,
       stroops: 6_250_000n,
-      memo: res.body.id,
+      memo: null,
     });
+    expect(res.body.destinationMemo).toBeNull();
     expect(res.body.stellarTxHash).toBe(chain.sent[0]!.txHash);
     const row = await db.withdrawal.findUniqueOrThrow({ where: { id: res.body.id } });
-    expect(row).toMatchObject({ status: 'CONFIRMED', stellarTxHash: chain.sent[0]!.txHash });
+    expect(row).toMatchObject({
+      status: 'CONFIRMED',
+      stellarTxHash: chain.sent[0]!.txHash,
+      preparedTxHash: chain.sent[0]!.txHash,
+    });
 
     const list = await n.api.get('/nurse/withdrawals');
     expect(list.body.items).toHaveLength(1);
@@ -361,6 +381,64 @@ describe('POST /nurse/withdrawals', () => {
       kind: 'withdrawal',
       stellarTxHash: res.body.stellarTxHash,
     });
+  });
+
+  it('sends the memo an exchange asked for (text or id) and returns it', async () => {
+    const n = await nurse();
+    await n.stepUp();
+    const to = dest();
+    const res = await n.api.post('/nurse/withdrawals', {
+      amountKobo: 20_000,
+      destination: { kind: 'stellar', address: to, memo: { type: 'id', value: '1234567890' } },
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.destinationMemo).toEqual({ type: 'id', value: '1234567890' });
+    expect(chain.sent[0]!.memo).toEqual({ type: 'id', value: '1234567890' });
+
+    const text = await n.api.post('/nurse/withdrawals', {
+      amountKobo: 20_000,
+      destination: { kind: 'stellar', address: to, memo: { type: 'text', value: ' AB12CD ' } },
+    });
+    expect(text.status).toBe(201);
+    expect(chain.sent[1]!.memo).toEqual({ type: 'text', value: 'AB12CD' });
+    const e = await n.api.get('/nurse/earnings');
+    expect(e.body.recent[0].destinationMemo).toEqual({ type: 'text', value: 'AB12CD' });
+  });
+
+  it.each([
+    [{ type: 'text', value: 'x'.repeat(29) }, /28 bytes/],
+    [{ type: 'text', value: 'ẞ'.repeat(10) }, /28 bytes/], // 30 bytes in UTF-8
+    [{ type: 'text', value: '   ' }, /empty/],
+    [{ type: 'id', value: '12ab' }, /digits only/],
+    [{ type: 'id', value: '18446744073709551616' }, /too large/], // 2^64
+  ])('refuses a memo Stellar would refuse: %j', async (memo, message) => {
+    const n = await nurse();
+    await n.stepUp();
+    const res = await n.api.post('/nurse/withdrawals', {
+      amountKobo: 20_000,
+      destination: { kind: 'stellar', address: dest(), memo },
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toMatchObject({
+      code: 'VALIDATION_FAILED',
+      details: { field: 'destination.memo' },
+    });
+    expect(res.body.error.message).toMatch(message);
+    expect(chain.sent).toHaveLength(0);
+  });
+
+  it('the largest memo ID (2^64 - 1) is accepted', async () => {
+    const n = await nurse();
+    await n.stepUp();
+    const res = await n.api.post('/nurse/withdrawals', {
+      amountKobo: 20_000,
+      destination: {
+        kind: 'stellar',
+        address: dest(),
+        memo: { type: 'id', value: '18446744073709551615' },
+      },
+    });
+    expect(res.status).toBe(201);
   });
 
   it('validates the address, the amount and the destination', async () => {
@@ -414,7 +492,7 @@ describe('POST /nurse/withdrawals', () => {
     expect(again.status).toBe(201);
   });
 
-  it('unknown outcome: 201 submitted, holds the amount, one in flight, then found by memo', async () => {
+  it('unknown outcome: 201 submitted, holds the amount, one in flight, then found by its hash', async () => {
     chain.mode = 'unknown';
     const n = await nurse();
     await n.stepUp();
@@ -440,12 +518,14 @@ describe('POST /nurse/withdrawals', () => {
     expect(second.status).toBe(409);
     expect(second.body.error.code).toBe('CONFLICT');
 
-    // It did land: the next read finds it by memo and records the hash. Never sent twice.
-    chain.onChain.set(res.body.id, 'f'.repeat(64));
+    // It did land: the next read looks up the hash stored before submitting. Never sent twice.
+    const row = await db.withdrawal.findUniqueOrThrow({ where: { id: res.body.id } });
+    expect(row.preparedTxHash).toBe(chain.sent[0]!.txHash);
+    chain.onChain.set(row.preparedTxHash!, 'success');
     const list = await n.api.get('/nurse/withdrawals');
     expect(list.body.items[0]).toMatchObject({
       status: 'confirmed',
-      stellarTxHash: 'f'.repeat(64),
+      stellarTxHash: row.preparedTxHash,
     });
     expect(chain.sent).toHaveLength(1);
   });

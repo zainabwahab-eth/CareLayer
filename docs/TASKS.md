@@ -379,7 +379,7 @@ Implement everything in "Accounts and auth" (section 2): `POST /auth/code/reques
 **Tests:** unanswered → 409 and no charge; paid answer creates payment + payout; free answer charges nothing and pays the nurse; repeated fetch doesn't charge again; **a test that forces settlement to fail and asserts no answer text is returned and nothing is recorded as paid**; facilitator 429/5xx returns the clear error; testnet integration test end to end.
 **Done when:** one full question flow shows both transactions on the explorer.
 
-### Z10. Earnings and withdrawals (done: [real withdrawal, fee paid by the treasury](https://stellar.expert/explorer/testnet/tx/0e6497925afd3313b464ea446ca97f45cca3e536603f2f12760d4976c6f8eba6))
+### Z10. Earnings and withdrawals (done: [real withdrawal with a memo, fee paid by the treasury](https://stellar.expert/explorer/testnet/tx/04f8bfa8959bc0476747b1a9be13aaed2ce79309f279e8ee07c737b8817f23e4))
 
 - **Decided in Z10:**
   - **Withdrawals are fee-bumped.** Her custodial account holds 0 XLM (Z4), so the USDC payment is signed by her custodial key and wrapped in a fee-bump transaction signed and paid by the treasury. No XLM is ever sent to nurses.
@@ -387,9 +387,10 @@ Implement everything in "Accounts and auth" (section 2): `POST /auth/code/reques
   - **One withdrawal in flight per nurse**, enforced by a partial unique index (`Withdrawal_one_in_flight_per_nurse`). Without it, two withdrawals at once could both pass the balance check. `available` = chain balance minus in-flight withdrawals.
   - **Outcomes:**
     - Stellar refuses (result codes) → `FAILED`, 502 `STELLAR_SUBMIT_FAILED`, nothing moved.
-    - No answer (timeout) → stays `SUBMITTED` and returns 201 `submitted`. The memo is the withdrawal id. A loop every minute (and her next read) searches her account's transactions for it: found → `CONFIRMED` with the hash. Not found once the transaction's 60 s window is over (+2 min margin) → `FAILED`. Never sent twice.
+    - No answer (timeout) → stays `SUBMITTED` and returns 201 `submitted`. The transaction is built and signed first, and its hash (final before submitting) is stored as `preparedTxHash`. A loop every minute (and her next read) looks that exact hash up on Horizon: success → `CONFIRMED`; failed on chain → `FAILED`. Not found once the transaction's 60 s window is over (+2 min margin) → `FAILED`. Never sent twice.
     - A `PENDING` row never claimed for sending (crash) → `FAILED` after 2 minutes.
   - **Minimum ₦100**, Stellar only. Bank is "Coming soon".
+  - **Optional destination memo** (`destination.memo: { type: "text" | "id", value }`), because exchanges credit deposits by memo and a deposit without it can be lost. It follows Stellar's rules: text up to 28 bytes, id = an unsigned 64-bit number. The type is explicit (most exchanges use memo IDs; a number sent as text may not be credited). This is why recovery uses the stored transaction hash, not a memo: the memo is hers.
   - **Any nurse can see earnings and withdraw**, whatever her verification status: earned money stays hers (e.g. after a rejection).
   - **`EarningsResponse` reshaped for N09:** `available`, a Mon–Sun chart (Lagos days, weeks from Monday), this week, this month, all time, and `recent` mixing earnings and withdrawals. An earning's `title` is the start of the question she answered (40 characters, cut on a word). She already saw the full question in her Completed tab.
   - **End to end:** `npm run withdrawal:e2e -w @carelayer/api` runs the Z8 flow, then withdraws ₦100 to the test payer wallet and prints the links.

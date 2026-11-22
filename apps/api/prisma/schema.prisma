@@ -638,27 +638,33 @@ model Topup {
 
 /// Nurse withdrawal to a Stellar address. Needs a fresh code.
 model Withdrawal {
-  id                 String    @id @default(cuid())
-  nurseId            String
-  amountKobo         Int
-  amountStroops      BigInt
-  destinationAddress String
-  status             TxStatus
-  stellarTxHash      String?   @unique
-  failureReason      String?
-  createdAt          DateTime  @default(now())
-  confirmedAt        DateTime?
-  /// Z10: when the Stellar payment was last sent. With status SUBMITTED and no hash, the outcome is
-  /// unknown (timeout): it is looked up by memo (= this id) until the transaction's 60 s window
-  /// has passed, then FAILED.
-  attemptAt          DateTime?
-  attempts           Int       @default(0)
+  id                  String    @id @default(cuid())
+  nurseId             String
+  amountKobo          Int
+  amountStroops       BigInt
+  destinationAddress  String
+  status              TxStatus
+  stellarTxHash       String?   @unique
+  failureReason       String?
+  createdAt           DateTime  @default(now())
+  confirmedAt         DateTime?
+  /// Z10: the memo she was asked to add (exchanges credit deposits by memo): "text" (max 28 bytes)
+  /// or "id" (unsigned 64-bit number). Null = no memo.
+  destinationMemoType String?
+  destinationMemo     String?
+  /// Hash of the signed transaction, stored BEFORE it is submitted. With status SUBMITTED and no
+  /// stellarTxHash the outcome is unknown (timeout): this exact hash is looked up on Horizon until
+  /// the transaction's 60 s window has passed, then FAILED. Never sent twice.
+  preparedTxHash      String?   @unique
+  /// When the Stellar payment was sent.
+  attemptAt           DateTime?
+  attempts            Int       @default(0)
 
   nurse NurseProfile @relation(fields: [nurseId], references: [userId], onDelete: Restrict)
 
-  @@index([nurseId, createdAt(sort: Desc)])
   /// One withdrawal in flight per nurse: two at once could both pass the balance check.
   @@unique([nurseId], map: "Withdrawal_one_in_flight_per_nurse", where: raw("status = ANY (ARRAY['PENDING'::\"TxStatus\", 'SUBMITTED'::\"TxStatus\"])"))
+  @@index([nurseId, createdAt(sort: Desc)])
   /// Background loop: unresolved withdrawals.
   @@index([status, attemptAt])
 }

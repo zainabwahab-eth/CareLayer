@@ -7,15 +7,15 @@
 //   1. Fresh code (router), valid Stellar address that is not her own CareLayer wallet.
 //   2. Amount: at least ₦100 and at most what is available (balance minus withdrawals in flight).
 //   3. The destination exists and trusts testnet USDC (else the payment could never land).
-//   4. One write: the withdrawal (PENDING; its cuid id, 25 chars, is the Stellar memo). A partial
-//      unique index allows one in flight per nurse.
-//   5. Claim it (PENDING -> SUBMITTED), then send: her custodial key signs the payment, the treasury
-//      pays the fee (fee bump), memo = withdrawal id.
+//   4. One write: the withdrawal (PENDING), with her destination memo if any (exchanges credit
+//      deposits by memo). A partial unique index allows one in flight per nurse.
+//   5. Claim it (PENDING -> SUBMITTED), build and sign: her custodial key signs the payment, the
+//      treasury pays the fee (fee bump). The transaction hash is stored, THEN it is submitted.
 //        - Stellar accepts      -> CONFIRMED + hash, 201.
 //        - Stellar refuses      -> FAILED (nothing moved), 502 STELLAR_SUBMIT_FAILED.
 //        - No answer (timeout)  -> stays SUBMITTED, 201 with status "submitted". The loop (and her
-//          next GET) look it up by memo: found -> CONFIRMED; not found once the transaction's 60 s
-//          window is over -> FAILED. It is never sent twice.
+//          next GET) look the stored hash up: success -> CONFIRMED; not found once the
+//          transaction's 60 s window is over -> FAILED. It is never sent twice.
 import { Keypair, StrKey } from '@stellar/stellar-sdk';
 import {
   MIN_WITHDRAWAL_KOBO,
@@ -39,7 +39,11 @@ import {
   stroopsToUsdcString,
   usdcStringToStroops,
 } from '../../lib/money.js';
-import { StellarRejectedError, type WithdrawalChain } from '../payments/withdrawal-chain.js';
+import {
+  StellarRejectedError,
+  type DestinationMemo,
+  type WithdrawalChain,
+} from '../payments/withdrawal-chain.js';
 import { decryptWalletSecret } from '../wallets/crypto.js';
 import type { WalletService } from '../wallets/service.js';
 import { lagosDayStart, lagosWeekStart } from './cases.js';
@@ -53,6 +57,29 @@ const UNKNOWN_OUTCOME_MS = 60_000 + 2 * MINUTE;
 /** A PENDING row older than this never reached the send step (crash): nothing moved. */
 const STALE_PENDING_MS = 2 * MINUTE;
 const TITLE_MAX = 40;
+const MAX_MEMO_ID = 2n ** 64n - 1n;
+
+/** The memo stored on a withdrawal, or null. */
+function memoOf(
+  w: Pick<Withdrawal, 'destinationMemoType' | 'destinationMemo'>,
+): DestinationMemo | null {
+  if (!w.destinationMemo || (w.destinationMemoType !== 'text' && w.destinationMemoType !== 'id')) {
+    return null;
+  }
+  return { type: w.destinationMemoType, value: w.destinationMemo };
+}
+
+/** Stellar's memo rules: text up to 28 bytes (UTF-8); id = an unsigned 64-bit number. */
+export function validateMemo(memo: DestinationMemo): string | null {
+  if (memo.type === 'text') {
+    if (memo.value.length === 0) return 'The memo is empty.';
+    return Buffer.byteLength(memo.value, 'utf8') <= 28
+      ? null
+      : 'A text memo can be up to 28 bytes.';
+  }
+  if (!/^\d{1,20}$/.test(memo.value)) return 'A memo ID is a number, digits only.';
+  return BigInt(memo.value) <= MAX_MEMO_ID ? null : 'That memo ID is too large.';
+}
 
 export interface EarningsServiceDeps {
   db: Db;
@@ -117,6 +144,7 @@ export function createEarningsService(d: EarningsServiceDeps) {
     status: API_STATUS[w.status],
     amount: { kobo: w.amountKobo, usdc: stroopsToUsdcString(w.amountStroops) },
     destinationAddress: w.destinationAddress,
+    destinationMemo: memoOf(w),
     stellarTxHash: w.stellarTxHash,
     failureReason: w.failureReason,
     createdAt: w.createdAt.toISOString(),
@@ -166,7 +194,10 @@ export function createEarningsService(d: EarningsServiceDeps) {
       data: { status: 'FAILED', failureReason: reason.slice(0, 300) },
     });
 
-  /** Claims a PENDING withdrawal and sends it once. Returns the row after the attempt. */
+  /**
+   * Claims a PENDING withdrawal and sends it once: build + sign, store the transaction hash, then
+   * submit. Returns the row after the attempt.
+   */
   async function send(withdrawalId: string): Promise<Withdrawal> {
     const claimed = await d.db.withdrawal.updateMany({
       where: { id: withdrawalId, status: 'PENDING' },
@@ -174,6 +205,8 @@ export function createEarningsService(d: EarningsServiceDeps) {
     });
     const w = await d.db.withdrawal.findUniqueOrThrow({ where: { id: withdrawalId } });
     if (claimed.count === 0) return w; // already sent by another request
+
+    let prepared;
     try {
       const wallet = await d.db.wallet.findUniqueOrThrow({ where: { userId: w.nurseId } });
       const secret = decryptWalletSecret(
@@ -181,20 +214,34 @@ export function createEarningsService(d: EarningsServiceDeps) {
         wallet.encryptedSecret,
         wallet.stellarPublicKey,
       );
-      const { txHash } = await d.chain!.send(
-        Keypair.fromSecret(secret),
-        w.destinationAddress,
-        w.amountStroops,
-        w.id,
-      );
-      return await markConfirmed(w, txHash);
+      prepared = await d.chain!.prepare({
+        from: Keypair.fromSecret(secret),
+        destination: w.destinationAddress,
+        stroops: w.amountStroops,
+        memo: memoOf(w),
+      });
+      // Stored BEFORE submitting: whatever happens next, this exact transaction can be looked up.
+      await d.db.withdrawal.update({
+        where: { id: w.id },
+        data: { preparedTxHash: prepared.hash },
+      });
+    } catch (err) {
+      // Nothing was submitted (Horizon not answering while building, or a bad key): nothing moved.
+      const reason = (err as Error).message;
+      d.logger.warn('withdrawal_not_sent', { withdrawalId: w.id, reason });
+      return markFailed(w.id, `not sent: ${reason}`);
+    }
+
+    try {
+      await d.chain!.submit(prepared);
+      return await markConfirmed(w, prepared.hash);
     } catch (err) {
       const reason = (err as Error).message;
       if (err instanceof StellarRejectedError) {
         d.logger.warn('withdrawal_rejected', { withdrawalId: w.id, reason });
         return markFailed(w.id, reason);
       }
-      // Unknown outcome: keep SUBMITTED; resolve() looks it up by memo.
+      // Unknown outcome: keep SUBMITTED; resolve() looks the stored hash up.
       d.logger.warn('withdrawal_outcome_unknown', { withdrawalId: w.id, reason });
       return d.db.withdrawal.update({
         where: { id: w.id },
@@ -212,12 +259,17 @@ export function createEarningsService(d: EarningsServiceDeps) {
         ? markFailed(w.id, 'not sent (interrupted); nothing left your wallet')
         : w;
     }
-    if (w.status !== 'SUBMITTED' || !d.chain) return w;
-    const wallet = await d.db.wallet.findUnique({ where: { userId: w.nurseId } });
-    if (!wallet) return w;
+    if (w.status !== 'SUBMITTED' || w.stellarTxHash || !d.chain) return w;
+    const sentAt = (w.attemptAt ?? w.createdAt).getTime();
+    if (!w.preparedTxHash) {
+      // Interrupted before the transaction was signed: it was never submitted.
+      return now - sentAt > STALE_PENDING_MS
+        ? markFailed(w.id, 'not sent (interrupted); nothing left your wallet')
+        : w;
+    }
+    let status;
     try {
-      const hash = await d.chain.findByMemo(wallet.stellarPublicKey, w.id);
-      if (hash) return await markConfirmed(w, hash);
+      status = await d.chain.transactionStatus(w.preparedTxHash);
     } catch (err) {
       d.logger.warn('withdrawal_lookup_failed', {
         withdrawalId: w.id,
@@ -225,7 +277,10 @@ export function createEarningsService(d: EarningsServiceDeps) {
       });
       return w;
     }
-    const sentAt = (w.attemptAt ?? w.createdAt).getTime();
+    if (status === 'success') return markConfirmed(w, w.preparedTxHash);
+    if (status === 'failed') {
+      return markFailed(w.id, 'the payment failed on Stellar; nothing left your wallet');
+    }
     return now - sentAt > UNKNOWN_OUTCOME_MS
       ? markFailed(w.id, 'not found on Stellar after the payment expired; nothing left your wallet')
       : w;
@@ -317,6 +372,7 @@ export function createEarningsService(d: EarningsServiceDeps) {
         id: w.id,
         amount: { kobo: -w.amountKobo, usdc: stroopsToUsdcString(-w.amountStroops) },
         destinationAddress: w.destinationAddress,
+        destinationMemo: memoOf(w),
         status: API_STATUS[w.status],
         stellarTxHash: w.stellarTxHash,
         createdAt: w.createdAt.toISOString(),
@@ -391,7 +447,7 @@ export function createEarningsService(d: EarningsServiceDeps) {
     /** POST /nurse/withdrawals (fresh code checked by the router). */
     async withdraw(
       nurseId: string,
-      body: { amountKobo: number; address: string },
+      body: { amountKobo: number; address: string; memo?: DestinationMemo },
     ): Promise<{ status: 201; body: WithdrawalDto }> {
       if (!d.chain) {
         throw new AppError(503, 'SERVICE_UNAVAILABLE', 'Withdrawals are not available right now.');
@@ -401,6 +457,11 @@ export function createEarningsService(d: EarningsServiceDeps) {
         new AppError(400, 'STELLAR_ADDRESS_INVALID', message, { field: 'destination.address' });
       if (!StrKey.isValidEd25519PublicKey(address)) {
         throw badAddress('That is not a valid Stellar address (G…).');
+      }
+      const memo = body.memo ? { ...body.memo, value: body.memo.value.trim() } : null;
+      const memoProblem = memo ? validateMemo(memo) : null;
+      if (memoProblem) {
+        throw new AppError(400, 'VALIDATION_FAILED', memoProblem, { field: 'destination.memo' });
       }
       if (body.amountKobo < MIN_WITHDRAWAL_KOBO) {
         throw new AppError(400, 'VALIDATION_FAILED', 'The smallest withdrawal is ₦100.', {
@@ -451,6 +512,8 @@ export function createEarningsService(d: EarningsServiceDeps) {
             amountKobo: body.amountKobo,
             amountStroops: stroops,
             destinationAddress: address,
+            destinationMemoType: memo?.type ?? null,
+            destinationMemo: memo?.value ?? null,
             status: 'PENDING',
             createdAt: d.now(),
           },

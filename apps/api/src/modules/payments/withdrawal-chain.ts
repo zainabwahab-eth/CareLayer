@@ -4,8 +4,9 @@
 // transaction fee. A withdrawal is a USDC payment FROM her account (signed with her custodial key)
 // wrapped in a fee-bump transaction paid and signed by the treasury.
 //
-// Memo = the withdrawal id. Before (re)sending, her account's transactions are searched for it, so
-// a payment that reached the chain but was never recorded (timeout, crash) is found, not repeated.
+// Never sent twice: the transaction is built and signed first, and its hash (known before
+// submitting) is stored. If the submit times out, that exact hash is looked up on Horizon. The memo
+// is hers to use (exchanges need one to credit a deposit).
 import {
   BASE_FEE,
   Horizon,
@@ -14,6 +15,7 @@ import {
   Networks,
   Operation,
   TransactionBuilder,
+  type FeeBumpTransaction,
 } from '@stellar/stellar-sdk';
 import { stroopsToUsdcString } from '../../lib/money.js';
 import { TESTNET_USDC, TESTNET_USDC_ISSUER } from './stellar-testnet.js';
@@ -24,6 +26,9 @@ export interface DestinationState {
   hasUsdcTrustline: boolean;
 }
 
+/** The memo an exchange (or anyone) asked her to put on the payment. */
+export type DestinationMemo = { type: 'text'; value: string } | { type: 'id'; value: string };
+
 /** Stellar answered and said no (bad sequence, underfunded, no trust...). Nothing moved. */
 export class StellarRejectedError extends Error {
   constructor(message: string) {
@@ -32,21 +37,29 @@ export class StellarRejectedError extends Error {
   }
 }
 
+/** A signed transaction, not submitted yet. `hash` is final: it is what Horizon will report. */
+export interface PreparedWithdrawal {
+  hash: string;
+  /** Signed envelope (base64 XDR). */
+  xdr: string;
+}
+
 export interface WithdrawalChain {
   destinationState(address: string): Promise<DestinationState>;
+  /** Builds and signs the fee-bumped payment. Nothing is sent. */
+  prepare(opts: {
+    from: Keypair;
+    destination: string;
+    stroops: bigint;
+    memo: DestinationMemo | null;
+  }): Promise<PreparedWithdrawal>;
   /**
-   * USDC payment from `from` (custodial keypair) to `destination`, fee paid by the treasury.
-   * Throws StellarRejectedError when Stellar refused it (nothing moved); any other error is
-   * indeterminate (it may still land: look it up by memo).
+   * Submits a prepared payment. Throws StellarRejectedError when Stellar refused it (nothing moved);
+   * any other error is indeterminate (it may still land: look it up with transactionStatus).
    */
-  send(
-    from: Keypair,
-    destination: string,
-    stroops: bigint,
-    memo: string,
-  ): Promise<{ txHash: string }>;
-  /** Hash of a successful transaction from `account` with this text memo, among recent ones. */
-  findByMemo(account: string, memo: string): Promise<string | null>;
+  submit(prepared: PreparedWithdrawal): Promise<void>;
+  /** 'success' / 'failed' once Horizon knows the transaction, null if it does not (yet). */
+  transactionStatus(hash: string): Promise<'success' | 'failed' | null>;
 }
 
 function resultCodes(err: unknown) {
@@ -60,6 +73,8 @@ function resultCodes(err: unknown) {
     }
   ).response?.data?.extras?.result_codes;
 }
+
+const httpStatus = (err: unknown) => (err as { response?: { status?: number } }).response?.status;
 
 export function createHorizonWithdrawalChain(opts: {
   horizonUrl: string;
@@ -82,43 +97,42 @@ export function createHorizonWithdrawalChain(opts: {
           ),
         };
       } catch (err) {
-        if ((err as { response?: { status?: number } }).response?.status === 404) {
-          return { exists: false, hasUsdcTrustline: false };
-        }
+        if (httpStatus(err) === 404) return { exists: false, hasUsdcTrustline: false };
         throw err;
       }
     },
 
-    async send(from, destination, stroops, memo) {
+    async prepare({ from, destination, stroops, memo }) {
       if (stroops <= 0n) throw new Error('amount must be positive');
-      if (Buffer.byteLength(memo) > 28) throw new Error('memo too long (max 28 bytes)');
       const source = await horizon.loadAccount(from.publicKey());
-      const inner = new TransactionBuilder(source, {
+      const builder = new TransactionBuilder(source, {
         fee: BASE_FEE,
         networkPassphrase: Networks.TESTNET,
-      })
-        .addOperation(
-          Operation.payment({
-            destination,
-            asset: TESTNET_USDC,
-            amount: stroopsToUsdcString(stroops),
-          }),
-        )
-        .addMemo(Memo.text(memo))
-        .setTimeout(60)
-        .build();
+      }).addOperation(
+        Operation.payment({
+          destination,
+          asset: TESTNET_USDC,
+          amount: stroopsToUsdcString(stroops),
+        }),
+      );
+      if (memo) builder.addMemo(memo.type === 'id' ? Memo.id(memo.value) : Memo.text(memo.value));
+      const inner = builder.setTimeout(60).build();
       inner.sign(from);
       // The treasury pays the fee (her account has no XLM). 10x base fee rides out busy ledgers.
-      const bumped = TransactionBuilder.buildFeeBumpTransaction(
+      const bumped: FeeBumpTransaction = TransactionBuilder.buildFeeBumpTransaction(
         treasury,
         String(Number(BASE_FEE) * 10),
         inner,
         Networks.TESTNET,
       );
       bumped.sign(treasury);
+      return { hash: bumped.hash().toString('hex'), xdr: bumped.toXDR() };
+    },
+
+    async submit(prepared) {
+      const tx = TransactionBuilder.fromXDR(prepared.xdr, Networks.TESTNET);
       try {
-        const res = await horizon.submitTransaction(bumped);
-        return { txHash: res.hash };
+        await horizon.submitTransaction(tx);
       } catch (err) {
         const codes = resultCodes(err);
         if (codes) {
@@ -130,12 +144,14 @@ export function createHorizonWithdrawalChain(opts: {
       }
     },
 
-    async findByMemo(account, memo) {
-      const page = await horizon.transactions().forAccount(account).order('desc').limit(100).call();
-      const hit = page.records.find(
-        (t) => t.successful && t.memo_type === 'text' && t.memo === memo,
-      );
-      return hit?.hash ?? null;
+    async transactionStatus(hash) {
+      try {
+        const tx = await horizon.transactions().transaction(hash).call();
+        return tx.successful ? 'success' : 'failed';
+      } catch (err) {
+        if (httpStatus(err) === 404) return null;
+        throw err;
+      }
     },
   };
 }

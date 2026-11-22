@@ -90,6 +90,14 @@ const WithdrawalSchema = z
       .object({
         kind: z.literal('stellar', { error: 'Only Stellar withdrawals are available for now.' }),
         address: z.string({ error: 'Enter a Stellar address.' }).trim().min(1).max(100),
+        /** The memo an exchange asked for. text: up to 28 bytes; id: a number. */
+        memo: z
+          .object({
+            type: z.enum(['text', 'id'], { error: 'memo.type must be "text" or "id".' }),
+            value: z.string({ error: 'Enter the memo.' }).max(64),
+          })
+          .strict()
+          .optional(),
       })
       .strict(),
   })
@@ -270,6 +278,7 @@ export function createNursesRouter(
     const result = await earnings.withdraw(getAuth(res).userId, {
       amountKobo: body.amountKobo,
       address: body.destination.address,
+      memo: body.destination.memo,
     });
     res.status(result.status).json(result.body);
   });

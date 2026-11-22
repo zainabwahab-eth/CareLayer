@@ -2640,7 +2640,7 @@
                   "value": "application/json; charset=utf-8"
                 }
               ],
-              "body": "{\n  \"available\": {\n    \"kobo\": 4520000,\n    \"usdc\": \"28.2500000\"\n  },\n  \"balance\": {\n    \"kobo\": 4520000,\n    \"usdc\": \"28.2500000\"\n  },\n  \"balanceSyncedAt\": \"2026-11-21T13:05:10.000Z\",\n  \"stellarAddress\": \"GBNURSECUSTODIALWALLETXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\",\n  \"payoutAddress\": null,\n  \"totalEarned\": {\n    \"kobo\": 6520000,\n    \"usdc\": \"40.7500000\"\n  },\n  \"answersCount\": 163,\n  \"thisWeek\": {\n    \"from\": \"2026-11-16\",\n    \"total\": {\n      \"kobo\": 1240000,\n      \"usdc\": \"7.7500000\"\n    },\n    \"answersCount\": 31,\n    \"days\": [\n      {\n        \"date\": \"2026-11-16\",\n        \"weekday\": \"mon\",\n        \"total\": {\n          \"kobo\": 160000,\n          \"usdc\": \"1.0000000\"\n        },\n        \"answersCount\": 4,\n        \"isToday\": false\n      },\n      {\n        \"date\": \"2026-11-17\",\n        \"weekday\": \"tue\",\n        \"total\": {\n          \"kobo\": 240000,\n          \"usdc\": \"1.5000000\"\n        },\n        \"answersCount\": 6,\n        \"isToday\": false\n      },\n      {\n        \"date\": \"2026-11-18\",\n        \"weekday\": \"wed\",\n        \"total\": {\n          \"kobo\": 80000,\n          \"usdc\": \"0.5000000\"\n        },\n        \"answersCount\": 2,\n        \"isToday\": false\n      },\n      {\n        \"date\": \"2026-11-19\",\n        \"weekday\": \"thu\",\n        \"total\": {\n          \"kobo\": 200000,\n          \"usdc\": \"1.2500000\"\n        },\n        \"answersCount\": 5,\n        \"isToday\": false\n      },\n      {\n        \"date\": \"2026-11-20\",\n        \"weekday\": \"fri\",\n        \"total\": {\n          \"kobo\": 240000,\n          \"usdc\": \"1.5000000\"\n        },\n        \"answersCount\": 6,\n        \"isToday\": false\n      },\n      {\n        \"date\": \"2026-11-21\",\n        \"weekday\": \"sat\",\n        \"total\": {\n          \"kobo\": 320000,\n          \"usdc\": \"2.0000000\"\n        },\n        \"answersCount\": 8,\n        \"isToday\": true\n      },\n      {\n        \"date\": \"2026-11-22\",\n        \"weekday\": \"sun\",\n        \"total\": {\n          \"kobo\": 0,\n          \"usdc\": \"0.0000000\"\n        },\n        \"answersCount\": 0,\n        \"isToday\": false\n      }\n    ]\n  },\n  \"thisMonth\": {\n    \"from\": \"2026-11-01\",\n    \"total\": {\n      \"kobo\": 3600000,\n      \"usdc\": \"22.5000000\"\n    },\n    \"answersCount\": 90\n  },\n  \"recent\": [\n    {\n      \"kind\": \"earning\",\n      \"id\": \"cmiab12cd0001s6l1payout001\",\n      \"questionId\": \"cmi9q2x0f0003s6l1a2b3c4d5\",\n      \"category\": \"pregnancy\",\n      \"title\": \"Swollen feet at 24 weeks\",\n      \"amount\": {\n        \"kobo\": 40000,\n        \"usdc\": \"0.2500000\"\n      },\n      \"paidFromTreasury\": false,\n      \"status\": \"confirmed\",\n      \"stellarTxHash\": \"4e0d8988a6a94eddcb7fcb06f1cc9340ea27787abed83ebbd8b52da0819a39b9\",\n      \"earnedAt\": \"2026-11-21T21:50:00.000Z\"\n    },\n    {\n      \"kind\": \"withdrawal\",\n      \"id\": \"cmiab12cd0003s6l1withdr01\",\n      \"amount\": {\n        \"kobo\": -2000000,\n        \"usdc\": \"-12.5000000\"\n      },\n      \"destinationAddress\": \"GAMR6SLMHBSOBKZVBMAN2OIKN2J5XOIB65VPZMIWACOJXRSJ42A4GCAI\",\n      \"status\": \"confirmed\",\n      \"stellarTxHash\": \"0e6497925afd3313b464ea446ca97f45cca3e536603f2f12760d4976c6f8eba6\",\n      \"createdAt\": \"2026-11-05T10:00:00.000Z\"\n    }\n  ]\n}",
+              "body": "{\n  \"available\": {\n    \"kobo\": 4520000,\n    \"usdc\": \"28.2500000\"\n  },\n  \"balance\": {\n    \"kobo\": 4520000,\n    \"usdc\": \"28.2500000\"\n  },\n  \"balanceSyncedAt\": \"2026-11-21T13:05:10.000Z\",\n  \"stellarAddress\": \"GBNURSECUSTODIALWALLETXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\",\n  \"payoutAddress\": null,\n  \"totalEarned\": {\n    \"kobo\": 6520000,\n    \"usdc\": \"40.7500000\"\n  },\n  \"answersCount\": 163,\n  \"thisWeek\": {\n    \"from\": \"2026-11-16\",\n    \"total\": {\n      \"kobo\": 1240000,\n      \"usdc\": \"7.7500000\"\n    },\n    \"answersCount\": 31,\n    \"days\": [\n      {\n        \"date\": \"2026-11-16\",\n        \"weekday\": \"mon\",\n        \"total\": {\n          \"kobo\": 160000,\n          \"usdc\": \"1.0000000\"\n        },\n        \"answersCount\": 4,\n        \"isToday\": false\n      },\n      {\n        \"date\": \"2026-11-17\",\n        \"weekday\": \"tue\",\n        \"total\": {\n          \"kobo\": 240000,\n          \"usdc\": \"1.5000000\"\n        },\n        \"answersCount\": 6,\n        \"isToday\": false\n      },\n      {\n        \"date\": \"2026-11-18\",\n        \"weekday\": \"wed\",\n        \"total\": {\n          \"kobo\": 80000,\n          \"usdc\": \"0.5000000\"\n        },\n        \"answersCount\": 2,\n        \"isToday\": false\n      },\n      {\n        \"date\": \"2026-11-19\",\n        \"weekday\": \"thu\",\n        \"total\": {\n          \"kobo\": 200000,\n          \"usdc\": \"1.2500000\"\n        },\n        \"answersCount\": 5,\n        \"isToday\": false\n      },\n      {\n        \"date\": \"2026-11-20\",\n        \"weekday\": \"fri\",\n        \"total\": {\n          \"kobo\": 240000,\n          \"usdc\": \"1.5000000\"\n        },\n        \"answersCount\": 6,\n        \"isToday\": false\n      },\n      {\n        \"date\": \"2026-11-21\",\n        \"weekday\": \"sat\",\n        \"total\": {\n          \"kobo\": 320000,\n          \"usdc\": \"2.0000000\"\n        },\n        \"answersCount\": 8,\n        \"isToday\": true\n      },\n      {\n        \"date\": \"2026-11-22\",\n        \"weekday\": \"sun\",\n        \"total\": {\n          \"kobo\": 0,\n          \"usdc\": \"0.0000000\"\n        },\n        \"answersCount\": 0,\n        \"isToday\": false\n      }\n    ]\n  },\n  \"thisMonth\": {\n    \"from\": \"2026-11-01\",\n    \"total\": {\n      \"kobo\": 3600000,\n      \"usdc\": \"22.5000000\"\n    },\n    \"answersCount\": 90\n  },\n  \"recent\": [\n    {\n      \"kind\": \"earning\",\n      \"id\": \"cmiab12cd0001s6l1payout001\",\n      \"questionId\": \"cmi9q2x0f0003s6l1a2b3c4d5\",\n      \"category\": \"pregnancy\",\n      \"title\": \"Swollen feet at 24 weeks\",\n      \"amount\": {\n        \"kobo\": 40000,\n        \"usdc\": \"0.2500000\"\n      },\n      \"paidFromTreasury\": false,\n      \"status\": \"confirmed\",\n      \"stellarTxHash\": \"4e0d8988a6a94eddcb7fcb06f1cc9340ea27787abed83ebbd8b52da0819a39b9\",\n      \"earnedAt\": \"2026-11-21T21:50:00.000Z\"\n    },\n    {\n      \"kind\": \"withdrawal\",\n      \"id\": \"cmiab12cd0003s6l1withdr01\",\n      \"amount\": {\n        \"kobo\": -2000000,\n        \"usdc\": \"-12.5000000\"\n      },\n      \"destinationAddress\": \"GAMR6SLMHBSOBKZVBMAN2OIKN2J5XOIB65VPZMIWACOJXRSJ42A4GCAI\",\n      \"status\": \"confirmed\",\n      \"stellarTxHash\": \"0e6497925afd3313b464ea446ca97f45cca3e536603f2f12760d4976c6f8eba6\",\n      \"createdAt\": \"2026-11-05T10:00:00.000Z\",\n      \"destinationMemo\": null\n    }\n  ]\n}",
               "_postman_previewlanguage": "json"
             }
           ]
@@ -2668,7 +2668,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"amountKobo\": 20000,\n  \"destination\": { \"kind\": \"stellar\", \"address\": \"{{withdrawalAddress}}\" }\n}",
+              "raw": "{\n  \"amountKobo\": 20000,\n  \"destination\": {\n    \"kind\": \"stellar\",\n    \"address\": \"{{withdrawalAddress}}\",\n    \"memo\": { \"type\": \"id\", \"value\": \"1234567890\" }\n  }\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -2680,7 +2680,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["nurse", "withdrawals"]
             },
-            "description": "Z10. Needs POST /auth/step-up first (5 minutes). Stellar only, ≥ ₦100, ≤ available, one at a time; destination must exist and trust USDC. Her wallet signs, the platform pays the fee. 201 confirmed or submitted; 502 = Stellar refused, nothing moved."
+            "description": "Z10. Needs POST /auth/step-up first (5 minutes). Stellar only, ≥ ₦100, ≤ available, one at a time; destination must exist and trust USDC. Her wallet signs, the platform pays the fee. 201 confirmed or submitted; 502 = Stellar refused, nothing moved. memo (optional): only when the receiving wallet asks for one (exchanges); type \"id\" (digits) or \"text\" (≤ 28 bytes). Remove it for a personal wallet."
           },
           "response": [
             {
@@ -2694,7 +2694,7 @@
                   "value": "application/json; charset=utf-8"
                 }
               ],
-              "body": "{\n  \"id\": \"cmiab12cd0003s6l1withdr01\",\n  \"status\": \"confirmed\",\n  \"amount\": {\n    \"kobo\": 10000,\n    \"usdc\": \"0.0625000\"\n  },\n  \"destinationAddress\": \"GAMR6SLMHBSOBKZVBMAN2OIKN2J5XOIB65VPZMIWACOJXRSJ42A4GCAI\",\n  \"stellarTxHash\": \"0e6497925afd3313b464ea446ca97f45cca3e536603f2f12760d4976c6f8eba6\",\n  \"failureReason\": null,\n  \"createdAt\": \"2026-11-22T15:02:11.000Z\",\n  \"confirmedAt\": \"2026-11-22T15:02:16.000Z\"\n}",
+              "body": "{\n  \"id\": \"cmiab12cd0003s6l1withdr01\",\n  \"status\": \"confirmed\",\n  \"amount\": {\n    \"kobo\": 10000,\n    \"usdc\": \"0.0625000\"\n  },\n  \"destinationAddress\": \"GAMR6SLMHBSOBKZVBMAN2OIKN2J5XOIB65VPZMIWACOJXRSJ42A4GCAI\",\n  \"destinationMemo\": null,\n  \"stellarTxHash\": \"0e6497925afd3313b464ea446ca97f45cca3e536603f2f12760d4976c6f8eba6\",\n  \"failureReason\": null,\n  \"createdAt\": \"2026-11-22T15:02:11.000Z\",\n  \"confirmedAt\": \"2026-11-22T15:02:16.000Z\"\n}",
               "_postman_previewlanguage": "json"
             },
             {
@@ -2752,6 +2752,34 @@
               ],
               "body": "{\n  \"error\": {\n    \"code\": \"STELLAR_SUBMIT_FAILED\",\n    \"message\": \"Stellar did not accept the payment. Nothing left your wallet.\",\n    \"details\": {\n      \"withdrawalId\": \"cmiab12cd0004s6l1withdr02\",\n      \"reason\": \"stellar: tx_failed [op_underfunded]\"\n    }\n  }\n}",
               "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "b033505a-22e1-401a-aba2-cd521ba12a75",
+              "name": "201 Withdrawal to an exchange (memo ID)",
+              "code": 201,
+              "status": "Created",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"id\": \"cmiab12cd0005s6l1withdr03\",\n  \"status\": \"confirmed\",\n  \"amount\": {\n    \"kobo\": 10000,\n    \"usdc\": \"0.0625000\"\n  },\n  \"destinationAddress\": \"GAMR6SLMHBSOBKZVBMAN2OIKN2J5XOIB65VPZMIWACOJXRSJ42A4GCAI\",\n  \"destinationMemo\": {\n    \"type\": \"id\",\n    \"value\": \"20261122\"\n  },\n  \"stellarTxHash\": \"04f8bfa8959bc0476747b1a9be13aaed2ce79309f279e8ee07c737b8817f23e4\",\n  \"failureReason\": null,\n  \"createdAt\": \"2026-11-22T15:30:02.000Z\",\n  \"confirmedAt\": \"2026-11-22T15:30:07.000Z\"\n}",
+              "_postman_previewlanguage": "json"
+            },
+            {
+              "id": "0d6a2c43-7a8c-48e0-857f-50046db6fc19",
+              "name": "400 Invalid memo",
+              "code": 400,
+              "status": "Bad Request",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json; charset=utf-8"
+                }
+              ],
+              "body": "{\n  \"error\": {\n    \"code\": \"VALIDATION_FAILED\",\n    \"message\": \"A memo ID is a number, digits only.\",\n    \"details\": {\n      \"field\": \"destination.memo\"\n    }\n  }\n}",
+              "_postman_previewlanguage": "json"
             }
           ]
         },
@@ -2801,7 +2829,7 @@
                   "value": "application/json; charset=utf-8"
                 }
               ],
-              "body": "{\n  \"items\": [\n    {\n      \"id\": \"cmiab12cd0003s6l1withdr01\",\n      \"status\": \"confirmed\",\n      \"amount\": {\n        \"kobo\": 10000,\n        \"usdc\": \"0.0625000\"\n      },\n      \"destinationAddress\": \"GAMR6SLMHBSOBKZVBMAN2OIKN2J5XOIB65VPZMIWACOJXRSJ42A4GCAI\",\n      \"stellarTxHash\": \"0e6497925afd3313b464ea446ca97f45cca3e536603f2f12760d4976c6f8eba6\",\n      \"failureReason\": null,\n      \"createdAt\": \"2026-11-22T15:02:11.000Z\",\n      \"confirmedAt\": \"2026-11-22T15:02:16.000Z\"\n    }\n  ],\n  \"nextCursor\": null\n}",
+              "body": "{\n  \"items\": [\n    {\n      \"id\": \"cmiab12cd0003s6l1withdr01\",\n      \"status\": \"confirmed\",\n      \"amount\": {\n        \"kobo\": 10000,\n        \"usdc\": \"0.0625000\"\n      },\n      \"destinationAddress\": \"GAMR6SLMHBSOBKZVBMAN2OIKN2J5XOIB65VPZMIWACOJXRSJ42A4GCAI\",\n      \"stellarTxHash\": \"0e6497925afd3313b464ea446ca97f45cca3e536603f2f12760d4976c6f8eba6\",\n      \"failureReason\": null,\n      \"createdAt\": \"2026-11-22T15:02:11.000Z\",\n      \"confirmedAt\": \"2026-11-22T15:02:16.000Z\",\n      \"destinationMemo\": null\n    }\n  ],\n  \"nextCursor\": null\n}",
               "_postman_previewlanguage": "json"
             }
           ]

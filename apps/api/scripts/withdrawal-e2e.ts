@@ -38,9 +38,12 @@ export async function runWithdrawalE2E(
   log(`[e2e] nurse available: ₦${before.available.kobo / 100} (${before.available.usdc} USDC)`);
 
   const destination = Keypair.fromSecret(destinationSecret).publicKey();
+  // A memo, as an exchange deposit would need: it must arrive on the transaction unchanged.
+  const memo = { type: 'id' as const, value: '20261122' };
   const { body } = await services.earnings.withdraw(nurseId, {
     amountKobo: 10_000, // ₦100
     address: destination,
+    memo,
   });
   if (body.status !== 'confirmed' || !body.stellarTxHash) {
     throw new Error(`withdrawal not confirmed: ${body.status} ${body.failureReason ?? ''}`);
@@ -52,6 +55,10 @@ export async function runWithdrawalE2E(
     .transaction(body.stellarTxHash)
     .call();
   if (!tx.successful) throw new Error('withdrawal transaction was not successful');
+  if (tx.memo_type !== 'id' || tx.memo !== memo.value) {
+    throw new Error(`memo did not arrive: ${tx.memo_type} ${tx.memo ?? ''}`);
+  }
+  log(`[e2e] memo on chain: ${tx.memo_type} ${tx.memo}`);
 
   const after = await services.earnings.earnings(nurseId);
   return { withdrawal: body, before, after, payoutTxHash: earned.payoutTxHash };

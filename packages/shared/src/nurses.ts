@@ -217,6 +217,7 @@ export interface WithdrawalEntry {
   /** Negative (money out), on both fields. */
   amount: Money;
   destinationAddress: string;
+  destinationMemo: WithdrawalMemo | null;
   status: WithdrawalStatus;
   stellarTxHash: string | null;
   createdAt: IsoDateTime;
@@ -228,8 +229,17 @@ export const MIN_WITHDRAWAL_KOBO = 10_000;
 // POST /nurse/withdrawals  (requires a fresh code)
 export interface CreateWithdrawalBody {
   amountKobo: number;
-  /** Bank withdrawals are "coming soon". */
-  destination: { kind: 'stellar'; address: string };
+  /**
+   * Bank withdrawals are "coming soon". `memo`: only when the receiving wallet asks for one
+   * (exchanges credit deposits by memo; without it the money can be lost).
+   */
+  destination: { kind: 'stellar'; address: string; memo?: WithdrawalMemo };
+}
+
+/** Stellar memo: "text" up to 28 bytes, or "id" = an unsigned 64-bit number (digits, as a string). */
+export interface WithdrawalMemo {
+  type: 'text' | 'id';
+  value: string;
 }
 
 export type WithdrawalStatus = 'pending' | 'submitted' | 'confirmed' | 'failed';
@@ -244,6 +254,7 @@ export interface Withdrawal {
   status: WithdrawalStatus;
   amount: Money;
   destinationAddress: string;
+  destinationMemo: WithdrawalMemo | null;
   stellarTxHash: string | null;
   failureReason: string | null;
   createdAt: IsoDateTime;
