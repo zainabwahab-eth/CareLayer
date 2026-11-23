@@ -4,6 +4,7 @@ import type {
   AuthTokensResponse,
   Conversation,
   CreateQuestionResponse,
+  CreateTopupResponse,
   EmergencyResponse,
   FeedbackResponse,
   MyQuestion,
@@ -13,6 +14,7 @@ import type {
   QuestionStatusResponse,
   RequestCodeResponse,
   SendMessageResponse,
+  Topup,
   User,
   UserSettings,
   WalletResponse,
@@ -143,6 +145,11 @@ export function createHttpApi(baseUrl: string): CareLayerApi {
           accessToken = null;
         }
       },
+      logoutAll: async () => {
+        // Every session ends on the server, so the token is useless afterwards.
+        await authed<void>('POST', 'auth/logout-all');
+        accessToken = null;
+      },
     },
 
     me: {
@@ -159,6 +166,11 @@ export function createHttpApi(baseUrl: string): CareLayerApi {
       get: () => authed<WalletResponse>('GET', 'wallet'),
       listTransactions: (query) =>
         authed<Page<WalletTransaction>>('GET', 'wallet/transactions', { query: { ...query } }),
+    },
+
+    topups: {
+      create: (body) => authed<CreateTopupResponse>('POST', 'topups', { body }),
+      get: (topupId) => authed<Topup>('GET', `topups/${id(topupId)}`),
     },
 
     chat: {

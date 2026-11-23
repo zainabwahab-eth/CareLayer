@@ -1,5 +1,5 @@
 import { FREE_ANSWERS_PER_WOMAN } from '@carelayer/shared';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Outlet } from 'react-router';
 import { useApiQuery } from '../api/useApiQuery';
 import { isSessionError } from '../auth/auth-flow';
@@ -10,6 +10,7 @@ import { TabBar } from '../components/navigation/TabBar';
 import { paths } from '../routes/paths';
 import { useRouteHandle } from '../routes/route-handle';
 import { formatNaira } from '../utils/money';
+import type { AppShellContext } from './app-shell';
 import styles from './AppLayout.module.css';
 
 /*
@@ -30,6 +31,12 @@ export function AppLayout() {
     if (wallet.status === 'error' && isSessionError(wallet.error)) sessionExpired();
   }, [wallet.status, wallet.error, sessionExpired]);
 
+  const reloadWallet = wallet.reload;
+  const outletContext = useMemo<AppShellContext>(
+    () => ({ refreshWallet: reloadWallet }),
+    [reloadWallet],
+  );
+
   return (
     <div className={styles.shell}>
       <Sidebar
@@ -45,7 +52,7 @@ export function AppLayout() {
                   ? undefined
                   : `${wallet.data.freeAnswersRemaining} of ${FREE_ANSWERS_PER_WOMAN} free answers left`
               }
-              topUpTo={paths.account}
+              topUpTo={paths.wallet}
             />
           )
         }
@@ -56,7 +63,7 @@ export function AppLayout() {
         className={cx(styles.main, tabBar && styles.withTabBar, fullBleed && styles.fullBleed)}
       >
         <div className={cx(styles.content, fullBleed && styles.fullBleedContent)}>
-          <Outlet />
+          <Outlet context={outletContext} />
         </div>
       </main>
       {tabBar && <TabBar active={nav} className={styles.tabBar} />}

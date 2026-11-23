@@ -1,0 +1,103 @@
+/* Mobile: bottom sheet. Desktop (>= 960px): centred modal. No Figma frame (docs/TASKS.md §3). */
+.dialog {
+  width: 100%;
+  max-width: 40rem;
+  max-height: calc(100dvh - var(--space-40));
+  margin: auto auto 0;
+  padding: 0;
+  overflow: auto;
+  border: 0;
+  border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  background: var(--color-bg-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-md);
+}
+
+.dialog::backdrop {
+  /*
+   * No scrim token in the Figma variables. on-accent is near-black in both
+   * themes (ink turns light in dark mode), so it gives a dimming scrim without
+   * a raw colour value. Replace with a scrim token if one is added.
+   */
+  background: color-mix(in srgb, var(--color-on-accent) 50%, transparent);
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+  padding: var(--space-20) var(--layout-margin-inline)
+    calc(var(--space-24) + env(safe-area-inset-bottom));
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+
+.title {
+  font-family: var(--text-display-s-family);
+  font-size: var(--text-display-s-size);
+  line-height: var(--text-display-s-leading);
+  font-weight: var(--text-display-s-weight);
+  letter-spacing: var(--text-display-s-tracking);
+}
+
+.close {
+  flex: none;
+}
+
+.amounts {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend {
+  margin-bottom: var(--space-12);
+  padding: 0;
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.note {
+  color: var(--color-text-muted);
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+}
+
+@media (min-width: 60rem) {
+  .dialog {
+    max-width: 28rem;
+    margin: auto;
+    border-radius: var(--radius-xl);
+  }
+
+  .sheet {
+    padding: var(--space-24);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .dialog[open] {
+    animation: rise 180ms ease-out;
+  }
+}
+
+@keyframes rise {
+  from {
+    transform: translateY(var(--space-24));
+    opacity: 0;
+  }
+}
