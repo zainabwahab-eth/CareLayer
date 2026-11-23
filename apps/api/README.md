@@ -173,6 +173,7 @@ apps/api/deploy/cloudrun.sh url       # the API URL: check <url>/health
 - **Changing a plain setting** (e.g. Hikmah's URLs in `CORS_ORIGINS`): edit `.env.production`, then run `deploy`.
 - **The seed wipes every table.** In production it needs `CARELAYER_SEED_PRODUCTION=wipe-and-seed` (the `seed` command sets it). It still refuses once any real account (an email not ending in `@example.com`) exists.
 - **The seeded admin** gets `SEED_ADMIN_EMAIL` (an inbox you own), because `/admin-console` sign-in codes are emailed. Locally it stays `admin@example.com`.
+- **Custom domains:** `https://api.carelayer.health` and `https://mcp.carelayer.health` go through the Cloudflare Worker in `deploy/cloudflare-proxy.js` (Cloud Run domain mappings are not available in `europe-west2`). If a service URL changes, update `ORIGINS` there and redeploy the Worker in the Cloudflare dashboard.
 - **Logs:** Cloud Run → `carelayer-api` → Logs. Every line is JSON with a `severity`.
 - **Postman:** the environment "CareLayer Cloud Run" (`docs/postman/carelayer.cloudrun.postman_environment.json`). Set `baseUrl` to the URL.
 

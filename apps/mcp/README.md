@@ -42,7 +42,7 @@ Then add this to `claude_desktop_config.json`. On macOS it's `~/Library/Applicat
       "command": "node",
       "args": ["/absolute/path/to/carelayer/apps/mcp/dist/index.js"],
       "env": {
-        "CARELAYER_API_URL": "https://carelayer-api-598920525559.europe-west2.run.app",
+        "CARELAYER_API_URL": "https://api.carelayer.health",
         "CARELAYER_AGENT_TOKEN": "clat_..."
       }
     }
@@ -56,7 +56,7 @@ Hosted (no local install). The token travels as a header and is passed straight 
 
 ```bash
 claude mcp add --transport http carelayer \
-  https://carelayer-mcp-598920525559.europe-west2.run.app/mcp \
+  https://mcp.carelayer.health/mcp \
   --header "Authorization: Bearer clat_..."
 ```
 
@@ -64,7 +64,7 @@ Or local (stdio):
 
 ```bash
 claude mcp add carelayer \
-  --env CARELAYER_API_URL=https://carelayer-api-598920525559.europe-west2.run.app \
+  --env CARELAYER_API_URL=https://api.carelayer.health \
   --env CARELAYER_AGENT_TOKEN=clat_... \
   -- node /absolute/path/to/carelayer/apps/mcp/dist/index.js
 ```
