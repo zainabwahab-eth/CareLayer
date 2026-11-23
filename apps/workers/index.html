@@ -4,8 +4,17 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="description" content="Answer women's health questions and earn per answer." />
-    <meta name="theme-color" content="#0d9488" />
+    <!-- Matches --color-canvas from @carelayer/tokens (same as apps/web). -->
+    <meta name="theme-color" content="#f3f5f2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#131917" media="(prefers-color-scheme: dark)" />
     <meta name="color-scheme" content="light dark" />
+    <script>
+      // Apply the saved Appearance (System / Light / Dark) before first paint to avoid a flash.
+      try {
+        var theme = localStorage.getItem('carelayer.theme');
+        if (theme === 'light' || theme === 'dark') document.documentElement.dataset.theme = theme;
+      } catch (e) {}
+    </script>
     <link rel="icon" type="image/png" href="/icons/pwa-192x192.png" />
     <link rel="apple-touch-icon" href="/icons/apple-touch-icon-180x180.png" />
     <meta name="apple-mobile-web-app-capable" content="yes" />

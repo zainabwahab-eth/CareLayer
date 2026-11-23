@@ -1,0 +1,10 @@
+.back {
+  margin-bottom: var(--space-16);
+}
+
+/* Desktop: the panel is beside the form, so there is nothing to go back to. */
+@media (min-width: 60rem) {
+  .back {
+    display: none;
+  }
+}

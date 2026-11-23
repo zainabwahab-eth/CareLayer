@@ -1,0 +1,81 @@
+/* Figma N01 Join: primary fill, body 40px top / 20px sides / 24px bottom, 16px gap. */
+.hero {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  min-height: 100dvh;
+  padding: calc(var(--space-40) + env(safe-area-inset-top)) var(--layout-margin-inline)
+    calc(var(--space-24) + env(safe-area-inset-bottom));
+  background: var(--color-primary-bg);
+  color: var(--color-on-primary);
+}
+
+.hero:focus {
+  outline: none;
+}
+
+/* 40px gap under the logo (Figma "Gap"), then the copy. */
+.copy {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  margin-top: var(--space-40);
+}
+
+.title {
+  font-family: var(--text-display-l-family);
+  font-size: var(--text-display-l-size);
+  line-height: var(--text-display-l-leading);
+  font-weight: var(--text-display-l-weight);
+  letter-spacing: -0.0375rem;
+}
+
+.lede {
+  color: var(--color-on-primary-muted);
+  font-family: var(--text-body-l-family);
+  font-size: var(--text-body-l-size);
+  line-height: var(--text-body-l-leading);
+}
+
+.benefits {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+
+.benefit {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+.benefitIcon {
+  flex-shrink: 0;
+  color: var(--color-accent-bg);
+}
+
+/* Figma "Spacer": the buttons sit at the bottom of the screen. */
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  margin-top: auto;
+  padding-top: var(--space-24);
+}
+
+.switch {
+  text-align: center;
+  color: var(--color-on-primary-muted);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+.switchLink {
+  color: var(--color-on-primary);
+  font-family: var(--text-label-m-family);
+  font-weight: var(--text-label-m-weight);
+}
