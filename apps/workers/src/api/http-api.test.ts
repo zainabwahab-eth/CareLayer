@@ -83,4 +83,22 @@ describe('HTTP nurse API', () => {
       status: 0,
     });
   });
+
+  it('treats a 200 that is not JSON (wrong VITE_API_URL, captive portal) as an error', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('<!doctype html><html></html>', { status: 200 })),
+    );
+    await expect(createHttpNurseApi('http://api.test').nurse.getProfile()).rejects.toMatchObject({
+      status: 200,
+      code: 'INTERNAL',
+    });
+  });
+
+  it('uses a relative base URL (the /api same-origin proxy) as is', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(json(200, { userId: 'n1' }));
+    vi.stubGlobal('fetch', fetchMock);
+    await createHttpNurseApi('/api').nurse.getProfile();
+    expect(fetchMock.mock.calls[0]![0]).toBe('/api/nurse/profile');
+  });
 });

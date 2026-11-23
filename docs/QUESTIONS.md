@@ -73,6 +73,8 @@ Matches the decisions log (nothing stored), keeps one discriminant across the AP
 
 ### Frontend work once Q1 is decided (Hikmah, after Z6 merges)
 
+> **Done in H10.** `api.chat.send` (`POST /chat`) and `api.chat.draft` (`POST /chat/draft`) replace the conversation methods in both clients. `ChatProvider` sends the in-memory thread. The mock checks drafts and `draftToken` the way the API does. W07 still needs building to call `draft` (Q5a).
+
 - `apps/web/src/api/types.ts`: replace the `chat` group with `send(body: ChatRequestBody): Promise<ChatResponse>`.
 - `apps/web/src/api/http/http-api.ts` and `apps/web/src/api/mock/mock-api.ts`: implement it.
 - `apps/web/src/chat/ChatProvider.tsx`: send the in-memory thread instead of creating a conversation. Keep the offer's `draft` for W07.
@@ -150,6 +152,8 @@ H7 uses only endpoints in the contract: `GET /me/questions`, `GET /wallet`, `GET
 **What the web app does meanwhile:** each section shows "We could not load these settings" with Try again. Appearance and Quick exit still work, because both are kept on the device. Quick exit says "Saved on this device only" when the save fails.
 
 **Ask:** add `/me/settings` and `/me/notifications` to a Z task (suggest Z6, since `POST /questions` already needs `spendingLimitPerAnswerKobo`).
+
+> **Resolved (checked in H10):** apps/api now serves `GET /me/questions`, `GET /me/questions/:id`, `GET/PATCH /me/settings` and `GET/PATCH /me/notifications`. The request and response shapes match `@carelayer/shared` and what the Account and History screens send. 3b–3f are still open.
 
 ### 3b. `MyQuestion` is missing what W12 shows
 
@@ -239,3 +243,50 @@ N04 shows four rows ("Details and documents received" Done, "Licence checked wit
 - **Shared code:** the nurse app imports apps/web's components, auth helpers and `ApiError` through a `@web/*` alias (`apps/workers/vite.config.ts`, `tsconfig.json`). Nothing is copied. Moving them to a `packages/ui` later is a search-and-replace.
 - **Google sign-in** is only offered in mock builds, as in apps/web (`apps/web/src/auth/google.ts`), until Google Identity Services is wired up.
 - **Mock admin:** in mock builds, N04 shows "Mock API only: act as the admin" (Approve or Reject) so the next states can be tried. It never appears against the real API. The real decision is made in `GET /admin-console`.
+
+---
+
+## Q5. H10 Real API integration: what is connected, and what is still missing
+
+**Raised by:** Hikmah (H10), November 2026. **For:** Zainab (contract, Z11) and Hikmah (remaining screens).
+
+**How this was checked:** every client method was compared with the route, method and zod schema in `apps/api/src/modules/*/router.ts`, and the types in `packages/shared`. `apps/web/src/api/http/http-api.test.ts` pins each path and method. Not checked: a run against a live apps/api with a database, LLM, Paystack and Stellar testnet (none was configured in this session), or a physical phone.
+
+### Connected and matching the backend
+
+| Feature                   | Calls                                                                                                                                        | Notes                                                                                                                     |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Auth (both apps)          | `POST /auth/code/request`, `/auth/code/verify`, `/auth/google`, `/auth/refresh`, `/auth/logout`, `/auth/logout-all`                          | Refresh once on 401 and retry; concurrent refreshes collapse into one; `REFRESH_INVALID`/`REFRESH_REUSED` end the session |
+| Chat (W06)                | `POST /chat`                                                                                                                                 | **Changed in H10** from the removed `/chat/conversations*`. The thread is sent each time, last 40 turns                   |
+| Draft                     | `POST /chat/draft`                                                                                                                           | In the client and mock; no screen calls it yet (5a)                                                                       |
+| History (W12)             | `GET /me/questions`                                                                                                                          | `limit=100`, cursor pages                                                                                                 |
+| Wallet                    | `GET /wallet`, `GET /wallet/transactions`                                                                                                    |                                                                                                                           |
+| Top-ups                   | `POST /topups`, `GET /topups/:id`                                                                                                            | `amountKobo` within `TOPUP_LIMITS_KOBO`                                                                                   |
+| Account                   | `GET/PATCH /me`, `GET/PATCH /me/settings`, `GET/PATCH /me/notifications`                                                                     | PATCH sends only changed fields (the API's schemas are `.strict()`)                                                       |
+| Emergency                 | `GET /emergency`                                                                                                                             | Public; the only API response the service worker caches                                                                   |
+| Health worker application | `GET/PATCH /nurse/profile`, `PATCH /nurse/preferences`, `POST /nurse/documents`, `DELETE /nurse/documents/:id`, `POST /nurse/profile/submit` | Unchanged from H9 (Q4)                                                                                                    |
+
+Also in H10: a 60 s request timeout, a non-JSON `200` treated as an error (not data), and the mock's `SPENDING_LIMIT_EXCEEDED` details renamed to `spendingLimitKobo` to match the API.
+
+### 5a. Screens not built yet, so their real endpoints are unused (frontend, Hikmah)
+
+W05 Home and W07–W11 (consent, choose who answers, confirm and pay, waiting, nurse response) are still `ScreenPlaceholder`s from H6. The client methods exist and match the API: `chat.draft`, `questions.create` (with `draftToken`), `nurses.list`, `questions.getStatus`, `questions.collectAnswer`, `questions.submitFeedback`. **The end-to-end ask flow cannot run on the real API until these screens exist.** No backend change is needed.
+
+The same goes for the nurse app after approval (N05–N09 and the profile): the backend serves `GET /nurse/dashboard`, `/nurse/questions`, `/nurse/claim`, claim, release, answer, `/nurse/earnings`, `/nurse/withdrawals`, `PUT /nurse/payout-address` and `POST /auth/step-up`, but `NurseApi` and the screens don't cover them yet.
+
+### 5b. Sessions on phones and in production (Zainab, Z11)
+
+- The refresh cookie is `SameSite=Lax`, `Path=/auth`. It reaches the API only if the app and the API are **same-site**, e.g. `app.example.org` and `api.example.org`. On different sites (two `*.onrender.com` or `*.vercel.app` hosts count as different sites, because those are public suffixes), the session is lost on every reload. `SameSite=None; Secure` does not fix this on iPhone, because Safari blocks third-party cookies.
+- **Ask:** deploy the web app, the nurse app and the API under one registrable domain, or serve the API under the app's origin (e.g. a `/api` rewrite on the host). For local phone testing, H10 adds an opt-in Vite proxy that does this (`VITE_API_URL=/api`, see `apps/web/README.md`).
+- `PAYSTACK_CALLBACK_URL` and `CORS_ORIGINS` must name the URL the phone actually opens (the tunnel or deployed URL).
+
+### 5c. Small contract points (Zainab)
+
+1. **Timeouts.** The client gives up after 60 s. `POST /chat/draft` is about 10 s, and the API retries the LLM once. Tell me if a slow path can take longer.
+2. **A timed-out `POST /me/questions/:id/collect`.** The client reports "taking too long" and she can retry. Please confirm a retry can never charge twice (the decisions log says attempts are reconciled by tx hash).
+3. **Google sign-in** is hidden in HTTP builds: Google Identity Services isn't wired in the frontend (`apps/web/src/auth/google.ts`). `POST /auth/google` exists. Confirm the `GOOGLE_CLIENT_ID` for the demo, and I'll add the client.
+4. **Use CareLayer in Claude (Q3e).** `POST/GET/DELETE /auth/agent-tokens` now exist. The Account screen still says "not available yet". Confirm that connecting means creating an agent token in the app, and which steps or connector URL to show.
+
+### 5d. Needs a physical device (not done in H10)
+
+Physical-device testing has **not** been done. The checklist is in `apps/web/README.md` ("Testing on phones"): Android Chrome, iPhone Safari and the iPhone home-screen app (which may need its own login once), session persistence, keyboard over the composer, airplane mode and reconnect, Paystack return, Quick exit and Back, install prompts, and camera upload in the nurse app.

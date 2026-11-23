@@ -2,6 +2,7 @@ import { fileURLToPath } from 'node:url';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { allowedHosts, apiProxy } from '../web/vite.api-proxy';
 
 /*
  * `@web/*` = apps/web/src: the nurse app reuses the women's app's design-system
@@ -12,8 +13,9 @@ const webSrc = fileURLToPath(new URL('../web/src', import.meta.url));
 
 export default defineConfig({
   resolve: { alias: { '@web': webSrc } },
-  server: { port: 5174, strictPort: true },
-  preview: { port: 5174, strictPort: true },
+  // proxy + allowedHosts: phone testing through a tunnel (see apps/web/vite.api-proxy.ts).
+  server: { port: 5174, strictPort: true, proxy: apiProxy(), allowedHosts: allowedHosts() },
+  preview: { port: 5174, strictPort: true, proxy: apiProxy(), allowedHosts: allowedHosts() },
   plugins: [
     react(),
     VitePWA({

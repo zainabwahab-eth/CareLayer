@@ -2,9 +2,10 @@ import type {
   AnswerResponse,
   ApiErrorBody,
   AuthTokensResponse,
-  Conversation,
+  ChatResponse,
   CreateQuestionResponse,
   CreateTopupResponse,
+  DraftResponse,
   EmergencyResponse,
   FeedbackResponse,
   MyQuestion,
@@ -13,7 +14,6 @@ import type {
   Page,
   QuestionStatusResponse,
   RequestCodeResponse,
-  SendMessageResponse,
   Topup,
   User,
   UserSettings,
@@ -31,9 +31,19 @@ import type { CareLayerApi } from '../types';
  * `credentials: 'include'`). The access token is held in memory only,
  * never in localStorage. On a 401 it refreshes once and retries.
  *
- * NOTE: written against the contract; not yet exercised against a running
- * apps/api. Verify when the backend endpoints land.
+ * Verified against apps/api routes in H10 (see docs/QUESTIONS.md Q5).
+ * There is no fallback to mock data: a failed request always rejects with
+ * ApiError, so screens show their error state.
  */
+
+/**
+ * Longest wait for one request. Chat and drafts call an LLM (about 10 s, retried
+ * once by the API), so this is generous; it stops a dead mobile connection from
+ * leaving a spinner up forever.
+ */
+export const REQUEST_TIMEOUT_MS = 60_000;
+
+const UNREACHABLE = 'Could not reach CareLayer. Check your connection.';
 
 type Method = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 
@@ -47,7 +57,10 @@ interface RequestOptions {
   auth?: boolean;
 }
 
-export function createHttpApi(baseUrl: string): CareLayerApi {
+export function createHttpApi(
+  baseUrl: string,
+  { timeoutMs = REQUEST_TIMEOUT_MS }: { timeoutMs?: number } = {},
+): CareLayerApi {
   let accessToken: string | null = null;
   let refreshing: Promise<AuthTokensResponse> | null = null;
 
@@ -57,7 +70,8 @@ export function createHttpApi(baseUrl: string): CareLayerApi {
   }
 
   function buildUrl(path: string, query?: Query) {
-    const url = new URL(path, `${baseUrl}/`);
+    // baseUrl may be relative ("/api", the same-origin proxy for phone testing).
+    const url = new URL(path, new URL(`${baseUrl}/`, window.location.origin));
     for (const [key, value] of Object.entries(query ?? {})) {
       if (value !== undefined && value !== '') url.searchParams.set(key, String(value));
     }
@@ -71,20 +85,41 @@ export function createHttpApi(baseUrl: string): CareLayerApi {
     if (auth && accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
     let response: Response;
+    const controller = new AbortController();
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeoutMs);
     try {
       response = await fetch(buildUrl(path, query), {
         method,
         headers,
         credentials: 'include',
         body: body === undefined ? undefined : JSON.stringify(body),
+        signal: controller.signal,
       });
     } catch {
-      throw new ApiError(0, 'INTERNAL', 'Could not reach CareLayer. Check your connection.');
+      // Status 0 = never reached the API (offline, DNS, CORS, timeout). AuthProvider
+      // keeps the session and retries when the connection comes back.
+      throw new ApiError(
+        0,
+        'INTERNAL',
+        timedOut ? 'CareLayer is taking too long to answer. Please try again.' : UNREACHABLE,
+      );
+    } finally {
+      clearTimeout(timer);
     }
 
     if (response.ok) {
       if (response.status === 204) return undefined as T;
-      return (await response.json()) as T;
+      try {
+        return (await response.json()) as T;
+      } catch {
+        // A 2xx that is not JSON is not apps/api: usually VITE_API_URL points at the
+        // web server (its index.html) or a captive portal on a phone's Wi-Fi.
+        throw new ApiError(response.status, 'INTERNAL', UNREACHABLE);
+      }
     }
 
     let errorBody: ApiErrorBody | null = null;
@@ -174,15 +209,8 @@ export function createHttpApi(baseUrl: string): CareLayerApi {
     },
 
     chat: {
-      createConversation: () => authed<Conversation>('POST', 'chat/conversations'),
-      listConversations: (query) =>
-        authed<Page<Conversation>>('GET', 'chat/conversations', { query: { ...query } }),
-      getConversation: (conversationId) =>
-        authed<Conversation>('GET', `chat/conversations/${id(conversationId)}`),
-      sendMessage: (conversationId, body) =>
-        authed<SendMessageResponse>('POST', `chat/conversations/${id(conversationId)}/messages`, {
-          body,
-        }),
+      send: (body) => authed<ChatResponse>('POST', 'chat', { body }),
+      draft: (body) => authed<DraftResponse>('POST', 'chat/draft', { body }),
     },
 
     nurses: {

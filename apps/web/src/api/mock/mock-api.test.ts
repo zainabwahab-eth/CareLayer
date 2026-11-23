@@ -1,0 +1,109 @@
+import { describe, expect, it } from 'vitest';
+import type { ChatTurn, CreatedQuestion } from '@carelayer/shared';
+import { createMockApi } from './mock-api';
+
+/*
+ * The mock must follow the same contract as apps/api (§7 chat, §8 questions), so
+ * switching VITE_USE_MOCK_API changes the data, never the behaviour screens rely on.
+ */
+
+const consent = {
+  sharedFields: ['cleaned_text' as const, 'category' as const],
+  consentVersion: 'v1',
+};
+const user = (text: string): ChatTurn => ({ role: 'user', text });
+const assistant = (text: string): ChatTurn => ({ role: 'assistant', text });
+const signedIn = () => createMockApi({ latencyMs: 0, startSignedIn: true });
+
+describe('mock chat.send (POST /chat)', () => {
+  it('replies to her newest message and keeps nothing', async () => {
+    const api = signedIn();
+    const reply = await api.chat.send({ messages: [user('Is spotting normal on the pill?')] });
+    expect(reply).toMatchObject({ kind: 'reply', message: { role: 'assistant' } });
+  });
+
+  it('refuses a thread that does not end with her message', async () => {
+    const api = signedIn();
+    await expect(
+      api.chat.send({ messages: [user('hi'), assistant('hello')] }),
+    ).rejects.toMatchObject({
+      status: 400,
+      code: 'VALIDATION_FAILED',
+      details: { field: 'messages' },
+    });
+    await expect(api.chat.send({ messages: [] })).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('refuses more than CHAT_LIMITS.maxTurns turns', async () => {
+    const api = signedIn();
+    const messages = Array.from({ length: 41 }, (_, i) => user(`m${i}`));
+    await expect(api.chat.send({ messages })).rejects.toMatchObject({ code: 'VALIDATION_FAILED' });
+  });
+
+  it('checks only the newest message for red flags', async () => {
+    const api = signedIn();
+    await expect(
+      api.chat.send({ messages: [user('I have heavy bleeding')] }),
+    ).resolves.toMatchObject({ kind: 'emergency' });
+    await expect(
+      api.chat.send({
+        messages: [user('I have heavy bleeding'), user('What foods have iron?')],
+      }),
+    ).resolves.toMatchObject({ kind: 'reply' });
+  });
+});
+
+describe('mock chat.draft (POST /chat/draft) + questions.create with draftToken', () => {
+  it('drafts her messages joined verbatim, and the question is stored as that draft', async () => {
+    const api = signedIn();
+    const draft = await api.chat.draft({
+      messages: [user('my period is late'), assistant('How late?'), user('two weeks')],
+    });
+    if (draft.kind !== 'draft') throw new Error('expected a draft');
+    expect(draft.draft.originalText).toBe('my period is late\n\ntwo weeks');
+    expect(draft.offer).toMatchObject({ suggestedCategory: draft.draft.category });
+
+    const created = (await api.questions.create({
+      originalText: draft.draft.originalText,
+      source: 'web',
+      consent,
+      draftToken: draft.draftToken,
+    })) as CreatedQuestion;
+    expect(created).toMatchObject({ kind: 'question', category: draft.draft.category });
+    const mine = await api.questions.getMine(created.id);
+    expect(mine.cleanedText).toBe(draft.draft.cleanedText);
+  });
+
+  it('checks the whole question for red flags', async () => {
+    const api = signedIn();
+    await expect(
+      api.chat.draft({ messages: [user('I fainted earlier'), user('also my period is late')] }),
+    ).resolves.toMatchObject({ kind: 'emergency' });
+  });
+
+  it('rejects an unknown token and an originalText that is not the draft', async () => {
+    const api = signedIn();
+    await expect(
+      api.questions.create({ originalText: 'q', source: 'web', consent, draftToken: 'nope' }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED', details: { field: 'draftToken' } });
+
+    const draft = await api.chat.draft({ messages: [user('a question')] });
+    if (draft.kind !== 'draft') throw new Error('expected a draft');
+    await expect(
+      api.questions.create({
+        originalText: 'something else',
+        source: 'web',
+        consent,
+        draftToken: draft.draftToken,
+      }),
+    ).rejects.toMatchObject({ code: 'VALIDATION_FAILED', details: { field: 'originalText' } });
+  });
+
+  it('accepts a question longer than one chat turn (up to maxQuestionLength)', async () => {
+    const api = signedIn();
+    const long = 'a'.repeat(5_000);
+    await expect(
+      api.questions.create({ originalText: long, source: 'web', consent }),
+    ).resolves.toMatchObject({ kind: 'question' });
+  });
+});

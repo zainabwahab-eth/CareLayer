@@ -54,7 +54,17 @@ export function createHttpNurseApi(baseUrl: string): NurseApi {
 
     if (response.ok) {
       if (response.status === 204) return undefined as T;
-      return (await response.json()) as T;
+      try {
+        return (await response.json()) as T;
+      } catch {
+        // A 2xx that is not JSON is not apps/api: usually VITE_API_URL points at the
+        // web server (its index.html) or a captive portal on a phone's Wi-Fi.
+        throw new ApiError(
+          response.status,
+          'INTERNAL',
+          'Could not reach CareLayer. Check your connection.',
+        );
+      }
     }
 
     let errorBody: ApiErrorBody | null = null;
