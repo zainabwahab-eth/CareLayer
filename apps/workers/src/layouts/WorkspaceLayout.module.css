@@ -1,0 +1,75 @@
+/* Mobile first. 60rem (960px) switches to the desktop sidebar, as apps/web's AppLayout. */
+.shell {
+  min-height: 100dvh;
+  background: var(--color-bg);
+}
+
+.shell .sidebar {
+  display: none;
+}
+
+.workspaceLabel {
+  margin: calc(-1 * var(--space-8)) 0 0;
+  color: var(--color-text-muted);
+  font-family: var(--text-label-s-family);
+  font-size: var(--text-label-s-size);
+  line-height: var(--text-label-s-leading);
+  font-weight: var(--text-label-s-weight);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.profileLink {
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--radius-md);
+}
+
+.profileLink:hover {
+  background: var(--color-bg-surface-soft);
+}
+
+.main {
+  min-width: 0;
+  padding: calc(var(--space-8) + env(safe-area-inset-top)) var(--layout-margin-inline)
+    calc(var(--space-32) + env(safe-area-inset-bottom));
+}
+
+.main:focus {
+  outline: none;
+}
+
+/* Room for the fixed tab bar (84px in Figma). */
+.withTabBar {
+  padding-bottom: calc(5.25rem + var(--space-24) + env(safe-area-inset-bottom));
+}
+
+.content {
+  width: 100%;
+  max-width: 40rem;
+  margin: 0 auto;
+}
+
+@media (min-width: 60rem) {
+  .shell {
+    display: grid;
+    grid-template-columns: 16.5rem minmax(0, 1fr);
+  }
+
+  .shell .sidebar {
+    display: flex;
+  }
+
+  .shell .tabBar {
+    display: none;
+  }
+
+  .main,
+  .withTabBar {
+    padding: 2.25rem 3rem 3rem;
+  }
+
+  .content {
+    max-width: 60rem;
+  }
+}

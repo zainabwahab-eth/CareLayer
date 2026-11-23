@@ -83,4 +83,122 @@ describe('HTTP nurse API', () => {
       status: 0,
     });
   });
+
+  it('treats a 200 that is not JSON (wrong VITE_API_URL, captive portal) as an error', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response('<!doctype html><html></html>', { status: 200 })),
+    );
+    await expect(createHttpNurseApi('http://api.test').nurse.getProfile()).rejects.toMatchObject({
+      status: 200,
+      code: 'INTERNAL',
+    });
+  });
+
+  it('uses a relative base URL (the /api same-origin proxy) as is', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(json(200, { userId: 'n1' }));
+    vi.stubGlobal('fetch', fetchMock);
+    await createHttpNurseApi('/api').nurse.getProfile();
+    expect(fetchMock.mock.calls[0]![0]).toBe('/api/nurse/profile');
+  });
+});
+
+describe('HTTP nurse API: workspace endpoints match apps/api (H11)', () => {
+  type Api = ReturnType<typeof createHttpNurseApi>;
+  const cases: Array<[string, (a: Api) => Promise<unknown>, string, string]> = [
+    ['cases.dashboard', (a) => a.cases.dashboard(), 'GET', '/nurse/dashboard'],
+    ['cases.list waiting', (a) => a.cases.list('waiting'), 'GET', '/nurse/questions?tab=waiting'],
+    [
+      'cases.list completed page',
+      (a) => a.cases.list('completed', { cursor: 'c1', limit: 10 }),
+      'GET',
+      '/nurse/questions?tab=completed&cursor=c1&limit=10',
+    ],
+    ['cases.get', (a) => a.cases.get('q 1'), 'GET', '/nurse/questions/q%201'],
+    ['cases.current', (a) => a.cases.current(), 'GET', '/nurse/claim'],
+    ['cases.claim', (a) => a.cases.claim('q1'), 'POST', '/nurse/questions/q1/claim'],
+    ['cases.release', (a) => a.cases.release('q1'), 'POST', '/nurse/questions/q1/release'],
+    [
+      'cases.answer',
+      (a) => a.cases.answer('q1', { text: 'x' }),
+      'POST',
+      '/nurse/questions/q1/answer',
+    ],
+    ['earnings.get', (a) => a.earnings.get(), 'GET', '/nurse/earnings'],
+    ['earnings.listWithdrawals', (a) => a.earnings.listWithdrawals(), 'GET', '/nurse/withdrawals'],
+    [
+      'earnings.withdraw',
+      (a) =>
+        a.earnings.withdraw({ amountKobo: 10_000, destination: { kind: 'stellar', address: 'G' } }),
+      'POST',
+      '/nurse/withdrawals',
+    ],
+    [
+      'earnings.listTransactions',
+      (a) => a.earnings.listTransactions({ cursor: 'x' }),
+      'GET',
+      '/wallet/transactions?cursor=x',
+    ],
+    [
+      'nurse.setPayoutAddress',
+      (a) => a.nurse.setPayoutAddress({ stellarAddress: null }),
+      'PUT',
+      '/nurse/payout-address',
+    ],
+    ['me.getSettings', (a) => a.me.getSettings(), 'GET', '/me/settings'],
+    [
+      'me.updateSettings',
+      (a) => a.me.updateSettings({ appearance: 'dark' }),
+      'PATCH',
+      '/me/settings',
+    ],
+    ['auth.stepUp', (a) => a.auth.stepUp({ code: '123456' }), 'POST', '/auth/step-up'],
+    ['auth.listSessions', (a) => a.auth.listSessions(), 'GET', '/auth/sessions'],
+    ['auth.revokeSession', (a) => a.auth.revokeSession('s1'), 'DELETE', '/auth/sessions/s1'],
+    ['auth.logoutAll', (a) => a.auth.logoutAll(), 'POST', '/auth/logout-all'],
+  ];
+
+  it.each(cases)('%s -> %s %s', async (_name, run, method, path) => {
+    const fetchMock = vi.fn().mockResolvedValue(json(200, {}));
+    vi.stubGlobal('fetch', fetchMock);
+    await run(createHttpNurseApi('http://api.test'));
+    const [url, init] = fetchMock.mock.calls[0]!;
+    expect(url).toBe(`http://api.test${path}`);
+    expect(init.method).toBe(method);
+  });
+
+  it('a step-up code request carries the bearer token; a login code request does not', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(json(200, tokens))
+      .mockImplementation(async () => json(202, { sent: true, resendAvailableAt: '' }));
+    vi.stubGlobal('fetch', fetchMock);
+    const api = createHttpNurseApi('http://api.test');
+    await api.auth.refresh();
+    await api.auth.requestCode({ email: 'a@b.co', purpose: 'step_up', app: 'nurses' });
+    await api.auth.requestCode({ email: 'a@b.co', purpose: 'login', app: 'nurses' });
+    expect(fetchMock.mock.calls[1]![1].headers.Authorization).toBe('Bearer access-1');
+    expect(fetchMock.mock.calls[2]![1].headers.Authorization).toBeUndefined();
+  });
+
+  it('GET /nurse/claim with no claim resolves to null', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(json(200, null)));
+    await expect(createHttpNurseApi('http://api.test').cases.current()).resolves.toBeNull();
+  });
+
+  it('a claim conflict keeps its code and details', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        json(409, {
+          error: { code: 'ACTIVE_CLAIM_EXISTS', message: 'x', details: { questionId: 'q9' } },
+        }),
+      ),
+    );
+    await expect(createHttpNurseApi('http://api.test').cases.claim('q1')).rejects.toMatchObject({
+      status: 409,
+      code: 'ACTIVE_CLAIM_EXISTS',
+      details: { questionId: 'q9' },
+    });
+  });
 });

@@ -73,6 +73,8 @@ Matches the decisions log (nothing stored), keeps one discriminant across the AP
 
 ### Frontend work once Q1 is decided (Hikmah, after Z6 merges)
 
+> **Done in H10.** `api.chat.send` (`POST /chat`) and `api.chat.draft` (`POST /chat/draft`) replace the conversation methods in both clients. `ChatProvider` sends the in-memory thread. The mock checks drafts and `draftToken` the way the API does. W07 still needs building to call `draft` (Q5a).
+
 - `apps/web/src/api/types.ts`: replace the `chat` group with `send(body: ChatRequestBody): Promise<ChatResponse>`.
 - `apps/web/src/api/http/http-api.ts` and `apps/web/src/api/mock/mock-api.ts`: implement it.
 - `apps/web/src/chat/ChatProvider.tsx`: send the in-memory thread instead of creating a conversation. Keep the offer's `draft` for W07.
@@ -150,6 +152,8 @@ H7 uses only endpoints in the contract: `GET /me/questions`, `GET /wallet`, `GET
 **What the web app does meanwhile:** each section shows "We could not load these settings" with Try again. Appearance and Quick exit still work, because both are kept on the device. Quick exit says "Saved on this device only" when the save fails.
 
 **Ask:** add `/me/settings` and `/me/notifications` to a Z task (suggest Z6, since `POST /questions` already needs `spendingLimitPerAnswerKobo`).
+
+> **Resolved (checked in H10):** apps/api now serves `GET /me/questions`, `GET /me/questions/:id`, `GET/PATCH /me/settings` and `GET/PATCH /me/notifications`. The request and response shapes match `@carelayer/shared` and what the Account and History screens send. 3b–3f are still open.
 
 ### 3b. `MyQuestion` is missing what W12 shows
 
@@ -239,3 +243,118 @@ N04 shows four rows ("Details and documents received" Done, "Licence checked wit
 - **Shared code:** the nurse app imports apps/web's components, auth helpers and `ApiError` through a `@web/*` alias (`apps/workers/vite.config.ts`, `tsconfig.json`). Nothing is copied. Moving them to a `packages/ui` later is a search-and-replace.
 - **Google sign-in** is only offered in mock builds, as in apps/web (`apps/web/src/auth/google.ts`), until Google Identity Services is wired up.
 - **Mock admin:** in mock builds, N04 shows "Mock API only: act as the admin" (Approve or Reject) so the next states can be tried. It never appears against the real API. The real decision is made in `GET /admin-console`.
+
+---
+
+## Q5. H10 Real API integration: what is connected, and what is still missing
+
+**Raised by:** Hikmah (H10), November 2026. **For:** Zainab (contract, Z11) and Hikmah (remaining screens).
+
+**How this was checked:** every client method was compared with the route, method and zod schema in `apps/api/src/modules/*/router.ts`, and the types in `packages/shared`. `apps/web/src/api/http/http-api.test.ts` pins each path and method. Not checked: a run against a live apps/api with a database, LLM, Paystack and Stellar testnet (none was configured in this session), or a physical phone.
+
+### Connected and matching the backend
+
+| Feature                   | Calls                                                                                                                                        | Notes                                                                                                                     |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Auth (both apps)          | `POST /auth/code/request`, `/auth/code/verify`, `/auth/google`, `/auth/refresh`, `/auth/logout`, `/auth/logout-all`                          | Refresh once on 401 and retry; concurrent refreshes collapse into one; `REFRESH_INVALID`/`REFRESH_REUSED` end the session |
+| Chat (W06)                | `POST /chat`                                                                                                                                 | **Changed in H10** from the removed `/chat/conversations*`. The thread is sent each time, last 40 turns                   |
+| Draft                     | `POST /chat/draft`                                                                                                                           | In the client and mock; no screen calls it yet (5a)                                                                       |
+| History (W12)             | `GET /me/questions`                                                                                                                          | `limit=100`, cursor pages                                                                                                 |
+| Wallet                    | `GET /wallet`, `GET /wallet/transactions`                                                                                                    |                                                                                                                           |
+| Top-ups                   | `POST /topups`, `GET /topups/:id`                                                                                                            | `amountKobo` within `TOPUP_LIMITS_KOBO`                                                                                   |
+| Account                   | `GET/PATCH /me`, `GET/PATCH /me/settings`, `GET/PATCH /me/notifications`                                                                     | PATCH sends only changed fields (the API's schemas are `.strict()`)                                                       |
+| Emergency                 | `GET /emergency`                                                                                                                             | Public; the only API response the service worker caches                                                                   |
+| Health worker application | `GET/PATCH /nurse/profile`, `PATCH /nurse/preferences`, `POST /nurse/documents`, `DELETE /nurse/documents/:id`, `POST /nurse/profile/submit` | Unchanged from H9 (Q4)                                                                                                    |
+
+Also in H10: a 60 s request timeout, a non-JSON `200` treated as an error (not data), and the mock's `SPENDING_LIMIT_EXCEEDED` details renamed to `spendingLimitKobo` to match the API.
+
+### 5a. Screens not built yet, so their real endpoints are unused (frontend, Hikmah)
+
+W05 Home and W07–W11 (consent, choose who answers, confirm and pay, waiting, nurse response) are still `ScreenPlaceholder`s from H6. The client methods exist and match the API: `chat.draft`, `questions.create` (with `draftToken`), `nurses.list`, `questions.getStatus`, `questions.collectAnswer`, `questions.submitFeedback`. **The end-to-end ask flow cannot run on the real API until these screens exist.** No backend change is needed.
+
+> **Nurse app: done in H11** (Q6).
+
+The same goes for the nurse app after approval (N05–N09 and the profile): the backend serves `GET /nurse/dashboard`, `/nurse/questions`, `/nurse/claim`, claim, release, answer, `/nurse/earnings`, `/nurse/withdrawals`, `PUT /nurse/payout-address` and `POST /auth/step-up`, but `NurseApi` and the screens don't cover them yet.
+
+### 5b. Sessions on phones and in production (Zainab, Z11)
+
+- The refresh cookie is `SameSite=Lax`, `Path=/auth`. It reaches the API only if the app and the API are **same-site**, e.g. `app.example.org` and `api.example.org`. On different sites (two `*.onrender.com` or `*.vercel.app` hosts count as different sites, because those are public suffixes), the session is lost on every reload. `SameSite=None; Secure` does not fix this on iPhone, because Safari blocks third-party cookies.
+- **Ask:** deploy the web app, the nurse app and the API under one registrable domain, or serve the API under the app's origin (e.g. a `/api` rewrite on the host). For local phone testing, H10 adds an opt-in Vite proxy that does this (`VITE_API_URL=/api`, see `apps/web/README.md`).
+- `PAYSTACK_CALLBACK_URL` and `CORS_ORIGINS` must name the URL the phone actually opens (the tunnel or deployed URL).
+
+### 5c. Small contract points (Zainab)
+
+1. **Timeouts.** The client gives up after 60 s. `POST /chat/draft` is about 10 s, and the API retries the LLM once. Tell me if a slow path can take longer.
+2. **A timed-out `POST /me/questions/:id/collect`.** The client reports "taking too long" and she can retry. Please confirm a retry can never charge twice (the decisions log says attempts are reconciled by tx hash).
+3. **Google sign-in** is hidden in HTTP builds: Google Identity Services isn't wired in the frontend (`apps/web/src/auth/google.ts`). `POST /auth/google` exists. Confirm the `GOOGLE_CLIENT_ID` for the demo, and I'll add the client.
+4. **Use CareLayer in Claude (Q3e).** `POST/GET/DELETE /auth/agent-tokens` now exist. The Account screen still says "not available yet". Confirm that connecting means creating an agent token in the app, and which steps or connector URL to show.
+
+### 5d. Needs a physical device (not done in H10)
+
+Physical-device testing has **not** been done. The checklist is in `apps/web/README.md` ("Testing on phones"): Android Chrome, iPhone Safari and the iPhone home-screen app (which may need its own login once), session persistence, keyboard over the composer, airplane mode and reconnect, Paystack return, Quick exit and Back, install prompts, and camera upload in the nurse app.
+
+---
+
+## Q6. H11 Nurse and midwife workspace (N05–N09, profile, settings): API and design gaps
+
+**Raised by:** Hikmah (H11), November 2026. **For:** Zainab (contract) and the designer. **Blocks:** nothing. Every gap below has a working default in the nurse app.
+
+**What is connected.** Every call is an existing apps/api route. Each one is checked against its router and zod schema, and pinned in `apps/workers/src/api/http-api.test.ts`:
+
+- **Cases:** `GET /nurse/dashboard`, `GET /nurse/questions?tab=`, `GET /nurse/questions/:id`, `GET /nurse/claim`, and `POST /nurse/questions/:id/claim | release | answer`.
+- **Money:** `GET /nurse/earnings`, `GET`/`POST /nurse/withdrawals`, `GET /wallet/transactions`.
+- **Profile:** `PUT /nurse/payout-address`, `PATCH /nurse/profile`, `PATCH /nurse/preferences`.
+- **Account:** `GET`/`PATCH /me/settings` (appearance only), `POST /auth/code/request` (`step_up`, with the bearer token), `POST /auth/step-up`, `GET`/`DELETE /auth/sessions`, `POST /auth/logout-all`.
+
+The workspace is open only to `approved` nurses, matching the API's 403 `NURSE_NOT_APPROVED`. Everyone else keeps the H9 application and N04 screens.
+
+### 6a. No notification feed for nurses (Zainab)
+
+The "Updates" screen (the notification centre) is **worked out from live data**: the dashboard (active claim deadline), the waiting list (chosen for you, new questions in her topics) and earnings (payments, withdrawals). Read/unread is stored **on the device only**, as a list of update ids (never question text), per nurse. So read state does not follow her to another phone, and past events drop off once they leave those lists.
+
+- **A. Keep it derived** (what the app does). No backend work.
+- **B. `GET /nurse/notifications` + `POST /nurse/notifications/read`**, written by the same code that sends the alert emails (`modules/questions/alerts.ts`) and by payouts.
+
+**Recommendation:** A for the hackathon, B if nurses use more than one device.
+
+### 6b. Notification preferences (Zainab)
+
+`GET`/`PATCH /me/notifications` is women only. Nurses can only reduce alert emails by changing topics or turning availability off; Settings says so. **Ask:** is a nurse "email me about new questions" switch wanted? It would need a field and a check in `alerts.ts`.
+
+### 6c. No price on a question (Zainab)
+
+`NurseQuestionView` has no amount. N05/N06/N07 show "₦400" as `DEFAULT_ANSWER_PRICE_KOBO × PAYOUT_SPLIT.nurseBps` from `@carelayer/shared`. If `ANSWER_PRICE_KOBO` is changed on the server, the app shows the wrong reward. **Option A (recommended):** add `nurseShare: Money` to `NurseQuestionView`. **Option B:** guarantee the price stays the shared default.
+
+### 6d. N08 "Answer sent" promises an instant payment (designer + Zainab)
+
+The frame says "Paid to your wallet the moment she received it" and shows "Settled 10:50 PM" with "View on Stellar". apps/api pays **when she opens the answer** (`POST /me/questions/:id/collect`), not when it is sent, and `POST /nurse/questions/:id/answer` returns no payment. The app says "You earn ₦400 when she opens it", and the payment shows on Earnings when it lands. **Designer:** please update the N08 copy and table.
+
+### 6e. Completed history has no answer (Zainab)
+
+On the Completed tab, `NurseQuestionView` gives the question but not **her answer**, when she answered, the woman's helpful/not helpful, or whether it was paid. The app lists the question only. **Option A (recommended):** add `myAnswer: { text, answeredAt, recommendSeeSomeoneToday, helpful: boolean | null, paid: boolean } | null` for her own answered questions. **Option B:** leave it; Earnings already shows what was paid.
+
+### 6f. Profile gaps (Zainab + designer)
+
+1. **Profile photo:** no field or upload route. Avatars use initials. Women's W08 has no photo either, so this is fine unless the designer wants one.
+2. **Wrong licence details after approval:** licence fields lock (409 `CONFLICT`), and the app says "Contact support". **No support contact is defined.** Please give an email for the app and the API message.
+3. **Session names:** `POST /auth/code/verify` accepts `deviceName`, but the H9 sign-in doesn't send it, so Settings lists "Unknown device". A frontend follow-up (a label from the browser, e.g. "Android Chrome"); no backend change.
+
+### 6g. Earnings for nurses who are not approved (Zainab)
+
+`GET /nurse/earnings` and withdrawals work for every status ("earned money stays hers"), but the app shows Earnings only inside the approved workspace. **Ask:** can an approved nurse later be rejected or suspended? If yes, Earnings and Withdraw should also be reachable from N04.
+
+### 6h. Screens without a frame (designer)
+
+These were built from the tokens and the nearest frame, so please draw them or approve:
+
+- **Updates** (the notification centre).
+- **Profile** and **Settings**: TASKS §3 "Nurse profile" is split into two screens, so the profile stays short on a phone. The desktop sidebar lists both.
+- **Withdraw:** amount, Stellar address, optional memo, "Bank account (coming soon)", then the email code.
+- **Payment history:** "All payments" / "Withdrawals".
+- **The question before claiming:** N07 without the answer box, plus "Claim and answer" and the claims-close countdown.
+
+**N06:** the Figma chips are "My topics / Pregnancy / Periods". The app shows All, My topics and every category. The filter is client-side because the API lists every eligible question whatever her topics (topics control alerts only).
+
+**N07 checklist:** "Explains when to seek care in person" and "No diagnosis or prescription" must **both be ticked to send**, as a safety gate. The guidance banner wording needs sign-off from the reviewing nurse or midwife (as for H2).
+
+**Desktop:** only the Nurse **mobile** frames were read (TASKS §3: mobile is the source of truth). The desktop sidebar lists every section, with "Health worker workspace" under the logo so it reads as separate from the women's app.

@@ -102,7 +102,7 @@ describe('N04 Under review', () => {
     await screen.findByRole('heading', { name: 'We’re checking your licence' });
     await api.mockAdmin!.approve();
     document.dispatchEvent(new Event('visibilitychange'));
-    await screen.findByRole('heading', { name: /You’re verified/ });
+    await screen.findByRole('heading', { name: /Good (morning|afternoon|evening)/ });
     expect(router.state.location.pathname).toBe('/today');
   });
 

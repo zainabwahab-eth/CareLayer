@@ -1,10 +1,12 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { allowedHosts, apiProxy } from './vite.api-proxy';
 
 export default defineConfig({
-  server: { port: 5173, strictPort: true },
-  preview: { port: 5173, strictPort: true },
+  // proxy + allowedHosts: phone testing through a tunnel (see vite.api-proxy.ts, README).
+  server: { port: 5173, strictPort: true, proxy: apiProxy(), allowedHosts: allowedHosts() },
+  preview: { port: 5173, strictPort: true, proxy: apiProxy(), allowedHosts: allowedHosts() },
   plugins: [
     react(),
     VitePWA({

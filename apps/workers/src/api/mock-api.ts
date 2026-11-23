@@ -13,10 +13,13 @@ import {
   type NurseDocumentType,
   type NurseProfile,
   type OnboardingRequirement,
+  type SessionInfo,
   type UpdateNurseProfileBody,
   type User,
+  type UserSettings,
 } from '@carelayer/shared';
 import { ApiError } from '@web/api/errors';
+import { createWorkspace, seedWorkspace, type WorkspaceState } from './mock-workspace';
 import type { NurseApi } from './types';
 
 /*
@@ -31,6 +34,8 @@ import type { NurseApi } from './types';
  * - Seeded accounts: amaka@example.com (approved), funmi@example.com
  *   (pending review), hauwa@example.com (rejected). Licence RM 000001 is taken.
  * - State lives in sessionStorage, so a reload keeps new sign-ups in this tab.
+ * - Workspace (cases, earnings, withdrawals): see mock-workspace.ts. Step-up
+ *   codes for withdrawals and the payout wallet are also MOCK_VERIFICATION_CODE.
  */
 export const MOCK_VERIFICATION_CODE = '123456';
 const STORAGE_KEY = 'carelayer.workers.mock';
@@ -46,7 +51,18 @@ interface MockState {
   /** Email of the signed-in nurse (stands in for the refresh cookie). */
   session: string | null;
   nextId: number;
+  workspace: WorkspaceState;
+  /** Per user id: appearance (the only setting nurses may change). */
+  appearance: Record<string, UserSettings['appearance']>;
 }
+
+/** Nurses get the women-only settings at their defaults (contract §3). */
+const NURSE_SETTINGS_DEFAULTS: Omit<UserSettings, 'appearance'> = {
+  quickExitTarget: 'google',
+  spendingLimitPerAnswerKobo: 50_000,
+  mcpSpendingLimitPerAnswerKobo: 50_000,
+  mcpAskBeforeEachPayment: true,
+};
 
 const fail = (
   status: number,
@@ -144,6 +160,8 @@ function seed(): MockState {
     ]),
     session: null,
     nextId: 4,
+    workspace: seedWorkspace(Date.now(), 'mock_nurse_1'),
+    appearance: {},
   };
 }
 
@@ -263,7 +281,12 @@ export function createMockNurseApi(options: MockNurseApiOptions = {}): NurseApi 
   if (persist) {
     try {
       const stored = window.sessionStorage.getItem(STORAGE_KEY);
-      if (stored) state = JSON.parse(stored) as MockState;
+      if (stored) {
+        const parsed = JSON.parse(stored) as Partial<MockState>;
+        // State saved by an older build has no workspace: start that part from the seed.
+        state = { ...state, ...parsed, workspace: parsed.workspace ?? state.workspace };
+        state.appearance ??= {};
+      }
     } catch {
       // Unreadable: start from the seed.
     }
@@ -309,6 +332,18 @@ export function createMockNurseApi(options: MockNurseApiOptions = {}): NurseApi 
     return nurse;
   };
 
+  const workspace = createWorkspace(() => state.workspace);
+  /** This browser's mock session (one per tab, as the refresh cookie would be). */
+  const sessionInfo = (): SessionInfo[] => [
+    {
+      id: 'mock_session_this',
+      deviceName: 'This device',
+      createdAt: iso(Date.now() - 86_400_000),
+      lastUsedAt: iso(),
+      current: true,
+    },
+  ];
+
   const checkApp = (app: string) => {
     if (app !== 'nurses') fail(403, 'WRONG_APP', 'This account is for the other app.');
   };
@@ -329,7 +364,13 @@ export function createMockNurseApi(options: MockNurseApiOptions = {}): NurseApi 
           checkApp(body.app);
           const email = body.email.trim().toLowerCase();
           const existing = state.nurses[email];
-          if (body.purpose === 'signup') {
+          if (body.purpose === 'step_up') {
+            // A code to confirm it is her: signed in, and only to her own email.
+            const me = current();
+            if (me.user.email !== email) {
+              fail(403, 'FORBIDDEN', 'Codes to confirm it is you go to your own email only.');
+            }
+          } else if (body.purpose === 'signup') {
             requireName(body.name);
             if (existing) fail(409, 'ACCOUNT_EXISTS', 'You already have an account.');
           } else if (!existing) {
@@ -392,6 +433,60 @@ export function createMockNurseApi(options: MockNurseApiOptions = {}): NurseApi 
       logout: () =>
         respond(() => {
           state.session = null;
+        }),
+
+      logoutAll: () =>
+        respond(() => {
+          current();
+          state.session = null;
+        }),
+
+      stepUp: (body) =>
+        respond(() => {
+          const nurse = current();
+          if (body.code?.trim() !== MOCK_VERIFICATION_CODE) {
+            fail(400, 'CODE_INVALID', 'That code is not right.', { attemptsRemaining: 4 });
+          }
+          return workspace.markFresh(nurse.user.id);
+        }),
+
+      listSessions: () =>
+        respond(() => {
+          current();
+          return sessionInfo();
+        }),
+
+      revokeSession: (id) =>
+        respond(() => {
+          current();
+          if (id !== 'mock_session_this') fail(404, 'NOT_FOUND', 'That session does not exist.');
+          state.session = null;
+        }),
+    },
+
+    me: {
+      getSettings: () =>
+        respond(() => {
+          const { user } = current();
+          return {
+            appearance: state.appearance[user.id] ?? 'system',
+            ...NURSE_SETTINGS_DEFAULTS,
+          };
+        }),
+      updateSettings: (body) =>
+        respond(() => {
+          const { user } = current();
+          const keys = Object.keys(body ?? {});
+          if (keys.length === 0) invalid('', 'Send at least one setting to change.');
+          const other = keys.find((k) => k !== 'appearance');
+          if (other) {
+            invalid(other, 'Only appearance can be changed on this account.');
+          }
+          if (!['system', 'light', 'dark'].includes(body.appearance ?? '')) {
+            invalid('appearance', 'Invalid option: expected one of "system"|"light"|"dark"');
+          }
+          state.appearance[user.id] = body.appearance!;
+          return { appearance: body.appearance!, ...NURSE_SETTINGS_DEFAULTS };
         }),
     },
 
@@ -519,6 +614,39 @@ export function createMockNurseApi(options: MockNurseApiOptions = {}): NurseApi 
           p.rejectionReason = null;
           return p;
         }),
+
+      setPayoutAddress: (body) =>
+        respond(() => {
+          const nurse = current();
+          workspace.requireFresh(nurse.user.id);
+          const address = body.stellarAddress?.trim() || null;
+          if (address !== null && !/^G[A-Z2-7]{55}$/.test(address)) {
+            fail(400, 'STELLAR_ADDRESS_INVALID', 'That is not a valid Stellar address (G…).', {
+              field: 'stellarAddress',
+            });
+          }
+          nurse.profile.ownStellarAddress = address;
+          return nurse.profile;
+        }),
+    },
+
+    cases: {
+      dashboard: () => respond(() => workspace.dashboard(current().profile)),
+      list: (tab, query) => respond(() => workspace.list(current().profile, tab, query)),
+      get: (id) => respond(() => workspace.get(current().profile, id)),
+      current: () => respond(() => workspace.current(current().profile)),
+      claim: (id) => respond(() => workspace.claim(current().profile, id)),
+      release: (id) => respond(() => workspace.release(current().profile, id)),
+      answer: (id, body) => respond(() => workspace.answer(current().profile, id, body)),
+    },
+
+    earnings: {
+      get: () => respond(() => workspace.earnings(current().profile)),
+      listWithdrawals: (query) =>
+        respond(() => workspace.listWithdrawals(current().profile, query)),
+      withdraw: (body) => respond(() => workspace.withdraw(current().profile, body)),
+      listTransactions: (query) =>
+        respond(() => workspace.listTransactions(current().profile, query)),
     },
 
     mockAdmin: {

@@ -31,7 +31,7 @@ describe('routing by verification status', () => {
     const api = testApi();
     await signIn(api, 'amaka@example.com');
     const { router } = renderApp(api, '/onboarding/review');
-    await screen.findByRole('heading', { name: /You’re verified, Amaka/ });
+    await screen.findByRole('heading', { name: /Good (morning|afternoon|evening), Amaka/ });
     expect(at(router)).toBe('/today');
   });
 

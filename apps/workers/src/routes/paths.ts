@@ -14,5 +14,21 @@ export const paths = {
   documents: '/onboarding/documents', // N03 Documents (Step 2 of 3)
   submit: '/onboarding/submit', // Step 3 of 3: no frame (docs/QUESTIONS.md)
   review: '/onboarding/review', // N04 Under review (and rejected)
-  today: '/today', // N05 Today: the rest of H9
+  // Approved: the workspace (H11)
+  today: '/today', // N05 Today
+  cases: '/cases', // N06 Cases (?tab=waiting|active|completed)
+  case: '/cases/:id', // N07 Respond (also the question's details before claiming)
+  caseSent: '/cases/:id/sent', // N08 Answer sent
+  earnings: '/earnings', // N09 Earnings
+  withdraw: '/earnings/withdraw', // No frame: withdraw to a Stellar wallet (code first)
+  withdrawals: '/earnings/withdrawals', // No frame: withdrawal history
+  updates: '/updates', // No frame: notification centre (derived; docs/QUESTIONS.md Q6)
+  profile: '/profile', // No frame: profile (docs/TASKS.md §3 "Nurse profile")
+  settings: '/settings', // No frame: appearance, payout wallet, sessions, log out
 } as const;
+
+export const casePath = (id: string) => `/cases/${encodeURIComponent(id)}`;
+export const caseSentPath = (id: string) => `${casePath(id)}/sent`;
+export type CasesTab = 'waiting' | 'active' | 'completed';
+export const casesPath = (tab: CasesTab = 'waiting') =>
+  tab === 'waiting' ? paths.cases : `${paths.cases}?tab=${tab}`;
