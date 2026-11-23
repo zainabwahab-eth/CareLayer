@@ -435,7 +435,16 @@ Implement everything in "Accounts and auth" (section 2): `POST /auth/code/reques
 
   - **Privacy:** OpenAI does not train on API data by default but keeps requests up to 30 days for abuse monitoring. Questions contain no name, email or phone (decisions log), but the woman's own words are sent.
   - Runbook: `apps/api/README.md` → "Deploy". Postman environment: "CareLayer Cloud Run".
-  - **Deployed (22 November 2026):** https://carelayer-api-598920525559.europe-west2.run.app (project `carelayer`, `europe-west2`). Migrations applied and the demo data seeded; the admin is Zainab's email. Email is sent from Zainab's verified domain `info.zapescrow.xyz` until CareLayer has its own domain. Then update `EMAIL_FROM` + `EMAIL_API_KEY`, run `secrets` and `deploy`.
+  - **Deployed (22 November 2026):** https://api.carelayer.health (project `carelayer`, `europe-west2`). Migrations applied and the demo data seeded; the admin is Zainab's email.
+  - **Custom domains (23 November 2026), Cloudflare in front, chosen by Zainab:**
+    - Cloud Run domain mappings are not available in `europe-west2`, and a Google load balancer costs about $18–20 a month. So `carelayer.health`'s DNS is on Cloudflare (free plan; registered at Namecheap).
+    - The Worker `carelayer-proxy` (code: `apps/api/deploy/cloudflare-proxy.js`) serves **`api.carelayer.health`** and **`mcp.carelayer.health`** and forwards everything unchanged to Cloud Run (CORS and the `cl_refresh` cookie included).
+    - Cost: $0 (100k requests a day on the free plan).
+    - The MCP server still calls the API's direct Cloud Run URL (one hop fewer).
+    - The run.app URLs keep working.
+  - **Email** is sent from `mail.carelayer.health` (verified in Resend; its DNS records are in Cloudflare and set to DNS only).
+  - **Deployed `CORS_ORIGINS` / `WEB_APP_URL` / `NURSE_APP_URL` / `PAYSTACK_CALLBACK_URL` are `localhost:5173` and `5174` for now**, for local testing against the cloud API. Replace them with Hikmah's deployed URLs, and remove `localhost` before real users.
+  - **Database connect timeout** raised to 10 s (Neon wakes from idle; CPU only during requests).
   - **Open:** Hikmah's frontend URLs (`CORS_ORIGINS`, `WEB_APP_URL`, `NURSE_APP_URL`, `PAYSTACK_CALLBACK_URL`; then `deploy`), and the phone test ("Done when").
 - **For Hikmah (deploying the frontends):**
   - **API URL:** `apps/api/deploy/cloudrun.sh url` (Zainab shares it). The frontends call it directly, with `credentials: 'include'` so the refresh cookie (`SameSite=None; Secure`) is sent.
@@ -457,7 +466,7 @@ Implement everything in "Accounts and auth" (section 2): `POST /auth/code/reques
   - **Claude pays through the same internal agent as the web app** (`collect` → x402 from her custodial wallet), so both "agents" are paid via x402.
   - **Not built:** `X-Question-Key` for public third-party agents (decisions log item 3). Questions still need a CareLayer account.
   - **End to end:** `npm run two-agent:e2e -w @carelayer/api` (with `E2E_LLM_ENV_FILE=deploy/.env.production` when the local LLM key is empty).
-  - **Deployed (22 November 2026):** the API with Z12, and the hosted MCP server at https://carelayer-mcp-598920525559.europe-west2.run.app/mcp (Cloud Run `carelayer-mcp`, scales to zero, `cloudrun.sh deploy-mcp`).
+  - **Deployed (22 November 2026):** the API with Z12, and the hosted MCP server at https://mcp.carelayer.health/mcp (Cloud Run `carelayer-mcp` behind the Cloudflare proxy, scales to zero, `cloudrun.sh deploy-mcp`).
 - **For Hikmah (account screen "Use CareLayer in Claude"):**
   - Create (`POST /auth/agent-tokens`, show the token once with a copy button), list (`GET`) and remove (`DELETE`) connections.
   - Show the connection steps from `apps/mcp/README.md`.
