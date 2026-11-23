@@ -1,0 +1,54 @@
+/*
+ * Bottom notices. Mobile: full width inside the 20px margins, above the 84px
+ * tab bar. Desktop: a 24rem column in the bottom-right corner, clear of the
+ * sidebar's Quick exit block.
+ */
+.region {
+  position: fixed;
+  inset: auto var(--layout-margin-inline)
+    calc(5.25rem + var(--space-12) + env(safe-area-inset-bottom));
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  pointer-events: none;
+}
+
+.region:empty {
+  display: none;
+}
+
+.notice {
+  pointer-events: auto;
+  box-shadow: var(--shadow-md);
+}
+
+.noticeTitle {
+  color: var(--color-text);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+}
+
+.noticeText {
+  margin-top: var(--space-4);
+  color: var(--color-text-muted);
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+}
+
+.noticeActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin-top: var(--space-12);
+}
+
+@media (min-width: 60rem) {
+  .region {
+    inset: auto var(--space-24) var(--space-24) auto;
+    width: min(24rem, calc(100vw - 16.5rem - 3rem));
+  }
+}

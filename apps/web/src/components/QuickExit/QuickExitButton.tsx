@@ -1,6 +1,6 @@
 import { cx } from '../cx';
 import { Icon } from '../Icon/Icon';
-import { quickExit } from './quick-exit';
+import { leaveNow } from './leave-now';
 import styles from './QuickExitButton.module.css';
 
 /*
@@ -19,7 +19,7 @@ export function QuickExitButton({ variant = 'pill', className }: QuickExitButton
     <button
       type="button"
       className={cx(styles.quickExit, isBlock ? styles.block : styles.pill, className)}
-      onClick={quickExit}
+      onClick={leaveNow}
       aria-label="Quick exit: leave CareLayer now"
       aria-keyshortcuts={isBlock ? 'Escape Escape' : undefined}
     >

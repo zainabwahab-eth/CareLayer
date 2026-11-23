@@ -1,4 +1,5 @@
 .screen {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -11,6 +12,20 @@
 
 .screen:focus {
   outline: none;
+}
+
+/* Same place as the Quick exit pill in the mobile top bar and desktop header. */
+.topBar {
+  position: absolute;
+  top: calc(var(--space-12) + env(safe-area-inset-top));
+  right: var(--layout-margin-inline);
+}
+
+@media (min-width: 60rem) {
+  .topBar {
+    top: 2.25rem;
+    right: 3rem;
+  }
 }
 
 .label {

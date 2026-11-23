@@ -1,7 +1,11 @@
 import { Outlet, ScrollRestoration } from 'react-router';
 import { useQuickExitShortcut } from '../components/QuickExit/useQuickExitShortcut';
+import { PwaStatus } from '../pwa/PwaStatus';
 
-/** Wraps every route: skip link, quick-exit shortcut (Esc Esc) and scroll restoration. */
+/**
+ * Wraps every route: skip link, quick-exit shortcut (Esc Esc), offline and
+ * update notices, and scroll restoration.
+ */
 export function RootLayout() {
   useQuickExitShortcut();
   return (
@@ -10,6 +14,7 @@ export function RootLayout() {
         Skip to content
       </a>
       <Outlet />
+      <PwaStatus />
       <ScrollRestoration />
     </>
   );

@@ -1,0 +1,79 @@
+/* Design-system surface card (no Figma frame). Stacks on phones, sits in a row on wide screens. */
+.banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-16);
+  padding: var(--space-20);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+}
+
+.badge {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-bg-soft);
+  color: var(--color-primary-text);
+}
+
+.body {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+.title {
+  color: var(--color-text);
+  font-family: var(--text-title-m-family);
+  font-size: var(--text-title-m-size);
+  line-height: var(--text-title-m-leading);
+  font-weight: var(--text-title-m-weight);
+  letter-spacing: var(--text-title-m-tracking);
+}
+
+.text,
+.steps {
+  color: var(--color-text-muted);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+.steps {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding-left: var(--space-20);
+}
+
+.steps strong {
+  color: var(--color-text);
+  font-weight: var(--text-label-m-weight);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin-top: var(--space-8);
+}
+
+/* Phones: full-width buttons are easier to hit. */
+@media (max-width: 29.99rem) {
+  .actions > * {
+    flex: 1 1 100%;
+  }
+}
+
+@media (forced-colors: active) {
+  .banner {
+    border-color: CanvasText;
+  }
+}

@@ -1,5 +1,6 @@
 import type { AuthTokensResponse } from '@carelayer/shared';
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { isApiError } from '../api/errors';
 import { useApi } from '../api/useApi';
 import { AuthContext, type AuthContextValue, type AuthState } from './auth-context';
 
@@ -14,20 +15,54 @@ import { AuthContext, type AuthContextValue, type AuthState } from './auth-conte
 export function AuthProvider({ children }: { children: ReactNode }) {
   const api = useApi();
   const [state, setState] = useState<AuthState>({ status: 'loading', user: null, reason: 'none' });
+  const signedIn = useRef(false);
+  useEffect(() => {
+    signedIn.current = state.status === 'authenticated';
+  }, [state.status]);
 
   useEffect(() => {
     let cancelled = false;
-    api.auth.refresh().then(
-      ({ user }) => {
-        if (!cancelled) setState({ status: 'authenticated', user, reason: 'none' });
-      },
-      () => {
-        // No session (or the API is unreachable): treat as signed out.
-        if (!cancelled) setState({ status: 'unauthenticated', user: null, reason: 'none' });
-      },
-    );
+    const restore = () => {
+      // Signed in meanwhile (e.g. on Log in): nothing to restore, and a second
+      // refresh would only rotate the cookie again.
+      if (signedIn.current) {
+        window.removeEventListener('online', restore);
+        return Promise.resolve();
+      }
+      return api.auth.refresh().then(
+        ({ user }) => {
+          if (cancelled) return;
+          window.removeEventListener('online', restore);
+          // Only while she is still waiting to be let in: never after she signed
+          // in another way, chose Log out (possibly offline), or was signed out.
+          setState((current) =>
+            current.status === 'loading' ||
+            (current.status === 'unauthenticated' && current.reason === 'none')
+              ? { status: 'authenticated', user, reason: 'none' }
+              : current,
+          );
+        },
+        (error: unknown) => {
+          if (cancelled) return;
+          // Unreachable (offline, opened from the home screen): keep the
+          // session cookie and try again when the connection comes back.
+          if (!(isApiError(error) && error.status === 0)) {
+            window.removeEventListener('online', restore);
+          }
+          // Either way she is signed out for now.
+          setState((current) =>
+            current.status === 'loading'
+              ? { status: 'unauthenticated', user: null, reason: 'none' }
+              : current,
+          );
+        },
+      );
+    };
+    window.addEventListener('online', restore);
+    void restore();
     return () => {
       cancelled = true;
+      window.removeEventListener('online', restore);
     };
   }, [api]);
 
