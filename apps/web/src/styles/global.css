@@ -127,3 +127,18 @@ a {
     scroll-behavior: auto !important;
   }
 }
+
+/*
+ * Quick exit (components/QuickExit/leave-now.ts): hide everything the moment
+ * she taps it, so nothing is left on screen, in an app-switcher snapshot or in
+ * the back/forward cache while the neutral site loads. `Canvas` is the
+ * browser's own blank page colour.
+ */
+html[data-quick-exit],
+html[data-quick-exit] body {
+  background: Canvas;
+}
+
+html[data-quick-exit] body {
+  visibility: hidden;
+}

@@ -1,0 +1,4 @@
+/* H8 install banner sits under the W05 content, one group gap below it. */
+.install {
+  margin-top: var(--layout-gap-group);
+}
