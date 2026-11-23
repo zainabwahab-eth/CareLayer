@@ -7,8 +7,10 @@ export type Db = PrismaClient;
 export function createDb(databaseUrl: string): Db {
   const adapter = new PrismaPg({
     connectionString: databaseUrl,
-    // Fail fast when Postgres is down so /health answers 503 quickly instead of hanging.
-    connectionTimeoutMillis: 3000,
+    // 10 s: Neon's free compute sleeps when idle and needs a moment to wake, and on Cloud Run
+    // (scale to zero, CPU only during requests) a cold connection can take longer than 3 s.
+    // /health stays fast: pingDatabase() has its own 2 s limit.
+    connectionTimeoutMillis: 10_000,
   });
   return new PrismaClient({ adapter });
 }
