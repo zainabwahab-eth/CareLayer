@@ -99,6 +99,7 @@ A **guard runs before the payment middleware** so unanswered questions never req
 ### Withdrawals
 
 - Health workers withdraw to a Stellar address (real testnet payment, requires a fresh email code).
+- An optional memo can be added when the receiving wallet asks for one (exchanges credit deposits by memo): a text memo (up to 28 bytes) or a memo ID (a number). The platform pays the Stellar fee; health workers never need XLM.
 - Bank withdrawal is "coming soon".
 - **Women's wallets have NO withdraw feature** for now.
 

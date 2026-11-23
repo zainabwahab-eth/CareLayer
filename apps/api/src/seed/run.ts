@@ -13,6 +13,10 @@ try {
       ngnPerUsdc: config.ngnPerUsdc,
       nodeEnv: config.nodeEnv,
       walletEncryptionKey: config.wallet.encryptionKey,
+      // Deployments only: the one-time demo seed (see seed.ts for the extra safety check).
+      allowProduction: process.env.CARELAYER_SEED_PRODUCTION === 'wipe-and-seed',
+      // Deployments: an inbox you own, so you can sign in to /admin-console (codes are emailed).
+      adminEmail: process.env.CARELAYER_SEED_ADMIN_EMAIL || undefined,
     });
     const balanceNaira =
       stroopsToKobo(BigInt(summary.tolu.cachedBalanceStroops), config.ngnPerUsdc) / 100;

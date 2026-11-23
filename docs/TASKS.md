@@ -92,7 +92,7 @@ These override anything older in other docs. If you change one, update this list
 - Fixed demo exchange rate from `NGN_PER_USDC`.
 - Every user gets a custodial Stellar testnet wallet at sign-up; secrets encrypted with `WALLET_ENCRYPTION_KEY`; the treasury sponsors reserves and adds the USDC trustline.
 - Top-up: Paystack test mode → test USDC from the treasury.
-- Women: **no withdrawals** for now. Nurses: withdraw to a Stellar address; bank withdrawal shown as "Coming soon".
+- Women: **no withdrawals** for now. Nurses: withdraw to a Stellar address; bank withdrawal shown as "Coming soon". Optional destination memo (text or ID) for exchanges; the treasury pays the fee (fee bump). Decided in Z10.
 - Store the Stellar transaction hash on every payment, payout, top-up and withdrawal.
 
 **x402 (decided in Z2, November 2026)**
@@ -379,7 +379,22 @@ Implement everything in "Accounts and auth" (section 2): `POST /auth/code/reques
 **Tests:** unanswered → 409 and no charge; paid answer creates payment + payout; free answer charges nothing and pays the nurse; repeated fetch doesn't charge again; **a test that forces settlement to fail and asserts no answer text is returned and nothing is recorded as paid**; facilitator 429/5xx returns the clear error; testnet integration test end to end.
 **Done when:** one full question flow shows both transactions on the explorer.
 
-### Z10. Earnings and withdrawals
+### Z10. Earnings and withdrawals (done: [real withdrawal with a memo, fee paid by the treasury](https://stellar.expert/explorer/testnet/tx/04f8bfa8959bc0476747b1a9be13aaed2ce79309f279e8ee07c737b8817f23e4))
+
+- **Decided in Z10:**
+  - **Withdrawals are fee-bumped.** Her custodial account holds 0 XLM (Z4), so the USDC payment is signed by her custodial key and wrapped in a fee-bump transaction signed and paid by the treasury. No XLM is ever sent to nurses.
+  - **The destination is checked first.** It must exist and trust testnet USDC, otherwise the payment could never land. It may not be her own CareLayer wallet.
+  - **One withdrawal in flight per nurse**, enforced by a partial unique index (`Withdrawal_one_in_flight_per_nurse`). Without it, two withdrawals at once could both pass the balance check. `available` = chain balance minus in-flight withdrawals.
+  - **Outcomes:**
+    - Stellar refuses (result codes) → `FAILED`, 502 `STELLAR_SUBMIT_FAILED`, nothing moved.
+    - No answer (timeout) → stays `SUBMITTED` and returns 201 `submitted`. The transaction is built and signed first, and its hash (final before submitting) is stored as `preparedTxHash`. A loop every minute (and her next read) looks that exact hash up on Horizon: success → `CONFIRMED`; failed on chain → `FAILED`. Not found once the transaction's 60 s window is over (+2 min margin) → `FAILED`. Never sent twice.
+    - A `PENDING` row never claimed for sending (crash) → `FAILED` after 2 minutes.
+  - **Minimum ₦100**, Stellar only. Bank is "Coming soon".
+  - **Optional destination memo** (`destination.memo: { type: "text" | "id", value }`), because exchanges credit deposits by memo and a deposit without it can be lost. It follows Stellar's rules: text up to 28 bytes, id = an unsigned 64-bit number. The type is explicit (most exchanges use memo IDs; a number sent as text may not be credited). This is why recovery uses the stored transaction hash, not a memo: the memo is hers.
+  - **Any nurse can see earnings and withdraw**, whatever her verification status: earned money stays hers (e.g. after a rejection).
+  - **`EarningsResponse` reshaped for N09:** `available`, a Mon–Sun chart (Lagos days, weeks from Monday), this week, this month, all time, and `recent` mixing earnings and withdrawals. An earning's `title` is the start of the question she answered (40 characters, cut on a word). She already saw the full question in her Completed tab.
+  - **End to end:** `npm run withdrawal:e2e -w @carelayer/api` runs the Z8 flow, then withdraws ₦100 to the test payer wallet and prints the links.
+- **Follow-up (not done):** `PUT /nurse/payout-address` accepts any valid address. A payout to an address without a USDC trustline would retry forever. It should get the same destination check.
 
 - `GET /nurse/earnings` (balance, this week, this month, daily totals for the chart, payments list with explorer links), `POST /nurse/withdrawals` (fresh code required; Stellar address only).
 
@@ -387,12 +402,66 @@ Implement everything in "Accounts and auth" (section 2): `POST /auth/code/reques
 
 ### Z11. Deploy
 
+- **Decided in Z11:**
+  - **Google Cloud Run + Neon (free), chosen by Zainab.** Region `europe-west2` (London), next to the Neon database (`eu-west-2`); Neon has no African region. The database URL is Neon's direct host (no `-pooler`), because Prisma migrations need a direct connection.
+  - **At most one instance, scaled to zero, CPU only during requests** (`--min-instances 0 --max-instances 1 --cpu-throttling`). This was changed on 22 November 2026 for cost, chosen by Zainab: the Google Cloud trial credit had expired.
+    - Always-on (`--min-instances 1 --no-cpu-throttling`) is instance-based billing: about $44 a month at Google's list rate, $50–60 in London. Pay-per-use is about $0 at demo traffic.
+    - Max one instance: the in-memory chat rate limit and the in-process loops must not run twice.
+    - **The trade-off:** the background loops (claim expiry, chosen-window fallback emails, payouts, top-up credits, wallet activation, unclear withdrawals) only run while requests are being served. Work is **delayed, never lost or doubled** (claims, memos, stored hashes).
+    - Every request applies the claim and question time rules itself (Z7), so screens stay correct.
+    - What can lag until the next request: nurse payouts (visible on the explorer late), top-up credits and wallet activation (finished when she opens her wallet), and the 10-minute fallback emails.
+    - After about 15 minutes idle, the first request takes a few seconds (cold start).
+  - **Follow-up (option 2, not done):** Cloud Scheduler calls a secret-protected `POST /internal/tick` every minute, which runs one pass of every loop. The in-process timers are switched off in production by a setting. Pay-per-use stays (~43k ticks a month is inside the free tier; 1 of the 3 free scheduler jobs). The loops run every minute again, and the instance stays warm. Also add an Artifact Registry cleanup policy. Do it before the live demo, or switch back to always-on for the demo days (about $1.50 a day).
+  - **Image:** repo-root `Dockerfile` (API + `packages/shared` only), built by Cloud Build, so no local Docker is needed.
+  - **The same image runs the migrations** (Cloud Run job `prisma migrate deploy`, before every deploy) and the one-time seed (Cloud Run job).
+  - **Secrets** live in Google Secret Manager, uploaded from a gitignored `apps/api/deploy/.env.production` by `deploy/cloudrun.sh secrets`. Values are never printed. Plain settings are env vars on the service.
+  - **A separate testnet treasury and facilitator key for the deployed API** (`CARELAYER_ENV_FILE=deploy/.env.production npm run testnet:setup`), not the local one.
+  - **Production seed:** the seed wipes every table, so in production it needs `CARELAYER_SEED_PRODUCTION=wipe-and-seed`, and it refuses once any real account (not `@example.com`) exists. The admin's email comes from `SEED_ADMIN_EMAIL`, because `/admin-console` codes are emailed.
+  - **Cookies across domains:** the frontends and the API are on different domains, so `AUTH_COOKIE_SAMESITE=none` + `Secure`.
+  - **Logs** carry a Cloud Logging `severity`.
+  - **Production LLM: OpenAI `gpt-4.1`** (Zainab's paid key), not NVIDIA's free tier. NVIDIA took 9–12 s per reply and is limited to about 40 requests a minute shared by everyone. No code change: `LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`. Chosen by `npm run eval:assistant` (November 2026):
+
+    | Model          | Result   | Emergency recall | Action | Category | Invalid replies | Latency   |
+    | -------------- | -------- | ---------------- | ------ | -------- | --------------- | --------- |
+    | `gpt-4o-mini`  | pass     | 100%             | 87.9%  | 91.3%    | 2 / 33          | 1.7–4.4 s |
+    | `gpt-4.1-mini` | **fail** | 100%             | 69.7%  | 100%     | 0               |           |
+    | `gpt-4.1`      | pass     | 100%             | 81.8%  | 100%     | 0               | 1.7–1.8 s |
+    - `gpt-4.1` has no invalid replies and 100% categories.
+    - Its misses are safe-side: it offers a nurse where a direct answer was expected (the known over-offering, H2), and q02 (32 weeks, baby moving less) goes to emergency, which midwives would also say.
+    - `gpt-4o-mini` is about 13x cheaper, but 1 question in about 16 gets a "try again" error.
+    - Cost is about 3,170 tokens in and 180 out per call, roughly $0.008 at list price, less with OpenAI's automatic prompt caching.
+    - The key's account should have a spending limit.
+    - Newer models (`gpt-5.x`, `gpt-6.x`, o-series) reject `max_tokens`, so they would need the client to send `max_completion_tokens` (and no `temperature`).
+
+  - **Privacy:** OpenAI does not train on API data by default but keeps requests up to 30 days for abuse monitoring. Questions contain no name, email or phone (decisions log), but the woman's own words are sent.
+  - Runbook: `apps/api/README.md` → "Deploy". Postman environment: "CareLayer Cloud Run".
+  - **Deployed (22 November 2026):** https://carelayer-api-598920525559.europe-west2.run.app (project `carelayer`, `europe-west2`). Migrations applied and the demo data seeded; the admin is Zainab's email. Email is sent from Zainab's verified domain `info.zapescrow.xyz` until CareLayer has its own domain. Then update `EMAIL_FROM` + `EMAIL_API_KEY`, run `secrets` and `deploy`.
+  - **Open:** Hikmah's frontend URLs (`CORS_ORIGINS`, `WEB_APP_URL`, `NURSE_APP_URL`, `PAYSTACK_CALLBACK_URL`; then `deploy`), and the phone test ("Done when").
+- **For Hikmah (deploying the frontends):**
+  - **API URL:** `apps/api/deploy/cloudrun.sh url` (Zainab shares it). The frontends call it directly, with `credentials: 'include'` so the refresh cookie (`SameSite=None; Secure`) is sent.
+  - **Send Zainab both final frontend URLs.** They go in `CORS_ORIGINS`, `WEB_APP_URL`, `NURSE_APP_URL` and `PAYSTACK_CALLBACK_URL` (`<web>/account/wallet`). Until then the browser blocks calls (CORS).
+  - **Google sign-in:** the Google OAuth client needs both frontend origins as authorised JavaScript origins.
 - Deploy API + Postgres (Cloud Run or similar), set env vars, run migrations and seed, share the URL. Add a Postman environment for the deployed API.
-- **Before the demo:** the hosted OpenZeppelin facilitator key from Z2 is anonymous with undocumented rate limits. Get a non-anonymous key, or stand up the self-hosted OpenZeppelin Relayer x402 plugin as a fallback (switching is only `X402_FACILITATOR_URL` + `X402_FACILITATOR_API_KEY`).
+- **Before the demo:** the hosted OpenZeppelin facilitator key is anonymous with undocumented rate limits. Checked in Z11: the GitHub-login keys (`channels.openzeppelin.com/gen`) are for the **mainnet** facilitator only; testnet keys are always anonymous (`/testnet/gen`). So for the testnet demo, keep a spare testnet key ready, or stand up the self-hosted OpenZeppelin Relayer x402 plugin as a fallback. Switching is only `X402_FACILITATOR_URL` + `X402_FACILITATOR_API_KEY`.
 
 **Done when:** both frontends work against the deployed API on a phone.
 
-### Z12. MCP server for Claude
+### Z12. MCP server for Claude (done: the two-agent demo on testnet, [web answer paid](https://stellar.expert/explorer/testnet/tx/28a60ec12d8b8b9ea6ae1894783285342e54ab9d2688bfbed15dc12ef463484d), [Claude answer paid](https://stellar.expert/explorer/testnet/tx/3b523e1bd99a32e0f9bd0d8a25e7941d9742344a081c6e4a28830428f8c89c36))
+
+- **Decided in Z12:**
+  - **Clients: Claude Desktop and Claude Code** (Zainab's choice). stdio with her token in the client config, and a hosted Streamable HTTP endpoint (Cloud Run `carelayer-mcp`, stateless) where each request sends `Authorization: Bearer clat_...`. claude.ai web custom connectors need OAuth, which is **not built** (follow-up).
+  - **Agent tokens:** `clat_` + 256 random bits, stored as HMAC(`AUTH_PEPPER`), at most 5 active, revoked immediately. Created, listed and revoked only from a signed-in session (`GET /auth/agent-tokens` added).
+  - **Deny by default:** `requireAuth` refuses agent tokens (403) unless a route opts in. Only `POST /chat/draft`, `POST /questions`, `GET /questions/:id/status`, `POST /me/questions/:id/collect` and `GET /wallet` opt in, so Claude cannot change settings, limits or tokens, top up, chat, or reach nurse/admin routes.
+  - **The rules are enforced by the API, not only by the MCP tools:** source `mcp` (the source must match the caller), emergencies logged as `MCP`, Claude's own spending limit at draft, create and collect. Claude cannot use `approvedAboveLimit`: she raises the limit in the app. "Ask before each payment" → 409 `PAYMENT_CONFIRMATION_REQUIRED` until `confirmPayment: true`.
+  - **`ask_health_worker` reuses the draft flow** (`POST /chat/draft` → signed `draftToken` → `POST /questions`). What she approves in Claude is exactly what the nurse gets, with no second LLM run. It shares the cleaned question, category and, if present, notes, age range and pregnancy weeks, never her raw words. The tool text tells Claude to show the price and these fields and to send only after a clear yes.
+  - **Claude pays through the same internal agent as the web app** (`collect` → x402 from her custodial wallet), so both "agents" are paid via x402.
+  - **Not built:** `X-Question-Key` for public third-party agents (decisions log item 3). Questions still need a CareLayer account.
+  - **End to end:** `npm run two-agent:e2e -w @carelayer/api` (with `E2E_LLM_ENV_FILE=deploy/.env.production` when the local LLM key is empty).
+  - **Deployed (22 November 2026):** the API with Z12, and the hosted MCP server at https://carelayer-mcp-598920525559.europe-west2.run.app/mcp (Cloud Run `carelayer-mcp`, scales to zero, `cloudrun.sh deploy-mcp`).
+- **For Hikmah (account screen "Use CareLayer in Claude"):**
+  - Create (`POST /auth/agent-tokens`, show the token once with a copy button), list (`GET`) and remove (`DELETE`) connections.
+  - Show the connection steps from `apps/mcp/README.md`.
+  - The Claude limit and "ask before each payment" are the existing `/me/settings` fields.
 
 - `apps/mcp` with the official TypeScript MCP SDK. Tools: `ask_health_worker` (returns the price and requires explicit confirmation before sending), `get_answer`, `get_balance`. Authenticates with an agent token linked to her account; separate Claude spending limit and "ask before each payment"; emergencies return the same free guidance.
 - Document how to add it to Claude as a custom connector.
@@ -488,9 +557,9 @@ Tick in the PR that completes the task.
 - [x] Z9 Nurse onboarding + admin
 - [x] Z7 Claiming and answering
 - [x] Z8 Pay on delivery + payouts
-- [ ] Z10 Earnings and withdrawals
+- [x] Z10 Earnings and withdrawals
 - [ ] Z11 Deploy
-- [ ] Z12 MCP server
+- [x] Z12 MCP server
 - [ ] H1 Tokens
 - [ ] H2 Assistant behaviour
 - [ ] H3 Shells, theme, mocks

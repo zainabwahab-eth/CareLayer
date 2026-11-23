@@ -21,13 +21,20 @@ const PageSchema = z.object({
 
 export function createWalletsRouter(deps: AppDeps, wallets: WalletService): Router {
   const router = Router();
-  const authed = requireAuth({
+  const guard = {
     db: deps.db,
     jwtAccessSecret: deps.config.auth.jwtAccessSecret,
     now: deps.clock ?? (() => new Date()),
+  };
+  const authed = requireAuth(guard);
+  // Claude (agent token, Z12) may read her balance (get_balance). Nothing else in this module.
+  const authedOrAgent = requireAuth({
+    ...guard,
+    allowAgent: true,
+    pepper: deps.config.auth.pepper,
   });
 
-  router.get('/wallet', authed, async (_req, res) => {
+  router.get('/wallet', authedOrAgent, async (_req, res) => {
     const user = await deps.db.user.findUniqueOrThrow({ where: { id: getAuth(res).userId } });
     res.setHeader('Cache-Control', 'no-store');
     res.json(await wallets.view(user));

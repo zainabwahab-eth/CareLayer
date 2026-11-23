@@ -8,6 +8,9 @@
 //   GET    /auth/sessions       this user's live sessions
 //   DELETE /auth/sessions/:id   end one of them
 //   POST   /auth/step-up        confirm a step_up code -> this session is fresh for 5 minutes
+//   POST   /auth/agent-tokens   woman (signed in): a token for Claude, shown once (Z12)
+//   GET    /auth/agent-tokens   woman (signed in): her active Claude connections
+//   DELETE /auth/agent-tokens/:id  woman (signed in): remove one (immediate)
 import { AUTH_RULES } from '@carelayer/shared';
 import { Router, type Response } from 'express';
 import { z } from 'zod';
@@ -17,7 +20,8 @@ import type { WalletService } from '../wallets/service.js';
 import { clearRefreshCookie, readRefreshCookie, setRefreshCookie } from './cookies.js';
 import { createEmailSender } from './email.js';
 import { createGoogleVerifier } from './google.js';
-import { getAuth, requireAuth, resolveAuth } from './middleware.js';
+import { createAgentTokenService } from './agent-tokens.js';
+import { getAuth, requireAuth, requireRole, resolveAuth } from './middleware.js';
 import {
   googleSignIn,
   listSessions,
@@ -150,6 +154,44 @@ export function createAuthRouter(deps: AppDeps, wallets: WalletService): Router 
     if (req.params.id === sessionId) clearRefreshCookie(res, cookie);
     res.status(204).end();
   });
+
+  // ---- Agent tokens (Z12). Session only: an agent token cannot create, list or revoke tokens. ----
+  const agentTokens = createAgentTokenService({
+    db: deps.db,
+    pepper: deps.config.auth.pepper,
+    logger: deps.logger,
+    now,
+  });
+  const AgentTokenSchema = z
+    .object({
+      label: z
+        .string({ error: 'Name this connection (e.g. "Claude on my laptop").' })
+        .trim()
+        .min(1, 'Name this connection (e.g. "Claude on my laptop").')
+        .max(60, 'Keep the name under 60 characters.'),
+    })
+    .strict();
+
+  router.post('/auth/agent-tokens', requireAuth(guard), requireRole('woman'), async (req, res) => {
+    const { label } = AgentTokenSchema.parse(req.body);
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(201).json(await agentTokens.create(getAuth(res).userId, label));
+  });
+
+  router.get('/auth/agent-tokens', requireAuth(guard), requireRole('woman'), async (_req, res) => {
+    res.setHeader('Cache-Control', 'no-store');
+    res.json(await agentTokens.list(getAuth(res).userId));
+  });
+
+  router.delete(
+    '/auth/agent-tokens/:id',
+    requireAuth(guard),
+    requireRole('woman'),
+    async (req, res) => {
+      await agentTokens.revoke(getAuth(res).userId, String(req.params.id));
+      res.status(204).end();
+    },
+  );
 
   router.post('/auth/step-up', requireAuth(guard), async (req, res) => {
     const { userId, sessionId } = getAuth(res);

@@ -23,7 +23,7 @@ import { recordEmergency } from '../emergency/service.js';
 import type { Assistant } from '../llm/assistant.js';
 import { llmToAppError } from '../llm/errors.js';
 import { signDraftToken } from '../questions/draft-token.js';
-import { offerFrom, quoteFor } from '../questions/pricing.js';
+import { offerFrom, quoteFor, type Channel } from '../questions/pricing.js';
 
 export interface ChatServiceDeps {
   db: Db;
@@ -77,7 +77,12 @@ export function createChatService(d: ChatServiceDeps) {
       };
     },
 
-    async draft(womanId: string, turns: ChatTurn[]): Promise<DraftResponse> {
+    /** `channel` "mcp": Claude via an agent token (Claude's spending limit, emergencies logged as MCP). */
+    async draft(
+      womanId: string,
+      turns: ChatTurn[],
+      channel: Channel = 'web',
+    ): Promise<DraftResponse> {
       const originalText = questionTextFrom(turns);
       if (originalText.length > CHAT_LIMITS.maxQuestionLength) {
         throw new AppError(
@@ -87,8 +92,9 @@ export function createChatService(d: ChatServiceDeps) {
           { field: 'messages' },
         );
       }
+      const emergencySource = channel === 'mcp' ? 'MCP' : 'CHAT';
       const flagged = matchRedFlags(d.redFlags, originalText);
-      if (flagged.length) return recordEmergency(d, 'CHAT', flagged);
+      if (flagged.length) return recordEmergency(d, emergencySource, flagged);
 
       let prepared;
       try {
@@ -96,7 +102,7 @@ export function createChatService(d: ChatServiceDeps) {
       } catch (err) {
         throw llmToAppError(err);
       }
-      if (prepared.redFlagSuspected) return recordEmergency(d, 'CHAT', ['llm']);
+      if (prepared.redFlagSuspected) return recordEmergency(d, emergencySource, ['llm']);
 
       const draft: QuestionDraft = {
         originalText,
@@ -107,7 +113,7 @@ export function createChatService(d: ChatServiceDeps) {
         pregnancyWeeks: prepared.pregnancyWeeks,
       };
       const [quote, signed] = await Promise.all([
-        quoteFor(d.db, d.config, womanId),
+        quoteFor(d.db, d.config, womanId, channel),
         signDraftToken(draft, womanId, d.config.auth.jwtAccessSecret, d.now()),
       ]);
       d.logger.info('chat_draft', {

@@ -102,7 +102,21 @@ export interface CreateAgentTokenBody {
 export interface CreateAgentTokenResponse {
   id: Id;
   label: string;
-  /** Shown once. Stored hashed server-side. */
+  /** Shown once. Stored hashed server-side. Starts with AGENT_TOKEN_PREFIX. */
   token: string;
   createdAt: IsoDateTime;
+}
+
+/** Agent tokens (Claude via apps/mcp). Every token starts with this, so it is recognisable. */
+export const AGENT_TOKEN_PREFIX = 'clat_';
+/** Active (not revoked) agent tokens per woman. */
+export const MAX_AGENT_TOKENS = 5;
+
+// GET /auth/agent-tokens  (woman, signed in: an agent token cannot list or create tokens)
+export interface AgentTokenSummary {
+  id: Id;
+  label: string;
+  createdAt: IsoDateTime;
+  /** Last time Claude used it (updated at most once a minute). */
+  lastUsedAt: IsoDateTime | null;
 }

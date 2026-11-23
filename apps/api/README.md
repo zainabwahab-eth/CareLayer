@@ -99,6 +99,19 @@ Placeholders, clearly not real: wallet keys start with `GSEED` (no secret; Z4 cr
   - `src/modules/questions/answers.ts`.
   - `src/modules/payments/`: `answer-x402.ts`, `payouts.ts`, `chain.ts`.
 
+## Earnings and withdrawals (Z10)
+
+- **`GET /nurse/earnings`** serves N09:
+  - Available to withdraw.
+  - The Mon–Sun chart, this week, this month and all time.
+  - Recent earnings and withdrawals.
+- **`POST /nurse/withdrawals`** needs a fresh code (`POST /auth/step-up`). It is a Stellar address only, ₦100 minimum, one at a time. Her custodial key signs; the treasury pays the fee (fee bump).
+- **Memo:** optional `destination.memo` (`text` or `id`), for exchanges that need one.
+- **`GET /nurse/withdrawals`** lists her withdrawals. A withdrawal whose outcome was unknown (`submitted`) is settled by a loop every minute (`src/index.ts`). The loop looks up the transaction hash stored before submitting.
+- **End to end on testnet:** `npm run withdrawal:e2e -w @carelayer/api` (withdraws ₦100 with a memo ID and checks it arrived).
+- **Trace:** log lines `withdrawal_created`, `withdrawal_confirmed`, `withdrawal_rejected`, `withdrawal_outcome_unknown`, `withdrawal_loop`.
+- **Code:** `src/modules/nurses/earnings.ts`, `src/modules/payments/withdrawal-chain.ts`.
+
 ## x402 on Stellar testnet (Z2)
 
 ```bash
@@ -113,6 +126,55 @@ npm run test:testnet -w @carelayer/api    # same, as assertions (real testnet, n
 - `src/modules/payments/`: `guard.ts` (pay-on-delivery guard, 409 before any 402), `x402.ts` (facilitator client, resource server, USDC prices in stroops), `x402-client.ts` (paying agent: `createPayingFetch`, `readSettlement`), `stellar-testnet.ts` (Friendbot, trustline, XLM to USDC on the testnet DEX, balances), `router.ts` (`GET /x402-test`).
 - `testnet:setup` only fills empty `.env` values and never prints secrets. Re-running it is safe.
 - First proof payment: https://stellar.expert/explorer/testnet/tx/b2ce568136e4372c5b5faa5ab963ebeac8ad94afaa661bb2ccbf2f6b09ef30ed
+
+## Claude via MCP (Z12)
+
+- **Agent tokens:** `POST/GET/DELETE /auth/agent-tokens` (woman, signed in). A token starts with `clat_` and is shown once.
+- **Deny by default:** an agent token is refused (403) on every route except the five that opt in with `requireAuth({ allowAgent: true, pepper })`: `POST /chat/draft`, `POST /questions` (`source: "mcp"`), `GET /questions/:id/status`, `POST /me/questions/:id/collect`, `GET /wallet`.
+- **Claude rules in the API:** source `MCP`, emergencies logged as `MCP`, Claude's spending limit (no `approvedAboveLimit` for Claude), and `confirmPayment` when she asked to approve each payment.
+- **The MCP server itself:** `apps/mcp` (README there: how to connect Claude Desktop and Claude Code).
+- **Two-agent demo on testnet:** `E2E_LLM_ENV_FILE=deploy/.env.production npm run two-agent:e2e -w @carelayer/api`.
+- **Code:** `src/modules/auth/agent-tokens.ts`, `src/modules/auth/middleware.ts`, `src/modules/questions/pricing.ts` (`Channel`).
+
+## Deploy (Z11): Google Cloud Run + Neon
+
+At most one Cloud Run instance, scaled to zero when idle (pay per use: the background loops only run while requests are served, so some work is delayed until the next request; see Z11 in `docs/TASKS.md` for the trade-off and the planned Cloud Scheduler tick). A Neon Postgres, secrets in Google Secret Manager. Region `europe-west2` (London), next to the Neon database (`eu-west-2`); set `GCP_REGION` if your Neon project is elsewhere. The image is the repo-root `Dockerfile`; `deploy/cloudrun.sh` does every step.
+
+**Accounts (once, by you):**
+
+1. **Neon** (free): create a project (ours: AWS Europe West 2, London). Copy the connection string with **pooling off**: the host must not contain `-pooler`. Use `sslmode=verify-full`.
+2. **Resend:** verify your domain (DNS records), create an API key with sending access.
+3. **Google Cloud:** a project with billing on.
+   - `gcloud auth login && gcloud config set project <id>`.
+   - Or use **Cloud Shell** in the browser: gcloud is already there. `git clone` the repo and upload `.env.production` with the Upload button.
+
+**Fill the production env file** (gitignored, never commit it):
+
+```bash
+cp apps/api/deploy/.env.production.example apps/api/deploy/.env.production
+# A separate testnet treasury + facilitator key for the deployed API:
+CARELAYER_ENV_FILE=deploy/.env.production npm run testnet:setup -w @carelayer/api
+# Then fill: DATABASE_URL (Neon), the 3 generated secrets, EMAIL_FROM + EMAIL_API_KEY (Resend),
+# LLM_API_KEY, PAYSTACK_* (test keys), GOOGLE_CLIENT_ID, and Hikmah's frontend URLs.
+```
+
+**Deploy:**
+
+```bash
+apps/api/deploy/cloudrun.sh setup     # once: APIs, image registry, service account
+apps/api/deploy/cloudrun.sh secrets   # uploads the secrets to Secret Manager (values never printed)
+apps/api/deploy/cloudrun.sh release   # Cloud Build image -> migrations job -> deploy service
+SEED_ADMIN_EMAIL=you@yourdomain.com \
+  apps/api/deploy/cloudrun.sh seed    # ONCE, on the fresh database: demo accounts + your admin
+apps/api/deploy/cloudrun.sh url       # the API URL: check <url>/health
+```
+
+- **Every later release:** `secrets` if a secret changed, then `release`. Migrations run as a Cloud Run job before the new revision.
+- **Changing a plain setting** (e.g. Hikmah's URLs in `CORS_ORIGINS`): edit `.env.production`, then run `deploy`.
+- **The seed wipes every table.** In production it needs `CARELAYER_SEED_PRODUCTION=wipe-and-seed` (the `seed` command sets it). It still refuses once any real account (an email not ending in `@example.com`) exists.
+- **The seeded admin** gets `SEED_ADMIN_EMAIL` (an inbox you own), because `/admin-console` sign-in codes are emailed. Locally it stays `admin@example.com`.
+- **Logs:** Cloud Run → `carelayer-api` → Logs. Every line is JSON with a `severity`.
+- **Postman:** the environment "CareLayer Cloud Run" (`docs/postman/carelayer.cloudrun.postman_environment.json`). Set `baseUrl` to the URL.
 
 ## Layout
 

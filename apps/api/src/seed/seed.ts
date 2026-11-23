@@ -1,5 +1,7 @@
 // Development seed data. Wipes every CareLayer table, then inserts a known demo state.
-// Refuses to run when NODE_ENV=production.
+// Refuses to run when NODE_ENV=production, unless `allowProduction` (CLI: CARELAYER_SEED_PRODUCTION=
+// wipe-and-seed) AND the database holds no real accounts yet (every email @example.com). That is
+// the one-time demo seed of a fresh deployment (Z11); after real sign-ups it always refuses.
 //
 // Placeholders (clearly not real):
 // - Emails use example.com.
@@ -30,6 +32,10 @@ export interface SeedOptions {
   nodeEnv: string;
   /** WALLET_ENCRYPTION_KEY (32 bytes). */
   walletEncryptionKey: Buffer;
+  /** Production only: the deliberate one-time demo seed of a fresh deployment. */
+  allowProduction?: boolean;
+  /** The admin's email (an inbox you own on a deployment: sign-in codes go there). */
+  adminEmail?: string;
   now?: Date;
 }
 
@@ -119,7 +125,15 @@ async function wipe(db: PrismaClient) {
 }
 
 export async function seed(db: PrismaClient, opts: SeedOptions) {
-  if (opts.nodeEnv === 'production') throw new Error('Refusing to seed: NODE_ENV=production');
+  if (opts.nodeEnv === 'production') {
+    if (!opts.allowProduction) throw new Error('Refusing to seed: NODE_ENV=production');
+    const real = await db.user.count({ where: { NOT: { email: { endsWith: '@example.com' } } } });
+    if (real > 0) {
+      throw new Error(
+        `Refusing to seed: NODE_ENV=production and ${real} real account(s) exist. Seeding wipes every table.`,
+      );
+    }
+  }
 
   const now = opts.now ?? new Date();
   const at = (offsetMs: number) => new Date(now.getTime() + offsetMs);
@@ -171,7 +185,7 @@ export async function seed(db: PrismaClient, opts: SeedOptions) {
 
   const admin = await createUser({
     role: 'ADMIN',
-    email: SEED_EMAILS.admin,
+    email: (opts.adminEmail ?? SEED_EMAILS.admin).trim().toLowerCase(),
     displayName: 'CareLayer Admin',
     createdAt: at(-60 * DAY),
   });

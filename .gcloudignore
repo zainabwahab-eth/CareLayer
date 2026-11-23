@@ -1,0 +1,20 @@
+# gcloud builds submit uploads the repo; same rules as .dockerignore (no secrets, no node_modules).
+**/node_modules
+**/dist
+**/dev-dist
+**/coverage
+**/.env
+**/.env.*
+!**/.env.example
+apps/api/src/generated
+apps/api/evals/reports
+# Other workspaces: only their manifests (npm ci checks the lockfile against every workspace).
+apps/web/*
+!apps/web/package.json
+apps/workers/*
+!apps/workers/package.json
+# apps/mcp: sources are needed for Dockerfile.mcp (its node_modules/dist are excluded above).
+.git
+docs
+*.md
+!apps/api/prompts/*.md
