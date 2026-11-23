@@ -90,7 +90,6 @@ Matches the decisions log (nothing stored), keeps one discriminant across the AP
 
 **Ask:** confirm the real numbers and set `verified: true` only after someone has checked them (who, and when?). Recommendation: keep the `verified` flag in the contract permanently, so a number that has not been checked can never look like a checked one.
 
-<<<<<<< HEAD
 > **Z6 status (Zainab):** the API returns one contact, `112` (Nigeria's national emergency number), with `verified: false`, from `EMERGENCY_CONTACTS` in `apps/api/src/modules/emergency/service.ts`. Agreed: the flag stays in the contract permanently. **Still open:** who calls 112 (and any state or hospital line we add) from a Nigerian phone, and when, before the demo. Then flip `verified` in that file.
 
 ---
@@ -132,7 +131,6 @@ The API appends short call instructions after `assistant.md` (in `apps/api/src/m
 - **B. Leave it.** Over-offering is the safe side, but the app asks her to pay ₦500 more often than needed.
 
 After a prompt change, re-run `npm run eval:assistant -w @carelayer/api`. It takes about 4 minutes, and the report is written to `apps/api/evals/reports/`.
-=======
 ---
 
 ## Q3. H7 History, Wallet and Account: API gaps
@@ -181,4 +179,63 @@ The Account screen saves `mcpSpendingLimitPerAnswerKobo` and `mcpAskBeforeEachPa
 ### 3f. Appearance: which copy wins?
 
 Contract §3: `appearance` is saved with her settings and also in `localStorage`. The app applies the device copy (before sign-in, no flash) and saves her choice to the account when she changes it. It does **not** apply the account value on another device. Quick exit is the reverse: the account value replaces the device copy when settings load, so every device exits to the same place. **Ask:** confirm that is fine, or say if appearance should follow the account too.
->>>>>>> 18d9223 (feat: implement questions, wallet and settings)
+
+---
+
+## Q4. H9 Health worker application (N01–N04): design and API gaps
+
+**Raised by:** Hikmah (H9), November 2026. **For:** Zainab (contract, Z9) and the designer. **Blocks:** nothing. Every gap below has a working default in the nurse app; these are the decisions to confirm.
+
+**API coverage is complete for the application.** Every call the screens make exists in `apps/api` and matches contract §2 and §10: `POST /auth/code/request`, `POST /auth/code/verify`, `POST /auth/google`, `POST /auth/refresh`, `POST /auth/logout` (all with `app: "nurses"`), `GET`/`PATCH /nurse/profile`, `PATCH /nurse/preferences`, `POST /nurse/documents` (multipart `type` + `file`), `DELETE /nurse/documents/:id` and `POST /nurse/profile/submit`. No new endpoints or fields were needed. The gaps are between the **designs** and what the API requires or can report.
+
+### 4a. Required to submit, but not on any screen
+
+`ONBOARDING_REQUIREMENTS` needs two things the frames never ask for.
+
+| Requirement                    | What the app does now                                                                                                                                       | Decide                                                                                                                                                                                                                                                                                    |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `fullNameConfirmed`            | A Checkbox under the name on N02: "This is my name exactly as it appears on my licence". Editing the name unticks it.                                       | Designer: approve the wording and placement.                                                                                                                                                                                                                                              |
+| `guidanceNotDiagnosisAccepted` | A Checkbox on Step 3: "I'll give guidance, not diagnoses, and tell women to see someone in person when they need to." Sent with `PATCH` just before submit. | **Wording needs sign-off** (ideally by the reviewing nurse or midwife, as for H2). Zainab: the API stores only a timestamp. Should it also store which wording she agreed to, as questions do with `consentTextVersion`? **Recommendation: yes**, so a later wording change is auditable. |
+
+### 4b. Screens with no frame
+
+N02 and N03 say "Step _n_ of 3", but only two steps are drawn. Built from existing components and tokens:
+
+- **Step 3 of 3, "Check and send"** (`/onboarding/submit`): a summary card in N04's checklist style, with "Change" links, the guidance agreement and "Send for review".
+- **Sign up with email (mobile), Log in, Verify email:** D-N01's form side, and W04's layout as TASKS §3 says.
+- **Rejected state** (on N04's route): the admin's `rejectionReason` and "Fix and send again". The steps reopen, because the API unlocks licence fields and documents once rejected.
+- **Approved:** lands on `/today`, which says she's verified. N05 Today is the rest of H9.
+- **N04 "Preview how answering works":** the button is drawn but its content isn't. It opens a four-point explainer taken from the decisions log: topic-only alerts, a 10-minute claim, guidance not diagnosis, ₦400 per answer.
+
+**Designer:** please draw Step 3 and the rejected state, or approve these.
+
+### 4c. N04's checklist can't be live
+
+N04 shows four rows ("Details and documents received" Done, "Licence checked with the council" In progress, "Identity matched to your selfie" Waiting, "Ready to answer" Waiting). The API has **one** status for the whole review (`pending_review`). There's no per-check progress, and the admin console approves or rejects in one step.
+
+- **A. Keep the rows fixed while she waits** (what the app does). Honest enough: received is true, and the council check is what the admin is doing.
+- **B. Add review sub-steps** (for example `reviewChecks: { licence, identity }` on `NurseProfile`, set from the admin console). Needs a contract and console change.
+- **C. Simplify the design** to "Received" → "Being checked" → "Ready".
+
+**Recommendation: A for now, C if the demo shows people expecting the rows to move.** B is only worth it if the review really becomes two separate checks.
+
+### 4d. Fields added to N02
+
+- **Gender (optional).** Not on N02, but `Question.femaleOnly` filters on `NurseProfile.gender = FEMALE`, so a nurse who never sets it never receives "female health workers only" questions. Added as optional chips with the hint "Women can ask for a female health worker. We never show this on your profile."
+  - **Zainab:** confirm the hint. `NursePublicProfile` does include `gender`, but the web app's W08 doesn't display it today. If it's shown later, change the hint.
+- **"General" topic chip.** The frame has Pregnancy, Periods, Contraception, Sexual health and "All topics". `general` is a fifth category that nurses get by default, but without its own chip it could only be chosen through "All topics", and was then invisible when one chip was turned off. Added a "General" chip; "All topics" still selects all five.
+
+### 4e. Copy to check
+
+- **N03 "Stored encrypted. Never shown to the women you help."** Documents are stored in Postgres (`NurseDocumentFile`). The code doesn't encrypt them itself; Neon encrypts the database at rest. If that's not enough to say "encrypted", change the copy to **"Stored privately. Never shown to the women you help."** **Recommendation:** confirm with Zainab before the demo.
+- **N01 mobile has no "Log in" link.** D-N01 has "Already joined? Log in", and returning nurses need a way in, so the app adds it under the buttons.
+
+### 4f. Not collected during the application
+
+`languages`, `bio` and `practiceArea` are optional in the contract and not on N02/N03, so the application doesn't ask for them. W08 shows women a nurse's languages and bio, so they belong on the nurse **Profile** screen (no design yet; rest of H9).
+
+### 4g. Notes for the rest of H9
+
+- **Shared code:** the nurse app imports apps/web's components, auth helpers and `ApiError` through a `@web/*` alias (`apps/workers/vite.config.ts`, `tsconfig.json`). Nothing is copied. Moving them to a `packages/ui` later is a search-and-replace.
+- **Google sign-in** is only offered in mock builds, as in apps/web (`apps/web/src/auth/google.ts`), until Google Identity Services is wired up.
+- **Mock admin:** in mock builds, N04 shows "Mock API only: act as the admin" (Approve or Reject) so the next states can be tried. It never appears against the real API. The real decision is made in `GET /admin-console`.
