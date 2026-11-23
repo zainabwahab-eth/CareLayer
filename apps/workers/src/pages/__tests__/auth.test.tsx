@@ -80,4 +80,18 @@ describe('N01 Join and sign up', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send me a code' }));
     await waitFor(() => expect(screen.getByRole('link', { name: 'Join instead' })).toBeTruthy());
   });
+
+  it('logs in an approved nurse (amaka@example.com, code 123456) to Today', async () => {
+    const { router } = renderApp(testApi(), '/log-in');
+    fireEvent.change(await screen.findByLabelText('Email address'), {
+      target: { value: 'amaka@example.com' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send me a code' }));
+    await screen.findByRole('heading', { name: 'Check your email' });
+    const boxes = screen.getAllByRole('textbox');
+    fireEvent.paste(boxes[0]!, { clipboardData: { getData: () => '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: /Verify|Log in|Continue/ }));
+    await screen.findByRole('heading', { name: /Good (morning|afternoon|evening), Amaka/ });
+    expect(router.state.location.pathname).toBe('/today');
+  });
 });

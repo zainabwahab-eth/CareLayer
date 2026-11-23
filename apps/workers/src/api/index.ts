@@ -16,6 +16,14 @@ function createApi(): NurseApi {
     return createMockNurseApi();
   }
   const baseUrl = (import.meta.env.VITE_API_URL ?? 'http://localhost:4000').replace(/\/+$/, '');
+  if (import.meta.env.DEV) {
+    // Says which API is in use, so "Could not reach CareLayer" is easy to trace in development
+    // (usually apps/api not running, or no apps/workers/.env.local with VITE_USE_MOCK_API=true).
+    console.info(
+      `[CareLayer HW] Using the REAL API at ${baseUrl}. For the mock, set ` +
+        'VITE_USE_MOCK_API=true in apps/workers/.env.local (copy .env.example) and restart.',
+    );
+  }
   return createHttpNurseApi(baseUrl);
 }
 

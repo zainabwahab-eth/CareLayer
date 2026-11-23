@@ -1,4 +1,5 @@
 import { render } from '@testing-library/react';
+import { ThemeProvider } from '@web/theme/ThemeProvider';
 import { createMemoryRouter, RouterProvider } from 'react-router';
 import { createMockNurseApi, MOCK_VERIFICATION_CODE } from '../api/mock-api';
 import { NurseApiProvider } from '../api/NurseApiProvider';
@@ -18,14 +19,16 @@ export async function signIn(api: NurseApi, email: string, name?: string) {
   await api.auth.verifyCode({ email, code: MOCK_VERIFICATION_CODE, purpose, app: 'nurses', name });
 }
 
-/** Render the whole nurse app at `path`, with the real routes and guards. */
+/** Render the whole nurse app at `path`, with the real routes, guards and providers (as App). */
 export function renderApp(api: NurseApi, path: string) {
   const router = createMemoryRouter(routes, { initialEntries: [path] });
   const utils = render(
     <NurseApiProvider api={api}>
-      <AuthProvider>
-        <RouterProvider router={router} />
-      </AuthProvider>
+      <ThemeProvider>
+        <AuthProvider>
+          <RouterProvider router={router} />
+        </AuthProvider>
+      </ThemeProvider>
     </NurseApiProvider>,
   );
   return { ...utils, router };

@@ -1,6 +1,16 @@
 import { createBrowserRouter, type RouteObject } from 'react-router';
 import { NurseAuthLayout } from '../layouts/NurseAuthLayout';
 import { RootLayout } from '../layouts/RootLayout';
+import { WorkspaceLayout } from '../layouts/WorkspaceLayout';
+import { AnswerSentPage } from '../pages/AnswerSentPage';
+import { CasePage } from '../pages/CasePage';
+import { CasesPage } from '../pages/CasesPage';
+import { EarningsPage } from '../pages/EarningsPage';
+import { ProfilePage } from '../pages/ProfilePage';
+import { SettingsPage } from '../pages/SettingsPage';
+import { UpdatesPage } from '../pages/UpdatesPage';
+import { WithdrawalsPage } from '../pages/WithdrawalsPage';
+import { WithdrawPage } from '../pages/WithdrawPage';
 import { JoinPage } from '../pages/auth/JoinPage';
 import { LogInPage } from '../pages/auth/LogInPage';
 import { SignUpPage } from '../pages/auth/SignUpPage';
@@ -17,7 +27,8 @@ import { paths } from './paths';
 /*
  * Statuses (contract §10): draft -> pending_review -> approved | rejected.
  * The steps are open while she can still change things (draft, rejected);
- * N04 while she waits or after a rejection; Today once approved.
+ * N04 while she waits or after a rejection; the workspace (H11) once approved.
+ * The API enforces the same rule (403 NURSE_NOT_APPROVED on /nurse/questions*).
  */
 export const routes: RouteObject[] = [
   {
@@ -53,9 +64,26 @@ export const routes: RouteObject[] = [
                 element: <RequireStatus allow={['pending_review', 'rejected']} />,
                 children: [{ path: paths.review, Component: ReviewPage }],
               },
+            ],
+          },
+          // Approved: the workspace, with its own navigation (WorkspaceLayout).
+          {
+            element: <RequireStatus allow={['approved']} />,
+            children: [
               {
-                element: <RequireStatus allow={['approved']} />,
-                children: [{ path: paths.today, Component: TodayPage }],
+                Component: WorkspaceLayout,
+                children: [
+                  { path: paths.today, Component: TodayPage },
+                  { path: paths.cases, Component: CasesPage },
+                  { path: paths.case, Component: CasePage },
+                  { path: paths.caseSent, Component: AnswerSentPage },
+                  { path: paths.earnings, Component: EarningsPage },
+                  { path: paths.withdraw, Component: WithdrawPage },
+                  { path: paths.withdrawals, Component: WithdrawalsPage },
+                  { path: paths.updates, Component: UpdatesPage },
+                  { path: paths.profile, Component: ProfilePage },
+                  { path: paths.settings, Component: SettingsPage },
+                ],
               },
             ],
           },

@@ -1,0 +1,538 @@
+/*
+ * Shared styles for the nurse workspace (N05–N09 and the screens without a frame).
+ * Tokens only (@carelayer/tokens). Mobile first; desktop from 60rem.
+ */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-20);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  padding-top: var(--space-12);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--text-display-m-family);
+  font-size: var(--text-display-m-size);
+  line-height: var(--text-display-m-leading);
+  font-weight: var(--text-display-m-weight);
+  letter-spacing: var(--text-display-m-tracking);
+  color: var(--color-text);
+}
+
+.titleSmall {
+  margin: 0;
+  font-family: var(--text-title-l-family);
+  font-size: var(--text-title-l-size);
+  line-height: var(--text-title-l-leading);
+  font-weight: var(--text-title-l-weight);
+  color: var(--color-text);
+}
+
+.lede {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-12);
+  margin-top: var(--space-4);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-family: var(--text-title-m-family);
+  font-size: var(--text-title-m-size);
+  line-height: var(--text-title-m-leading);
+  font-weight: var(--text-title-m-weight);
+  color: var(--color-text);
+}
+
+.link {
+  color: var(--color-primary-text);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  font-weight: var(--text-label-m-weight);
+  text-decoration: none;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+.link:hover {
+  text-decoration: underline;
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: var(--space-16) var(--space-16);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+}
+
+.cardTitle {
+  margin: 0;
+  font-family: var(--text-title-m-family);
+  font-size: var(--text-title-m-size);
+  line-height: var(--text-title-m-leading);
+  font-weight: var(--text-title-m-weight);
+  color: var(--color-text);
+}
+
+/* Deep teal card: availability (N05) and the earnings balance (N09). */
+.primaryCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: var(--space-20);
+  border-radius: var(--radius-lg);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.primaryCard .muted {
+  color: var(--color-on-primary-muted);
+}
+
+/* Warm card: the active case (N05). */
+.accentCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: var(--space-16);
+  border-radius: var(--radius-lg);
+  background: var(--color-accent-bg-soft);
+  color: var(--color-text);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+
+.rowStart {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+
+.label {
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+}
+
+.caption {
+  font-family: var(--text-caption-family);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-leading);
+  font-weight: var(--text-caption-weight);
+}
+
+.body {
+  margin: 0;
+  font-family: var(--text-body-l-family);
+  font-size: var(--text-body-l-size);
+  line-height: var(--text-body-l-leading);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.bodySmall {
+  margin: 0;
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+}
+
+/* Three stat tiles (N05). */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-8);
+}
+
+.stat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-12);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  min-width: 0;
+}
+
+.statValue {
+  font-family: var(--text-title-l-family);
+  font-size: var(--text-title-l-size);
+  line-height: var(--text-title-l-leading);
+  font-weight: var(--text-title-l-weight);
+  color: var(--color-text);
+  overflow-wrap: anywhere;
+}
+
+.statLabel {
+  font-family: var(--text-caption-family);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-leading);
+  color: var(--color-text-muted);
+}
+
+/* Category / context tags (N06, N07). */
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-12);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text-muted);
+  font-family: var(--text-label-s-family);
+  font-size: var(--text-label-s-size);
+  line-height: var(--text-label-s-leading);
+  font-weight: var(--text-label-s-weight);
+}
+
+.tagChosen {
+  background: var(--color-accent-bg-soft);
+  color: var(--color-text);
+}
+
+.reward {
+  color: var(--color-primary-text);
+  font-family: var(--text-title-m-family);
+  font-size: var(--text-title-m-size);
+  font-weight: var(--text-title-m-weight);
+}
+
+.meta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--color-text-muted);
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+}
+
+/* Countdown pill (N05, N07). */
+.timer {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-12);
+  border-radius: var(--radius-full);
+  background: var(--color-accent-bg-soft);
+  color: var(--color-text);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  font-weight: var(--text-label-m-weight);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.timerUrgent {
+  background: var(--color-emergency-bg-soft);
+  color: var(--color-emergency);
+}
+
+/* Lists inside a card (recent payments, withdrawals, updates). */
+.list {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.listItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+  padding: var(--space-12) 0;
+  border-top: 1px solid var(--color-line);
+}
+
+.listItem:first-child {
+  border-top: 0;
+}
+
+.listIcon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-surface-soft);
+  color: var(--color-primary-text);
+}
+
+.amountIn {
+  color: var(--color-primary-text);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  font-weight: var(--text-label-m-weight);
+  white-space: nowrap;
+}
+
+.amountOut {
+  color: var(--color-text);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  font-weight: var(--text-label-m-weight);
+  white-space: nowrap;
+}
+
+/* Empty and error states. */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-8);
+  padding: var(--space-32) var(--space-20);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius-lg);
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.emptyTitle {
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--text-title-m-family);
+  font-size: var(--text-title-m-size);
+  font-weight: var(--text-title-m-weight);
+}
+
+/* Loading skeletons. */
+.skeleton {
+  border-radius: var(--radius-lg);
+  background: linear-gradient(
+    90deg,
+    var(--color-bg-surface-soft) 25%,
+    var(--color-bg-surface) 50%,
+    var(--color-bg-surface-soft) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 200% 0;
+  }
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12);
+}
+
+.actions > * {
+  flex: 1 1 auto;
+}
+
+/* Segmented tabs (N06 Waiting / In progress / Completed). */
+.segments {
+  display: flex;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-soft);
+}
+
+.segment {
+  flex: 1 1 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-4);
+  min-height: var(--size-touch-target-min);
+  padding: var(--space-8);
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--color-text-muted);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  font-weight: var(--text-label-m-weight);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.segmentActive {
+  background: var(--color-bg-surface);
+  color: var(--color-text);
+  box-shadow: var(--shadow-sm);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+}
+
+/* Bar chart (N09 This week). */
+.chart {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  align-items: end;
+  gap: var(--space-8);
+  height: 7.5rem;
+}
+
+.barColumn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-8);
+  height: 100%;
+}
+
+.bar {
+  width: 100%;
+  max-width: 2rem;
+  min-height: 0.375rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-chart-bar-inactive);
+}
+
+.barToday {
+  background: var(--color-chart-bar);
+}
+
+.dot {
+  display: inline-block;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+}
+
+/* Form pieces. */
+.textarea {
+  width: 100%;
+  min-height: 12rem;
+  padding: var(--space-12);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-family: var(--text-body-l-family);
+  font-size: var(--text-body-l-size);
+  line-height: var(--text-body-l-leading);
+  resize: vertical;
+}
+
+.textarea:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 1px;
+}
+
+.textareaError {
+  border-color: var(--color-emergency);
+}
+
+.fieldLabel {
+  display: block;
+  margin-bottom: var(--space-8);
+  color: var(--color-text-muted);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  font-weight: var(--text-label-m-weight);
+}
+
+.fieldError {
+  margin: var(--space-4) 0 0;
+  color: var(--color-emergency);
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+}
+
+.address {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: var(--text-body-s-size);
+  overflow-wrap: anywhere;
+}
+
+/* Two columns on desktop where it helps (Today, Earnings). */
+.grid {
+  display: grid;
+  gap: var(--space-20);
+}
+
+@media (min-width: 60rem) {
+  .grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  .gridWide {
+    grid-column: 1 / -1;
+  }
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

@@ -14,6 +14,8 @@ export interface AuthContextValue {
   completeSignIn(tokens: AuthTokensResponse): void;
   /** Ends the session on the server (best effort) and here. Never rejects. */
   logout(): Promise<void>;
+  /** Ends every session of this account (POST /auth/logout-all). Rejects if it failed. */
+  logoutAll(): Promise<void>;
   /** An authenticated request failed because the session is gone. */
   sessionExpired(): void;
 }
