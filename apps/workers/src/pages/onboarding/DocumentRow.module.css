@@ -1,0 +1,116 @@
+.wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+
+.rowLine {
+  position: relative;
+}
+
+/* Figma: surface, 16px padding, 12px gap, radius 20. */
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  width: 100%;
+  min-height: var(--size-touch-target-min);
+  padding: var(--space-16);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  cursor: pointer;
+}
+
+.done {
+  border: 1px solid var(--color-line);
+  padding-right: 5.5rem; /* room for Remove */
+}
+
+.missing {
+  border: 1px dashed var(--color-text-muted);
+}
+
+.invalid {
+  border-color: var(--color-error-bg);
+}
+
+.disabled {
+  cursor: default;
+}
+
+.row:focus-within {
+  outline: 2px solid var(--color-primary-text);
+  outline-offset: 2px;
+}
+
+.icon {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 0.75rem; /* 12px, as drawn */
+  background: var(--color-surface-soft);
+  color: var(--color-text);
+}
+
+.iconDone {
+  background: var(--color-primary-soft);
+  color: var(--color-primary-text);
+}
+
+.text {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.title {
+  color: var(--color-text);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+}
+
+.detail {
+  overflow: hidden;
+  color: var(--color-text-muted);
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.remove {
+  position: absolute;
+  top: 50%;
+  right: var(--space-8);
+  min-height: var(--size-touch-target-min);
+  padding: 0 var(--space-12);
+  border: 0;
+  background: none;
+  color: var(--color-primary-text);
+  font-family: var(--text-label-s-family);
+  font-size: var(--text-label-s-size);
+  font-weight: var(--text-label-s-weight);
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.error {
+  color: var(--color-error-bg);
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+}
+
+@media (forced-colors: active) {
+  .missing {
+    border-color: CanvasText;
+  }
+}

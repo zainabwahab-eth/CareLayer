@@ -5,12 +5,14 @@ import alert32 from '../../assets/icons/alert-32.svg';
 import alert36 from '../../assets/icons/alert-36.svg';
 import alert from '../../assets/icons/alert.svg';
 import back from '../../assets/icons/back.svg';
+import camera20 from '../../assets/icons/camera-20.svg';
 import bell from '../../assets/icons/bell.svg';
 import check16 from '../../assets/icons/check-16.svg';
 import chevron18 from '../../assets/icons/chevron-18.svg';
 import chat from '../../assets/icons/chat.svg';
 import clock from '../../assets/icons/clock.svg';
 import eyeOff22 from '../../assets/icons/eye-off-22.svg';
+import heart22 from '../../assets/icons/heart-22.svg';
 import eyeOff from '../../assets/icons/eye-off.svg';
 import home from '../../assets/icons/home.svg';
 import lock18 from '../../assets/icons/lock-18.svg';
@@ -28,7 +30,9 @@ import shield84 from '../../assets/icons/shield-84.svg';
 import shield from '../../assets/icons/shield.svg';
 import sparkle16 from '../../assets/icons/sparkle-16.svg';
 import sparkle20 from '../../assets/icons/sparkle-20.svg';
+import upload20 from '../../assets/icons/upload-20.svg';
 import user from '../../assets/icons/user.svg';
+import wallet22 from '../../assets/icons/wallet-22.svg';
 
 /*
  * Icons exported from the Figma design system (icon/* layers).
@@ -64,6 +68,11 @@ export const icons = {
   search: { src: search18, frame: 18, x: 2.5, y: 2.5, w: 13.375, h: 13.375 },
   mail: { src: mail30, frame: 30, x: 3.5, y: 6, w: 23, h: 18 },
   send: { src: send20, frame: 20, x: 4.125, y: 3.708, w: 11.75, h: 13 },
+  // Nurse app (N01 benefits, N03 uploads).
+  wallet: { src: wallet22, frame: 22, x: 2.333, y: 4.625, w: 17.333, h: 13.667 },
+  heart: { src: heart22, frame: 22, x: 3.708, y: 4.667, w: 14.583, h: 14.083 },
+  upload: { src: upload20, frame: 20, x: 2.875, y: 2.875, w: 14.25, h: 14.667 },
+  camera: { src: camera20, frame: 20, x: 2.042, y: 2.875, w: 15.917, h: 13.833 },
   sparkle: [
     { src: sparkle16, frame: 16, x: 2.792, y: 1.792, w: 10.417, h: 10.417 },
     { src: sparkle20, frame: 20, x: 3.708, y: 2.458, w: 12.583, h: 12.583 },
