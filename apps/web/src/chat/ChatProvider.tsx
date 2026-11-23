@@ -1,6 +1,5 @@
-import type { Id } from '@carelayer/shared';
+import type { ChatTurn, Id } from '@carelayer/shared';
 import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
-import { hasErrorCode } from '../api/errors';
 import { useApi } from '../api/useApi';
 import { isSessionError } from '../auth/auth-flow';
 import { useAuth } from '../auth/useAuth';
@@ -13,6 +12,7 @@ import {
   type ChatState,
   type SendResult,
   hasAnsweredQuestion,
+  threadFor,
 } from './chat-context';
 
 const EMPTY: ChatState = { entries: [], pending: false, offer: null };
@@ -21,6 +21,9 @@ const EMPTY: ChatState = { entries: [], pending: false, offer: null };
  * Holds the current W06 chat above the router, so it survives moving to the
  * consent and emergency screens and back. Memory only (never storage), and
  * reset whenever the signed-in user changes.
+ *
+ * POST /chat is stateless (contract §7): the server stores nothing, so every
+ * message is sent with the thread so far.
  */
 export function ChatProvider({ children }: { children: ReactNode }) {
   const { state } = useAuth();
@@ -38,7 +41,11 @@ function ChatStore({ children }: { children: ReactNode }) {
   const api = useApi();
   const { sessionExpired } = useAuth();
   const [chat, setChat] = useState<ChatState>(EMPTY);
-  const conversationId = useRef<Id | null>(null);
+  /**
+   * Turns the API has seen, oldest first: her delivered messages (including one
+   * that raised an emergency) and the assistant's replies. Failed sends are left out.
+   */
+  const delivered = useRef<ChatTurn[]>([]);
   const pendingRef = useRef(false);
   /** Bumped by reset() so replies to an abandoned chat are dropped. */
   const generation = useRef(0);
@@ -60,15 +67,14 @@ function ChatStore({ children }: { children: ReactNode }) {
       setChat((current) => ({ ...current, pending: true, offer: null }));
 
       try {
-        if (!conversationId.current) {
-          const conversation = await api.chat.createConversation();
-          if (!isCurrent()) return { kind: 'ignored' };
-          conversationId.current = conversation.id;
-        }
-        const response = await api.chat.sendMessage(conversationId.current, { text });
+        const messages = threadFor(delivered.current, text);
+        const response = await api.chat.send({ messages });
         if (!isCurrent()) return { kind: 'ignored' };
 
         if (response.kind === 'emergency') {
+          // Kept in the thread: POST /chat only checks the newest message, and a
+          // later draft re-checks the whole question, so it stays out of the nurse queue.
+          delivered.current = messages;
           // Emergency: free, nothing queued, and no nurse offer or payment (contract §6).
           setChat((current) => ({
             ...current,
@@ -96,6 +102,7 @@ function ChatStore({ children }: { children: ReactNode }) {
           return { kind: 'emergency', response };
         }
 
+        delivered.current = [...messages, { role: 'assistant', text: response.message.text }];
         setChat((current) => ({
           ...current,
           pending: false,
@@ -118,8 +125,6 @@ function ChatStore({ children }: { children: ReactNode }) {
       } catch (error) {
         if (!isCurrent()) return { kind: 'ignored' };
         if (isSessionError(error)) sessionExpired();
-        // The server no longer knows this conversation: the retry starts a new one.
-        if (hasErrorCode(error, 'NOT_FOUND')) conversationId.current = null;
         setChat((current) => ({ ...current, pending: false }));
         updateEntry(entryId, { status: 'failed', error: chatErrorMessage(error) });
         return { kind: 'error' };
@@ -164,7 +169,7 @@ function ChatStore({ children }: { children: ReactNode }) {
 
   const reset = useCallback(() => {
     generation.current += 1;
-    conversationId.current = null;
+    delivered.current = [];
     pendingRef.current = false;
     setChat(EMPTY);
   }, []);

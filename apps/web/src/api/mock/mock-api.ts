@@ -22,6 +22,7 @@
  */
 import {
   AUTH_RULES,
+  CHAT_LIMITS,
   CHOSEN_NURSE_WINDOW_MINUTES,
   FREE_ANSWERS_PER_WOMAN,
   QUESTION_CLAIMS_CLOSE_MINUTES,
@@ -30,8 +31,7 @@ import {
   type AnswerResponse,
   type ApiErrorCode,
   type AuthTokensResponse,
-  type ChatMessage,
-  type Conversation,
+  type ChatTurn,
   type CreatedQuestion,
   type EscalationOffer,
   type Id,
@@ -39,6 +39,7 @@ import {
   type NotificationPreferences,
   type Page,
   type PageQuery,
+  type QuestionDraft,
   type QuestionStatus,
   type Topup,
   type User,
@@ -56,7 +57,6 @@ import {
   MOCK_NURSES,
   MOCK_WALLET_SEED,
   mockStellar,
-  seedConversations,
   seedQuestions,
   seedTransactions,
   toPublicNurse,
@@ -96,7 +96,8 @@ const MOCK_TOPUP_CALLBACK_PATH = '/account/wallet';
 const SESSION_KEY = 'carelayer.mock.session';
 const SIGNED_OUT = 'signed-out';
 const RESEND_COOLDOWN_MS = 30_000;
-const MAX_TEXT_LENGTH = 4_000;
+/** How long a mock draftToken is accepted (the API's are valid 2 hours). */
+const DRAFT_TTL_MS = 2 * 60 * 60_000;
 const MINUTE_MS = 60_000;
 const CLAIMS_CLOSE_MS = QUESTION_CLAIMS_CLOSE_MINUTES * MINUTE_MS;
 const CHOSEN_WINDOW_MS = CHOSEN_NURSE_WINDOW_MINUTES * MINUTE_MS;
@@ -105,7 +106,8 @@ interface UserData {
   settings: UserSettings;
   notifications: NotificationPreferences;
   wallet: { stellarAddress: string; balanceKobo: number; freeAnswersRemaining: number };
-  conversations: Conversation[];
+  /** Drafts handed out by chat.draft, by token (stand-in for the API's signed tokens). */
+  drafts: Map<string, { draft: QuestionDraft; expiresAt: number }>;
   questions: MockQuestionRecord[];
   transactions: WalletTransaction[];
   topups: MockTopup[];
@@ -187,15 +189,58 @@ function paginate<T>(items: readonly T[], query: PageQuery = {}): Page<T> {
   return { items: pageItems, nextCursor: next < items.length ? String(next) : null };
 }
 
-function requireText(text: unknown, field: string): string {
+function requireText(
+  text: unknown,
+  field: string,
+  max: number = CHAT_LIMITS.maxTextLength,
+): string {
   if (typeof text !== 'string' || !text.trim()) {
     fail(400, 'VALIDATION_FAILED', `${field} is required.`, { field });
   }
   const value = (text as string).trim();
-  if (value.length > MAX_TEXT_LENGTH) {
-    fail(400, 'VALIDATION_FAILED', `${field} is too long.`, { field, max: MAX_TEXT_LENGTH });
+  if (value.length > max) {
+    fail(400, 'VALIDATION_FAILED', `${field} is too long.`, { field, max });
   }
   return value;
+}
+
+/** The same checks as the API's ChatRequestSchema / DraftRequestSchema (contract §7). */
+function requireTurns(messages: unknown, lastMustBeHers: boolean): ChatTurn[] {
+  if (!Array.isArray(messages) || messages.length === 0) {
+    fail(400, 'VALIDATION_FAILED', 'Send at least one message.', { field: 'messages' });
+  }
+  const turns = messages as ChatTurn[];
+  if (turns.length > CHAT_LIMITS.maxTurns) {
+    fail(400, 'VALIDATION_FAILED', `Send at most the last ${CHAT_LIMITS.maxTurns} messages.`, {
+      field: 'messages',
+    });
+  }
+  const checked = turns.map((turn) => {
+    if (turn?.role !== 'user' && turn?.role !== 'assistant') {
+      fail(400, 'VALIDATION_FAILED', 'role must be "user" or "assistant"', { field: 'messages' });
+    }
+    return { role: turn.role, text: requireText(turn.text, 'messages') };
+  });
+  if (lastMustBeHers && checked[checked.length - 1]!.role !== 'user') {
+    fail(400, 'VALIDATION_FAILED', 'The last message must be hers (role "user").', {
+      field: 'messages',
+    });
+  }
+  if (!lastMustBeHers && !checked.some((t) => t.role === 'user')) {
+    fail(400, 'VALIDATION_FAILED', 'Include at least one of her messages (role "user").', {
+      field: 'messages',
+    });
+  }
+  return checked;
+}
+
+/** Her question for a nurse: her messages joined verbatim (as apps/api questionTextFrom). */
+function questionTextFrom(turns: readonly ChatTurn[]): string {
+  return turns
+    .filter((t) => t.role === 'user')
+    .map((t) => t.text.trim())
+    .filter(Boolean)
+    .join('\n\n');
 }
 
 export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
@@ -222,7 +267,7 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
         settings: { ...MOCK_SETTINGS },
         notifications: { ...MOCK_NOTIFICATIONS_SEED },
         wallet: { ...MOCK_WALLET_SEED },
-        conversations: seedConversations(),
+        drafts: new Map(),
         questions: seedQuestions(),
         transactions: seedTransactions(),
         topups: readStoredTopups()[MOCK_USER.id] ?? [],
@@ -284,7 +329,7 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
         balanceKobo: 0,
         freeAnswersRemaining: FREE_ANSWERS_PER_WOMAN,
       },
-      conversations: [],
+      drafts: new Map(),
       questions: [],
       transactions: [],
       topups: [],
@@ -364,13 +409,6 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
   function eligibleNurses(femaleOnly: boolean): MockNurse[] {
     return MOCK_NURSES.filter(
       (n) => n.profile.available && (!femaleOnly || n.profile.gender === 'female'),
-    );
-  }
-
-  function findConversation(id: Id) {
-    return (
-      currentData().conversations.find((c) => c.id === id) ??
-      fail(404, 'NOT_FOUND', 'We could not find that conversation.')
     );
   }
 
@@ -651,60 +689,64 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
     },
 
     chat: {
-      createConversation: () =>
-        respond(() => {
-          const conversation: Conversation = { id: nextId('conv'), createdAt: iso(), messages: [] };
-          currentData().conversations.unshift(conversation);
-          return conversation;
-        }),
-      listConversations: (query) =>
-        respond(() => {
-          // Contract: list items carry the last message only.
-          const summaries = currentData().conversations.map((c) => ({
-            ...c,
-            messages: c.messages.slice(-1),
-          }));
-          return paginate(summaries, query);
-        }),
-      getConversation: (id) => respond(() => findConversation(id)),
-      sendMessage: (conversationId, body) =>
+      // Stateless, like POST /chat: the thread comes from the client, nothing is kept.
+      send: (body) =>
         respond(() => {
           const data = currentData();
-          const conversation = findConversation(conversationId);
-          const text = requireText(body.text, 'text');
-          const userMessage: ChatMessage = {
-            id: nextId('msg'),
-            role: 'user',
-            text,
-            createdAt: iso(),
-          };
-          conversation.messages.push(userMessage);
+          const turns = requireTurns(body?.messages, true);
+          const text = turns[turns.length - 1]!.text;
 
-          // Red-flag check comes first: emergency response, nothing queued, free.
+          // Red-flag check on her new message first: emergency, nothing queued, free.
           const flags = detectMockRedFlags(text);
           if (flags.length > 0) return mockEmergencyResponse(flags);
 
           // Categorise from everything she has said, not just the latest message.
-          const category = mockCategorise(
-            conversation.messages
-              .filter((m) => m.role === 'user')
-              .map((m) => m.text)
-              .join(' '),
-          );
-          const message: ChatMessage = {
-            id: nextId('msg'),
-            role: 'assistant',
-            text: mockAssistantReply(category),
-            createdAt: iso(now() + 1),
-          };
-          conversation.messages.push(message);
-          const userCount = conversation.messages.filter((m) => m.role === 'user').length;
+          const category = mockCategorise(questionTextFrom(turns));
+          const userCount = turns.filter((t) => t.role === 'user').length;
           return {
             kind: 'reply' as const,
-            message,
+            message: {
+              id: nextId('msg'),
+              role: 'assistant' as const,
+              text: mockAssistantReply(category),
+              createdAt: iso(),
+            },
             escalationOffer: mockShouldOfferEscalation(text, userCount)
               ? escalationOffer(data, category)
               : null,
+          };
+        }),
+      draft: (body) =>
+        respond(() => {
+          const data = currentData();
+          const originalText = questionTextFrom(requireTurns(body?.messages, false));
+          if (originalText.length > CHAT_LIMITS.maxQuestionLength) {
+            fail(400, 'VALIDATION_FAILED', 'Your messages are too long to send as one question.', {
+              field: 'messages',
+            });
+          }
+          // The whole question is checked, as on the API.
+          const flags = detectMockRedFlags(originalText);
+          if (flags.length > 0) return mockEmergencyResponse(flags);
+
+          const category = mockCategorise(originalText);
+          const draft: QuestionDraft = {
+            originalText,
+            cleanedText: mockCleanText(originalText),
+            assistantNotes: null,
+            category,
+            ageRange: null,
+            pregnancyWeeks: null,
+          };
+          const draftToken = nextId('draft');
+          const expiresAt = now() + DRAFT_TTL_MS;
+          data.drafts.set(draftToken, { draft, expiresAt });
+          return {
+            kind: 'draft' as const,
+            draft,
+            draftToken,
+            draftExpiresAt: iso(expiresAt),
+            offer: escalationOffer(data, category),
           };
         }),
     },
@@ -713,7 +755,31 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
       create: (body) =>
         respond(() => {
           const data = currentData();
-          const originalText = requireText(body.originalText, 'originalText');
+          const originalText = requireText(
+            body.originalText,
+            'originalText',
+            CHAT_LIMITS.maxQuestionLength,
+          );
+
+          // With a draftToken the question is exactly the draft she saw on W07 (§8.1 step 4).
+          let draft: QuestionDraft | null = null;
+          if (body.draftToken !== undefined) {
+            const issued = data.drafts.get(body.draftToken);
+            if (!issued || issued.expiresAt < now()) {
+              fail(
+                400,
+                'VALIDATION_FAILED',
+                'This draft has expired. Review your question again before sending it.',
+                { field: 'draftToken' },
+              );
+            }
+            draft = issued!.draft;
+            if (draft.originalText !== body.originalText) {
+              fail(400, 'VALIDATION_FAILED', 'originalText must match the draft.', {
+                field: 'originalText',
+              });
+            }
+          }
 
           // Red-flag check comes first (§8.1 step 1): emergency, nothing queued, free.
           const flags = detectMockRedFlags(originalText);
@@ -760,16 +826,16 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
           ) {
             fail(409, 'SPENDING_LIMIT_EXCEEDED', 'This answer costs more than your limit.', {
               priceKobo: MOCK_ANSWER_PRICE_KOBO,
-              limitKobo: data.settings.spendingLimitPerAnswerKobo,
+              spendingLimitKobo: data.settings.spendingLimitPerAnswerKobo,
             });
           }
 
-          const category = mockCategorise(originalText);
+          const category = draft?.category ?? mockCategorise(originalText);
           const record: MockQuestionRecord = {
             id: nextId('q'),
             category,
             originalText, // stored verbatim
-            cleanedText: mockCleanText(originalText),
+            cleanedText: draft?.cleanedText ?? mockCleanText(originalText),
             isFree,
             createdAt: iso(),
             consent: {

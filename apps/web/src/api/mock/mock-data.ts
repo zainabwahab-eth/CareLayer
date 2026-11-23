@@ -11,7 +11,6 @@
 import {
   FREE_ANSWERS_PER_WOMAN,
   type ConsentInput,
-  type Conversation,
   type NurseSelection,
   type NursePublicProfile,
   type PublicNurse,
@@ -279,29 +278,6 @@ export function seedQuestions(): MockQuestionRecord[] {
         'This is very common after giving birth and it is not your fault. Healing can take several months, and breastfeeding can cause dryness. Go slowly and use a water-based lubricant. If the pain is sharp or does not improve, please see a health worker for a check.',
       collected: true,
       stellarTxHash: null,
-    },
-  ];
-}
-
-export function seedConversations(): Conversation[] {
-  return [
-    {
-      id: 'mock_conv_swelling',
-      createdAt: ago(8 * MINUTE),
-      messages: [
-        {
-          id: 'mock_msg_1',
-          role: 'user',
-          text: 'my feet dey swell small small, im 30 weeks pregnant is it normal',
-          createdAt: ago(8 * MINUTE),
-        },
-        {
-          id: 'mock_msg_2',
-          role: 'assistant',
-          text: 'Mild swelling in the feet is common at this stage of pregnancy. Would you like a verified midwife to look at your question?',
-          createdAt: ago(8 * MINUTE - 4000),
-        },
-      ],
     },
   ];
 }

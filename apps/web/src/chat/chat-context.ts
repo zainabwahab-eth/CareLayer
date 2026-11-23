@@ -1,4 +1,11 @@
-import type { EmergencyResponse, EscalationOffer, Id, IsoDateTime } from '@carelayer/shared';
+import {
+  CHAT_LIMITS,
+  type ChatTurn,
+  type EmergencyResponse,
+  type EscalationOffer,
+  type Id,
+  type IsoDateTime,
+} from '@carelayer/shared';
 import { createContext } from 'react';
 
 /*
@@ -9,8 +16,8 @@ import { createContext } from 'react';
  * logging out or quick exit always opens a blank new chat.
  */
 
-/** Longest message accepted. The API rejects larger bodies (contract §0, 100 kB). */
-export const CHAT_MESSAGE_MAX_LENGTH = 4_000;
+/** Longest message accepted (contract §7, CHAT_LIMITS.maxTextLength). */
+export const CHAT_MESSAGE_MAX_LENGTH = CHAT_LIMITS.maxTextLength;
 
 export type ChatEntry =
   | {
@@ -71,6 +78,14 @@ export interface ChatContextValue extends ChatState {
 /** See ChatContextValue.canAskNurse. */
 export function hasAnsweredQuestion(entries: readonly ChatEntry[]): boolean {
   return entries.some((entry) => entry.kind === 'user' && entry.outcome === 'reply');
+}
+
+/**
+ * The turns to send with her new message: everything delivered so far plus the
+ * new one, trimmed to the API's limit (it uses the most recent turns anyway).
+ */
+export function threadFor(delivered: readonly ChatTurn[], text: string): ChatTurn[] {
+  return [...delivered, { role: 'user' as const, text }].slice(-CHAT_LIMITS.maxTurns);
 }
 
 export const ChatContext = createContext<ChatContextValue | null>(null);
