@@ -1,61 +1,89 @@
-import { useEffect, useState } from 'react';
-import { Link, Navigate, useNavigate } from 'react-router';
+import { CHAT_LIMITS, type ChatTurn, type DraftResponse } from '@carelayer/shared';
+import { useEffect, useId, useRef, useState } from 'react';
+import { Navigate, useNavigate } from 'react-router';
 import { useApi } from '../../api/useApi';
 import { useSessionGuard } from '../../auth/useSessionGuard';
-import { isDraftExpired } from '../../chat/ask-request';
+import { isDraftExpired, type AskRequest } from '../../chat/ask-request';
 import type { EmergencyLocationState } from '../../chat/emergency-state';
 import { useChat } from '../../chat/useChat';
 import { Alert } from '../../components/Alert/Alert';
 import { Badge } from '../../components/Badge/Badge';
 import { Button } from '../../components/Button/Button';
 import { Checkbox } from '../../components/Checkbox/Checkbox';
+import { cx } from '../../components/cx';
 import { Icon } from '../../components/Icon/Icon';
+import { DESKTOP_QUERY, useMediaQuery } from '../../hooks/useMediaQuery';
 import { paths } from '../../routes/paths';
 import { categoryLabel } from '../../utils/categories';
 import { ageRangeLabel, pregnancyLabel } from '../../utils/question-details';
-import styles from './ask/AskFlow.module.css';
+import styles from './ConsentPage.module.css';
 import { FlowHeader } from './ask/FlowHeader';
+import { FlowSteps } from './ask/FlowSteps';
 import { flowErrorMessage } from './ask/flow-errors';
 
+/** Longest question she can type when editing (one message, as on POST /chat/draft). */
+const EDIT_MAX_LENGTH = CHAT_LIMITS.maxTextLength;
+
 /**
- * W07 Consent (Figma: W07 / D-W07). Exactly what a nurse will receive, from
- * POST /chat/draft, and nothing leaves without her tick. The draft re-runs the
- * red-flag check on the whole question: an emergency goes to W13, never a nurse.
+ * W07 Consent (Figma: "W07 Consent" mobile, "D-W07 Consent" desktop).
+ * Exactly what a nurse will receive, from POST /chat/draft, and nothing leaves
+ * without her tick. The draft re-runs the red-flag check on the whole question:
+ * an emergency goes to W13, never a nurse.
+ *
+ * Edit: the question becomes a text field; Save sends her edited question for a
+ * fresh draft (the server signs exactly what the nurse will see, so the text can
+ * only change through a new draft). Her consent is asked again for the new text.
  */
 export function ConsentPage() {
   const chat = useChat();
   const api = useApi();
   const navigate = useNavigate();
+  const isDesktop = useMediaQuery(DESKTOP_QUERY);
   const { canAskNurse, request, setRequest, thread } = chat;
   const [error, setError] = useState<unknown>(null);
   const [attempt, setAttempt] = useState(0);
   const [agreed, setAgreed] = useState(request?.consented ?? false);
+  const [showConsentError, setShowConsentError] = useState(false);
+  const [editing, setEditing] = useState(false);
   useSessionGuard(error);
 
   const needsDraft = canAskNurse && (!request || isDraftExpired(request));
+  const editedText = request?.editedText;
+
+  /** Turn a draft response into the request (an emergency goes to W13 instead). */
+  const applyDraft = (response: DraftResponse, edited?: string): boolean => {
+    if (response.kind === 'emergency') {
+      const state: EmergencyLocationState = { emergency: response };
+      navigate(paths.emergency, { state, replace: true });
+      return false;
+    }
+    setRequest((current): AskRequest => ({
+      draft: response.draft,
+      draftToken: response.draftToken,
+      draftExpiresAt: response.draftExpiresAt,
+      offer: response.offer,
+      editedText: edited,
+      consented: false,
+      // Keep her W08 choices if she came back for a fresh draft.
+      nurseSelection: current?.nurseSelection ?? 'first_available',
+      chosenNurse: current?.chosenNurse ?? null,
+      femaleOnly: current?.femaleOnly ?? false,
+    }));
+    return true;
+  };
+  const applyDraftRef = useRef(applyDraft);
+  useEffect(() => {
+    applyDraftRef.current = applyDraft;
+  });
 
   useEffect(() => {
     if (!needsDraft) return;
     let cancelled = false;
-    api.chat.draft({ messages: thread() }).then(
+    // An edited question is drafted on its own; otherwise from the chat.
+    const messages: ChatTurn[] = editedText ? [{ role: 'user', text: editedText }] : thread();
+    api.chat.draft({ messages }).then(
       (response) => {
-        if (cancelled) return;
-        if (response.kind === 'emergency') {
-          const state: EmergencyLocationState = { emergency: response };
-          navigate(paths.emergency, { state, replace: true });
-          return;
-        }
-        setRequest((current) => ({
-          draft: response.draft,
-          draftToken: response.draftToken,
-          draftExpiresAt: response.draftExpiresAt,
-          offer: response.offer,
-          consented: false,
-          // Keep her W08 choices if she came back for a fresh draft.
-          nurseSelection: current?.nurseSelection ?? 'first_available',
-          chosenNurse: current?.chosenNurse ?? null,
-          femaleOnly: current?.femaleOnly ?? false,
-        }));
+        if (!cancelled) applyDraftRef.current(response, editedText);
       },
       (failure: unknown) => {
         if (!cancelled) setError(failure);
@@ -64,23 +92,60 @@ export function ConsentPage() {
     return () => {
       cancelled = true;
     };
-  }, [api, needsDraft, attempt, thread, setRequest, navigate]);
+  }, [api, needsDraft, attempt, thread, editedText]);
 
-  // Nothing to consent to without her question (e.g. opened directly, or after a reload:
-  // the chat lives in memory only). Send her back to the chat to ask it first.
+  // Nothing to consent to without her question (e.g. opened directly, or after a reload
+  // without a saved chat). Send her back to the chat to ask it first.
   if (!canAskNurse) return <Navigate to={paths.ask} replace />;
 
   const draft = needsDraft ? null : request?.draft;
 
   const handleContinue = () => {
-    if (!agreed) return;
+    if (!agreed) {
+      setShowConsentError(true);
+      return;
+    }
     setRequest((current) => (current ? { ...current, consented: true } : current));
     navigate(paths.askChoose);
   };
 
+  const onSaved = (response: DraftResponse, text: string) => {
+    if (applyDraft(response, text)) {
+      // New text, new consent: she agrees to exactly what will be shared.
+      setAgreed(false);
+      setEditing(false);
+    }
+  };
+
+  const consent = (
+    <>
+      <Checkbox
+        checked={agreed}
+        onChange={(event) => {
+          setAgreed(event.target.checked);
+          setShowConsentError(false);
+        }}
+        disabled={editing}
+        error={showConsentError ? 'Tick this to send your question to a nurse.' : undefined}
+      >
+        I agree to share this with a verified nurse or midwife.
+      </Checkbox>
+      <Button fullWidth disabled={editing} onClick={handleContinue}>
+        Continue
+      </Button>
+    </>
+  );
+
   return (
     <div className={styles.page}>
-      <FlowHeader title="Send to a nurse" subtitle="Step 1 of 3" backTo={paths.ask} />
+      <FlowHeader
+        title="Send to a nurse"
+        subtitle="Step 1 of 3"
+        desktopSubtitle="Review exactly what will be shared before anything leaves your device."
+        backTo={paths.ask}
+        backLabel="Back to the chat"
+      />
+      <FlowSteps current={1} />
 
       {!draft && !error && (
         <p className={styles.message} role="status">
@@ -106,66 +171,192 @@ export function ConsentPage() {
       )}
 
       {draft && (
-        <>
-          <div className={styles.heading}>
+        <div className={styles.grid}>
+          <div className={styles.shared}>
             <h2 className={styles.title}>Here’s exactly what the nurse will see</h2>
-            <p className={styles.lead}>Check it before anything is shared.</p>
-          </div>
 
-          <section className={styles.card} aria-labelledby="consent-question">
-            <div className={styles.cardHeader}>
-              <h3 id="consent-question" className={styles.cardTitle}>
-                Your question
-              </h3>
-              <Link to={paths.ask} className={styles.link}>
-                Edit
-              </Link>
+            <QuestionCard
+              text={draft.cleanedText}
+              editing={editing}
+              onEdit={() => setEditing(true)}
+              onCancel={() => setEditing(false)}
+              onSaved={onSaved}
+            />
+
+            <div className={styles.details}>
+              {draft.assistantNotes && (
+                <section className={styles.notes} aria-labelledby="consent-notes">
+                  <h3 id="consent-notes" className={styles.label}>
+                    Notes from your assistant
+                  </h3>
+                  <p className={styles.bodyM}>{draft.assistantNotes}</p>
+                </section>
+              )}
+              <AlsoShared
+                badges={[
+                  draft.ageRange ? ageRangeLabel(draft.ageRange) : null,
+                  draft.pregnancyWeeks != null ? pregnancyLabel(draft.pregnancyWeeks) : null,
+                  `Topic: ${categoryLabel(draft.category)}`,
+                ]}
+                card={isDesktop}
+              />
             </div>
-            <p className={styles.body}>{draft.cleanedText}</p>
-            <p className={styles.small}>Spelling tidied. Nothing removed or shortened.</p>
-          </section>
 
-          {draft.assistantNotes && (
-            <section className={styles.card} aria-labelledby="consent-notes">
-              <h3 id="consent-notes" className={styles.cardTitle}>
-                Notes from your assistant
-              </h3>
-              <p className={styles.body}>{draft.assistantNotes}</p>
-            </section>
-          )}
-
-          <ul className={styles.chips} aria-label="Also shared">
-            {draft.ageRange && (
-              <li>
-                <Badge variant="neutral">{ageRangeLabel(draft.ageRange)}</Badge>
-              </li>
-            )}
-            {draft.pregnancyWeeks != null && (
-              <li>
-                <Badge variant="neutral">{pregnancyLabel(draft.pregnancyWeeks)}</Badge>
-              </li>
-            )}
-            <li>
-              <Badge variant="accent">Topic: {categoryLabel(draft.category)}</Badge>
-            </li>
-          </ul>
-
-          <p className={styles.note}>
-            <Icon name="lock" size={18} className={styles.noteIcon} />
-            <span>Never shared: your name, email, phone number or location.</span>
-          </p>
-
-          <Checkbox checked={agreed} onChange={(event) => setAgreed(event.target.checked)}>
-            I agree to share this with a verified nurse or midwife.
-          </Checkbox>
-
-          <div className={styles.actions}>
-            <Button fullWidth disabled={!agreed} onClick={handleContinue}>
-              Continue
-            </Button>
+            <p className={styles.never}>
+              <Icon name="lock" size={20} />
+              <span>Never shared: your name, email, phone number or location.</span>
+            </p>
           </div>
-        </>
+
+          {isDesktop ? (
+            <aside className={styles.panel} aria-labelledby="consent-title">
+              <h2 id="consent-title" className={styles.panelTitle}>
+                Your consent
+              </h2>
+              {consent}
+              <Button variant="ghost" fullWidth disabled={editing} onClick={() => setEditing(true)}>
+                Edit question
+              </Button>
+            </aside>
+          ) : (
+            <div className={styles.mobileConsent}>{consent}</div>
+          )}
+        </div>
       )}
     </div>
+  );
+}
+
+/** "Your question": read-only with an Edit link, or a text field with Save / Cancel. */
+function QuestionCard({
+  text,
+  editing,
+  onEdit,
+  onCancel,
+  onSaved,
+}: {
+  text: string;
+  editing: boolean;
+  onEdit: () => void;
+  onCancel: () => void;
+  onSaved: (response: DraftResponse, text: string) => void;
+}) {
+  const api = useApi();
+  const fieldId = useId();
+  const [value, setValue] = useState(text);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const fieldRef = useRef<HTMLTextAreaElement>(null);
+
+  // Opening the editor (here or from "Edit question"): start from the current text.
+  const [openedFor, setOpenedFor] = useState(false);
+  if (editing && !openedFor) {
+    setOpenedFor(true);
+    setValue(text);
+    setSaveError(null);
+  } else if (!editing && openedFor) {
+    setOpenedFor(false);
+  }
+
+  useEffect(() => {
+    if (editing) fieldRef.current?.focus();
+  }, [editing]);
+
+  const save = async () => {
+    const edited = value.trim();
+    if (!edited) {
+      setSaveError('Your question can’t be empty.');
+      return;
+    }
+    if (edited === text.trim()) {
+      onCancel(); // nothing changed
+      return;
+    }
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const response = await api.chat.draft({ messages: [{ role: 'user', text: edited }] });
+      onSaved(response, edited);
+    } catch (error) {
+      setSaveError(flowErrorMessage(error, 'Your changes were not saved. Please try again.'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className={styles.card} aria-labelledby={`${fieldId}-title`}>
+      <div className={styles.cardHead}>
+        <h3 id={`${fieldId}-title`} className={styles.label}>
+          Your question
+        </h3>
+        {!editing && (
+          <button type="button" className={styles.edit} onClick={onEdit}>
+            <Icon name="edit" size={14} />
+            Edit
+          </button>
+        )}
+      </div>
+
+      {editing ? (
+        <>
+          <label htmlFor={fieldId} className="visually-hidden">
+            Edit your question
+          </label>
+          <textarea
+            id={fieldId}
+            ref={fieldRef}
+            className={styles.field}
+            value={value}
+            maxLength={EDIT_MAX_LENGTH}
+            rows={4}
+            disabled={saving}
+            onChange={(event) => setValue(event.target.value)}
+          />
+          {saveError && <Alert tone="error">{saveError}</Alert>}
+          <div className={styles.editActions}>
+            <Button variant="ghost" onClick={onCancel} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={() => void save()} disabled={saving}>
+              {saving ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+          <p className={styles.caption}>
+            When you save, it is checked and tidied again, and you’re asked to agree to the new
+            version.
+          </p>
+        </>
+      ) : (
+        <>
+          <p className={styles.question}>{text}</p>
+          <p className={styles.caption}>Spelling tidied. Nothing removed or shortened.</p>
+        </>
+      )}
+    </section>
+  );
+}
+
+/** "Also shared": a card on desktop, a row of badges on mobile (Figma). */
+function AlsoShared({ badges, card }: { badges: Array<string | null>; card: boolean }) {
+  const list = (
+    <ul className={styles.badges} aria-label="Also shared">
+      {badges
+        .filter((b): b is string => Boolean(b))
+        .map((label) => (
+          <li key={label}>
+            <Badge variant="neutral">{label}</Badge>
+          </li>
+        ))}
+    </ul>
+  );
+  if (!card) return list;
+  return (
+    <section className={cx(styles.card, styles.alsoShared)} aria-labelledby="consent-also">
+      <h3 id="consent-also" className={styles.label}>
+        Also shared
+      </h3>
+      {list}
+    </section>
   );
 }

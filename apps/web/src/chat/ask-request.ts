@@ -23,6 +23,11 @@ export interface AskRequest {
   draftToken: string;
   draftExpiresAt: IsoDateTime;
   offer: EscalationOffer;
+  /**
+   * Her question as she edited it on W07 ("Edit" > Save). The draft was made from this
+   * text alone, so a fresh draft (e.g. after it expires) is made from it too.
+   */
+  editedText?: string;
   /** She ticked "I agree to share this" on W07. */
   consented: boolean;
   nurseSelection: NurseSelection;

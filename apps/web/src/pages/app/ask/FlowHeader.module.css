@@ -1,0 +1,27 @@
+/* Figma D-W07 "Header": 24px back arrow, 16px gap, then title + quick exit. */
+.desktop {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.back {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  margin-left: calc(-1 * var(--space-8));
+  border-radius: var(--radius-full);
+  color: var(--color-text);
+}
+
+.back:hover {
+  background: var(--color-bg-surface-soft);
+}
+
+.header {
+  flex: 1;
+  min-width: 0;
+}
