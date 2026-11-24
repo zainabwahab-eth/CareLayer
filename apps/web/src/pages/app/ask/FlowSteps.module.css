@@ -69,8 +69,17 @@
 
 .stepActive {
   color: var(--color-text);
+}
+
+/* The step she is on: Label/M (done steps stay Body/M, as in Figma). */
+.stepCurrent {
   font-family: var(--text-label-m-family);
   font-weight: var(--text-label-m-weight);
+}
+
+/* The line into a done or current step is filled. */
+.stepActive::before {
+  background: var(--color-primary-bg) !important;
 }
 
 .stepActive .dot {

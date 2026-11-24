@@ -33,6 +33,7 @@ import shield60 from '../../assets/icons/shield-60.svg';
 import shield84 from '../../assets/icons/shield-84.svg';
 import shield from '../../assets/icons/shield.svg';
 import theme20 from '../../assets/icons/theme-20.svg';
+import star16 from '../../assets/icons/star-16.svg';
 import sparkle16 from '../../assets/icons/sparkle-16.svg';
 import sparkle20 from '../../assets/icons/sparkle-20.svg';
 import upload20 from '../../assets/icons/upload-20.svg';
@@ -85,6 +86,8 @@ export const icons = {
   edit: { src: edit14, frame: 14, x: 2.041, y: 2.334, w: 9.625, h: 9.625 },
   zap: { src: zap20, frame: 20, x: 3.709, y: 2.041, w: 12.583, h: 15.917 },
   receipt: { src: receipt20, frame: 20, x: 4.125, y: 2.041, w: 11.75, h: 15.917 },
+  // W08 nurse rating.
+  star: { src: star16, frame: 16, x: 1.925, y: 1.925, w: 12.15, h: 11.683 },
   // Overflow menu ("⋯"). Not in the Figma icon set: three dots in the same 20px frame.
   more: { src: more20, frame: 20, x: 0, y: 0, w: 20, h: 20 },
   phone: { src: phone18, frame: 18, x: 2.5, y: 2.125, w: 13.375, h: 13.375 },
