@@ -76,30 +76,6 @@ const ModeBSchema = z.object({
   pregnancyWeeks: z.number().int().nullable().optional(),
 });
 
-/**
- * The conversation as the model sees it in Mode A. Her turns are her words. The assistant's
- * earlier turns are re-encoded as the Mode A JSON object the model is told to return, because the
- * client only keeps their text: sent as bare prose, they contradict the "JSON only" instruction,
- * and models copy the format of their own earlier turns. That is what broke the second message of
- * a conversation (prose reply -> invalid twice -> 503). An earlier offer or red flag is not kept by
- * the client, so they are shown as false: the model judges each new message on its own.
- */
-export function modeAHistory(turns: readonly ChatTurn[]): LlmMessage[] {
-  return turns.map((t) =>
-    t.role === 'assistant'
-      ? {
-          role: 'assistant',
-          content: JSON.stringify({
-            replyText: t.text,
-            redFlagSuspected: false,
-            offerEscalation: false,
-            suggestedCategory: null,
-          }),
-        }
-      : { role: 'user', content: t.text },
-  );
-}
-
 export interface AssistantReply {
   text: string;
   redFlagSuspected: boolean;

@@ -164,7 +164,7 @@ describe('ChatProvider: a conversation of many turns', () => {
       { role: 'user', text: 'okay' },
     ]);
     expect(chat.current!.entries.every((e) => e.kind !== 'user' || e.status === 'sent')).toBe(true);
-    expect(chat.current!.turns).toHaveLength(14);
+    expect(chat.current!.thread()).toHaveLength(14);
   });
 
   it('a reply longer than the API accepts per turn does not break the next message', async () => {
@@ -240,6 +240,7 @@ describe('ChatProvider: a conversation of many turns', () => {
       triggeredBy: ['llm'],
       contacts: [],
       findHospitalUrl: 'https://maps.example',
+      conversationId: 'chat_1',
     };
     const { api, chat } = setup(async ({ messages }) =>
       messages.at(-1)!.text === 'help' ? emergency : reply('ok'),

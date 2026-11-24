@@ -132,7 +132,8 @@ export function fromConversation(
   const turns: ChatTurn[] = [];
   const entries: ChatEntry[] = [];
   for (const m of conversation.messages) {
-    turns.push({ role: m.role, text: m.text });
+    // A long reply is shortened in the thread sent back (historyText), as after a live reply.
+    turns.push({ role: m.role, text: m.role === 'assistant' ? historyText(m.text) : m.text });
     if (m.role === 'assistant') {
       entries.push({ kind: 'assistant', id: m.id, text: m.text, createdAt: m.createdAt });
       continue;

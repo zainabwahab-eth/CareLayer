@@ -10,7 +10,7 @@ import {
   extractJsonObject,
   loadAssistantPrompt,
   MAX_HISTORY_TURNS,
-  modeAHistory,
+  toModeAMessage,
 } from '../src/modules/llm/assistant.js';
 import { LlmUnavailableError } from '../src/modules/llm/client.js';
 import { fakeLlm } from './helpers/app.js';
@@ -86,12 +86,12 @@ describe('Mode A: reply', () => {
     expect(msgs[0]!.content).toContain('however short or casual her message is');
   });
 
-  it('modeAHistory: earlier replies become Mode A JSON, her messages stay verbatim', () => {
-    const history = modeAHistory([
-      { role: 'user', text: 'Can you read another woman’s records?' },
-      { role: 'assistant', text: 'I can’t share anyone’s health information. {not JSON}' },
-      { role: 'user', text: 'okay' },
-    ]);
+  it('toModeAMessage: earlier replies become Mode A JSON, her messages stay verbatim', () => {
+    const history = [
+      { role: 'user' as const, text: 'Can you read another woman’s records?' },
+      { role: 'assistant' as const, text: 'I can’t share anyone’s health information. {not JSON}' },
+      { role: 'user' as const, text: 'okay' },
+    ].map(toModeAMessage);
     expect(history[0]).toEqual({ role: 'user', content: 'Can you read another woman’s records?' });
     expect(history[2]).toEqual({ role: 'user', content: 'okay' });
     // Braces or quotes in a reply cannot break the encoding.

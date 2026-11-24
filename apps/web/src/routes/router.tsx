@@ -6,9 +6,6 @@ import { RootLayout } from '../layouts/RootLayout';
 import { StandaloneLayout } from '../layouts/StandaloneLayout';
 import { AccountPage } from '../pages/app/AccountPage';
 import { AskPage } from '../pages/app/AskPage';
-import { ChooseAnswererPage } from '../pages/app/ChooseAnswererPage';
-import { ConfirmPayPage } from '../pages/app/ConfirmPayPage';
-import { ConsentPage } from '../pages/app/ConsentPage';
 import { ConsultationsPage } from '../pages/app/ConsultationsPage';
 import { HistoryPage } from '../pages/app/HistoryPage';
 import { HomePage } from '../pages/app/HomePage';
@@ -116,12 +113,12 @@ export const routes: RouteObject[] = [
               { path: paths.askConfirm, lazy: askFlow.confirm, handle: handle({ nav: 'ask' }) },
               {
                 path: paths.consultationWaiting,
-                Component: WaitingPage,
+                lazy: askFlow.waiting,
                 handle: handle({ nav: 'consultations' }),
               },
               {
                 path: paths.consultation,
-                Component: NurseResponsePage,
+                lazy: askFlow.response,
                 handle: handle({ nav: 'consultations' }),
               },
               {

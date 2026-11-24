@@ -1,6 +1,5 @@
 import { RouterProvider } from 'react-router';
 import { api } from './api';
-import { SendFlowProvider } from './ask-nurse/SendFlowProvider';
 import { ApiProvider } from './api/ApiProvider';
 import { AuthProvider } from './auth/AuthProvider';
 import { ChatProvider } from './chat/ChatProvider';
@@ -13,9 +12,7 @@ export function App() {
       <ThemeProvider>
         <AuthProvider>
           <ChatProvider>
-            <SendFlowProvider>
-              <RouterProvider router={router} />
-            </SendFlowProvider>
+            <RouterProvider router={router} />
           </ChatProvider>
         </AuthProvider>
       </ThemeProvider>

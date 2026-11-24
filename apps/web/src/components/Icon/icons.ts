@@ -81,6 +81,10 @@ export const icons = {
   camera: { src: camera20, frame: 20, x: 2.042, y: 2.875, w: 15.917, h: 13.833 },
   // Landing page (theme toggle, emergency call line).
   theme: { src: theme20, frame: 20, x: 0, y: 0, w: 20, h: 20 },
+  // Ask a nurse flow (W07 "Edit", W08 "First available", W11 receipt).
+  edit: { src: edit14, frame: 14, x: 2.041, y: 2.334, w: 9.625, h: 9.625 },
+  zap: { src: zap20, frame: 20, x: 3.709, y: 2.041, w: 12.583, h: 15.917 },
+  receipt: { src: receipt20, frame: 20, x: 4.125, y: 2.041, w: 11.75, h: 15.917 },
   // Overflow menu ("⋯"). Not in the Figma icon set: three dots in the same 20px frame.
   more: { src: more20, frame: 20, x: 0, y: 0, w: 20, h: 20 },
   phone: { src: phone18, frame: 18, x: 2.5, y: 2.125, w: 13.375, h: 13.375 },

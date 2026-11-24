@@ -68,72 +68,7 @@ export function ConsentPage() {
 
   // Nothing to consent to without her question (e.g. opened directly, or after a reload:
   // the chat lives in memory only). Send her back to the chat to ask it first.
-  if (!chat.canAskNurse) return <Navigate to={paths.ask} replace />;
-  return <Consent />;
-}
-
-type DraftLoad = { status: 'loading' } | { status: 'error'; message: string };
-
-function Consent() {
-  const api = useApi();
-  const chat = useChat();
-  const flow = useSendFlow();
-  const { sessionExpired } = useAuth();
-  const navigate = useNavigate();
-
-  const draft = draftFor(flow, chat.turns);
-  const [load, setLoad] = useState<DraftLoad>({ status: 'loading' });
-  const [agreed, setAgreed] = useState(flow.consented && draft !== null);
-  const [showConsentError, setShowConsentError] = useState(false);
-  /** The thread a draft was last requested for, so one thread gets one request. */
-  const requestedFor = useRef<string | null>(null);
-  const mounted = useRef(true);
-
-  useEffect(() => {
-    mounted.current = true;
-    return () => {
-      mounted.current = false;
-    };
-  }, []);
-
-  const { turns, dismissOffer } = chat;
-  const { setDraft } = flow;
-  const requestDraft = useCallback(async () => {
-    const threadKey = threadKeyOf(turns);
-    requestedFor.current = threadKey;
-    setLoad({ status: 'loading' });
-    try {
-      const response = await api.chat.draft({ messages: turns.slice(-CHAT_LIMITS.maxTurns) });
-      if (!mounted.current) return;
-      if (response.kind === 'emergency') {
-        // Emergencies are free and never queued: no consent, no nurse, no payment.
-        dismissOffer();
-        const state: EmergencyLocationState = { emergency: response };
-        navigate(paths.emergency, { state, replace: true });
-        return;
-      }
-      setDraft(threadKey, response);
-    } catch (error) {
-      if (!mounted.current) return;
-      if (isSessionError(error)) sessionExpired();
-      requestedFor.current = null;
-      setLoad({ status: 'error', message: draftErrorMessage(error) });
-    }
-  }, [api, turns, dismissOffer, setDraft, navigate, sessionExpired]);
-
-  useEffect(() => {
-    if (draft || requestedFor.current === threadKeyOf(turns)) return;
-    void requestDraft();
-  }, [draft, turns, requestDraft]);
-
-  const onContinue = () => {
-    if (!agreed) {
-      setShowConsentError(true);
-      return;
-    }
-    flow.giveConsent();
-    navigate(paths.askChoose);
-  };
+  if (!canAskNurse) return <Navigate to={paths.ask} replace />;
 
   const draft = needsDraft ? null : request?.draft;
 
