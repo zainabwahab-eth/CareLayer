@@ -18,9 +18,9 @@ The API enforces the rules, whatever the client does:
 
 ## 1. Get an agent token (her "Claude connection")
 
-In the CareLayer app: **Account → Use CareLayer in Claude → Create connection**. Hikmah's screen calls `POST /auth/agent-tokens`. The token starts with `clat_` and is shown once. She can remove it there at any time, which takes effect immediately.
+In the CareLayer app ([www.carelayer.health](https://www.carelayer.health)): **Account → Use CareLayer in Claude → Create connection**. The screen calls `POST /auth/agent-tokens` and shows the token, which starts with `clat_`, only once. It also shows a ready-to-paste `claude mcp add` command. She can remove the connection there at any time, which takes effect immediately.
 
-Before that screen exists, use the API directly with her signed-in access token (Postman: Auth → "Create Claude connection"):
+Or use the API directly with her signed-in access token (Postman: Auth → "Create Claude connection"):
 
 ```bash
 curl -X POST "$API/auth/agent-tokens" -H "Authorization: Bearer <her access token>" \

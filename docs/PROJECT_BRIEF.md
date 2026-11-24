@@ -88,7 +88,7 @@ Built for the **EmpowerHer: Building the Agent Economy** hackathon (women-focuse
 | `GET /questions/:id/status` | free               | Returns `open` / `claimed` / `answered` / `expired` / `cancelled`. |
 | `GET /questions/:id/answer` | **x402-protected** | The agent pays when it fetches the finished answer.                |
 
-A **guard runs before the payment middleware** so unanswered questions never request payment.
+A **guard runs before any payment is requested**, so unanswered questions never ask for payment. The answer is only read after the payment has settled.
 
 ### Split and limits
 
@@ -105,8 +105,8 @@ A **guard runs before the payment middleware** so unanswered questions never req
 
 ### Facilitator
 
-- Coinbase x402 facilitator **or** the OpenZeppelin relayer x402 plugin on Stellar testnet.
-- Use the official x402 Stellar packages and **check their current docs** before writing code.
+- **OpenZeppelin Channels** x402 facilitator on Stellar testnet (it sponsors the fees). Chosen in Z2, see the decisions log in `docs/TASKS.md`.
+- The official x402 packages (`@x402/core`, `@x402/stellar`, `@x402/fetch`, `@x402/express`).
 
 ## 6. Health workers
 

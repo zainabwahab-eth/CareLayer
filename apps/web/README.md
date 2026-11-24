@@ -23,9 +23,9 @@ Other scripts: `npm run build:web`, `npm run lint:web`, `npm run typecheck:web`,
 
 - UI code talks to the API only through `useApi()` (or `useApiQuery()`), typed by the `CareLayerApi` interface in `src/api/types.ts`. All request and response types come from `@carelayer/shared`.
 - `VITE_USE_MOCK_API=true` uses the in-browser mock (`src/api/mock/`). Anything else uses the HTTP client (`src/api/http/`) against `VITE_API_URL`. The choice is made once in `src/api/index.ts`, and the unused client is left out of the bundle.
-- Mock sign-in code for any email: `123456`. You start signed in as the demo user "Tolu". Log out to test the signed-out state. State resets on reload.
+- Mock sign-in code for any email: `123456`. The app starts signed out. Mock data resets on reload; only the session and top-ups are kept in sessionStorage.
 - New mock questions are claimed by a mock health worker after about 45s and answered after about 2 min.
-- Messages containing mock red-flag phrases (e.g. "heavy bleeding", "fainted") return the emergency response. These phrases are placeholders until `apps/api/config/red-flags.json` has real entries.
+- Messages containing mock red-flag phrases (e.g. "heavy bleeding", "fainted") return the emergency response. The real list is `apps/api/config/red-flags.json`, used by apps/api.
 - All mock records are sample data: ids start with `mock_`, emails use example.com, and Stellar values start with `MOCK`. Emergency numbers are marked `verified: false`.
 
 ## Real API (HTTP mode)
@@ -34,7 +34,8 @@ Set `VITE_USE_MOCK_API=false` and `VITE_API_URL` to apps/api, then restart Vite 
 
 - The client calls exactly the routes apps/api serves. They are listed and tested in `src/api/http/http-api.test.ts`. Gaps are tracked in `docs/QUESTIONS.md` Q5.
 - **No silent fallback.** A failed request always rejects with `ApiError`, and screens show their error state. Status `0` means CareLayer was not reached (offline, CORS, a wrong URL, or the 60 s timeout). A `200` that is not JSON (usually `VITE_API_URL` pointing at the web server, or a Wi-Fi login page) is also an error.
-- **Chat is stateless** (`POST /chat`): the thread lives in memory in `ChatProvider` and is sent with each message (last 40 turns). Nothing is stored on the server or in the browser.
+- **Chats are saved** (`POST /chat`): the thread is sent with each message (last 40 turns), and the API saves it to her conversation. The open chat's id is in the URL (`/ask?c=…`), so a reload reopens it, and History lists every chat. Questions sent from a chat show in it with their status and answer.
+- **The send-to-a-nurse flow survives a reload:** what she reviewed and chose on the three send screens is kept in this tab's sessionStorage until she sends it, starts a new chat, signs out or uses Quick exit.
 - **Sessions:** the access token stays in memory. The refresh token is the httpOnly `cl_refresh` cookie (`Path=/auth`). On `401 UNAUTHENTICATED` the client refreshes once and retries. Concurrent refreshes share one request.
 - apps/api must list the web origin in `CORS_ORIGINS`. For local HTTP, leave `AUTH_COOKIE_SECURE` empty or set it to `false`, with `AUTH_COOKIE_SAMESITE=lax`.
 

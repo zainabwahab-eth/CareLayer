@@ -20,7 +20,7 @@ npm test -w @carelayer/api
 - Generated client goes to `src/generated/prisma` (gitignored). `build`, `typecheck` and `test` regenerate it first.
 - Uses the `partialIndexes` preview feature for "one active claim per nurse / per question" (`Claim_one_active_per_*`).
 - Money: naira as `Int` kobo, USDC as `BigInt` stroops. No float columns (a test checks this). Helpers in `src/lib/money.ts`.
-- Privacy: no location, phone or chat-history columns; `EmergencyEvent` is source + timestamp only (tests check this).
+- Privacy: no location or phone columns; `EmergencyEvent` is source + timestamp only (tests check this). Chats are saved only so she can reopen them (`Conversation`, `ConversationMessage`), are only readable by her, and she can delete them.
 - Scripts: `db:migrate` (dev), `db:deploy` (production / CI), `db:seed`, `db:studio`, `db:generate`.
 
 ### Seed data
@@ -53,10 +53,11 @@ Placeholders, clearly not real: wallet keys start with `GSEED` (no secret; Z4 cr
 
 - **LLM:** any OpenAI-compatible API. Set `LLM_API_KEY` in `apps/api/.env`. The defaults are NVIDIA's free tier (`LLM_BASE_URL`) and `nvidia/nemotron-3-ultra-550b-a55b` (`LLM_MODEL`). OpenAI: change the base URL, model and key. Without a key, `POST /chat` and `/chat/draft` answer 503; the red-flag list still works.
 - **Flow:**
-  - `POST /chat`: fixed red flags → LLM Mode A (Hikmah's `prompts/assistant.md`) → reply, with a price offer when it suggests a nurse.
+  - `POST /chat`: fixed red flags → LLM Mode A (Hikmah's `prompts/assistant.md`) → reply, with a price offer when it suggests a nurse. Her message and the reply are saved to her conversation (`conversationId` in the response).
+  - `GET/DELETE /chat/conversations[/:id]`: her saved chats (History), with the questions she sent from each one.
   - `POST /chat/draft`: the exact question a nurse would get, signed (`draftToken`).
-  - `POST /questions`: stores that draft with her consent and emails the nurses who can take it.
-  - Nothing about the chat is stored.
+  - `POST /questions`: stores that draft with her consent and emails the nurses who can take it. An optional `conversationId` links it to the chat she asked from.
+  - Nurses only ever see the question she agreed to share, never the chat.
 - **Safety in code, not just in the prompt** (`src/modules/llm/assistant.ts`): the clean-up may not shorten her question or drop a number (one retry, then her own words); the age range is computed in code; weeks are kept only if she wrote weeks; a red flag beats an offer. `red-flags.json` is validated at startup.
 - **Evals (paid lane, real model):** `npm run eval:assistant -w @carelayer/api` runs Hikmah's test set (`test/fixtures/assistant-test-questions.json`) and the clean-up set (`evals/cleanup-cases.json`). It takes about 4 minutes on the free tier. Report: `evals/reports/<time>.md`. It exits 1 under a threshold (`evals/scoring.ts`; emergency recall must be 100%). Run it before a demo and after any prompt or model change.
 - **Trace:** log lines `llm_call` (mode, model, latency, tokens, outcome), `chat_reply`, `chat_draft`, `cleanup_fallback`, `emergency` (source + which layer caught it), `question_created`, `nurse_alerts`. Never her text.
@@ -183,7 +184,7 @@ apps/api/deploy/cloudrun.sh url       # the API URL: check <url>/health
 - `src/config.ts`: env validation with zod; fails fast listing every bad variable. Add each new env var here and to `.env.example`.
 - `src/db.ts`: Prisma client (node-postgres adapter) and `pingDatabase` (2 s timeout).
 - `src/lib/`: `errors.ts` (AppError + central handler, contract-shaped errors, no stack leaks), `logger.ts` (JSON lines), `request-logger.ts` (request id + one log line per request; never bodies or query strings), `money.ts`.
-- `src/modules/<name>/router.ts`: auth, users, wallets, topups, chat, questions, nurses, payments, admin (empty until its task), plus health. Shared helpers: `src/modules/llm/`, `src/modules/emergency/`.
+- `src/modules/<name>/router.ts`: auth, users, wallets, topups, chat, questions, nurses, payments, admin, plus health. Shared helpers: `src/modules/llm/`, `src/modules/emergency/`.
 - `src/seed/`: `seed.ts` (logic, used by tests) and `run.ts` (CLI).
 - `prompts/assistant.md`, `config/red-flags.json`: owned by Hikmah.
 
