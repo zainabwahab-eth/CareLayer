@@ -19,6 +19,7 @@ import lock18 from '../../assets/icons/lock-18.svg';
 import lock22 from '../../assets/icons/lock-22.svg';
 import lock from '../../assets/icons/lock.svg';
 import phone18 from '../../assets/icons/phone-18.svg';
+import more20 from '../../assets/icons/more-20.svg';
 import mail30 from '../../assets/icons/mail-30.svg';
 import search18 from '../../assets/icons/search-18.svg';
 import send20 from '../../assets/icons/send-20.svg';
@@ -77,6 +78,8 @@ export const icons = {
   camera: { src: camera20, frame: 20, x: 2.042, y: 2.875, w: 15.917, h: 13.833 },
   // Landing page (theme toggle, emergency call line).
   theme: { src: theme20, frame: 20, x: 0, y: 0, w: 20, h: 20 },
+  // Overflow menu ("⋯"). Not in the Figma icon set: three dots in the same 20px frame.
+  more: { src: more20, frame: 20, x: 0, y: 0, w: 20, h: 20 },
   phone: { src: phone18, frame: 18, x: 2.5, y: 2.125, w: 13.375, h: 13.375 },
   sparkle: [
     { src: sparkle16, frame: 16, x: 2.792, y: 1.792, w: 10.417, h: 10.417 },

@@ -8,6 +8,7 @@ import { AskPage } from '../pages/app/AskPage';
 import { ChooseAnswererPage } from '../pages/app/ChooseAnswererPage';
 import { ConfirmPayPage } from '../pages/app/ConfirmPayPage';
 import { ConsentPage } from '../pages/app/ConsentPage';
+import { ConsultationsPage } from '../pages/app/ConsultationsPage';
 import { HistoryPage } from '../pages/app/HistoryPage';
 import { HomePage } from '../pages/app/HomePage';
 import { NurseResponsePage } from '../pages/app/NurseResponsePage';
@@ -100,12 +101,17 @@ export const routes: RouteObject[] = [
               {
                 path: paths.consultationWaiting,
                 Component: WaitingPage,
-                handle: handle({ nav: 'history' }),
+                handle: handle({ nav: 'consultations' }),
               },
               {
                 path: paths.consultation,
                 Component: NurseResponsePage,
-                handle: handle({ nav: 'history' }),
+                handle: handle({ nav: 'consultations' }),
+              },
+              {
+                path: paths.consultations,
+                Component: ConsultationsPage,
+                handle: handle({ nav: 'consultations', tabBar: true }),
               },
               {
                 path: paths.history,

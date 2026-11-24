@@ -84,6 +84,8 @@ export interface MockApiOptions {
   latencyMs?: number;
   /** Start signed in as the demo user (Tolu) unless she logged out this session. Default true. */
   startSignedIn?: boolean;
+  /** Start the demo user with two saved chats (History). Default true; tests pass false. */
+  seedChats?: boolean;
   /** Simulated nurse timings for new questions. */
   claimAfterMs?: number;
   answerAfterMs?: number;
@@ -252,10 +254,56 @@ function questionTextFrom(turns: readonly ChatTurn[]): string {
     .join('\n\n');
 }
 
+/** Two saved chats for the demo user, so History is not empty in mock mode. */
+function seedConversations(): Conversation[] {
+  const at = (minutesAgo: number) => new Date(Date.now() - minutesAgo * 60_000).toISOString();
+  const chat = (id: string, minutesAgo: number, turns: Array<[string, string]>): Conversation => ({
+    id,
+    title: turns[0]![0],
+    createdAt: at(minutesAgo + 5),
+    updatedAt: at(minutesAgo),
+    messages: turns.flatMap(([q, a], i) => [
+      {
+        id: `${id}_u${i}`,
+        role: 'user' as const,
+        text: q,
+        emergency: false,
+        createdAt: at(minutesAgo + 4 - i),
+      },
+      {
+        id: `${id}_a${i}`,
+        role: 'assistant' as const,
+        text: a,
+        emergency: false,
+        createdAt: at(minutesAgo + 4 - i),
+      },
+    ]),
+  });
+  return [
+    chat('mock_chat_seed_1', 30, [
+      [
+        'I have a mosquito bite, what can I do?',
+        'Wash the area with soap and water and try not to scratch it. A cool cloth or calamine lotion can soothe the itch.',
+      ],
+      [
+        'Are there ointments I can use?',
+        'Yes, there are ointments you can use to help with itching and swelling, such as hydrocortisone cream or calamine lotion.',
+      ],
+    ]),
+    chat('mock_chat_seed_2', 60 * 26, [
+      [
+        'Is it normal to have cramps a week before my period?',
+        'Mild cramps before a period are common. If they are severe or new for you, a nurse can check.',
+      ],
+    ]),
+  ];
+}
+
 export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
   const {
     latencyMs = 350,
     startSignedIn = true,
+    seedChats = true,
     claimAfterMs = 45_000,
     answerAfterMs = 120_000,
     topupPaidAfterMs = 1_500,
@@ -281,7 +329,7 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
         transactions: seedTransactions(),
         topups: readStoredTopups()[MOCK_USER.id] ?? [],
         agentTokens: [],
-        conversations: [],
+        conversations: seedChats ? seedConversations() : [],
       },
     ],
   ]);

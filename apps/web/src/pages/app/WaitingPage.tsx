@@ -44,7 +44,7 @@ export function WaitingPage() {
 
   return (
     <div className={styles.page}>
-      <FlowHeader title="Waiting for a nurse" backTo={paths.history} />
+      <FlowHeader title="Waiting for a nurse" backTo={paths.consultations} />
 
       {question.status === 'loading' && (
         <p className={styles.message} role="status">

@@ -20,7 +20,8 @@ export const paths = {
   askConfirm: '/ask/confirm', // W09 Confirm and pay
   consultation: '/consultations/:consultationId', // W11 Nurse response
   consultationWaiting: '/consultations/:consultationId/waiting', // W10
-  history: '/history', // W12
+  consultations: '/consultations', // W12 Questions sent to nurses (was History)
+  history: '/history', // Saved chats with the assistant
   account: '/account', // Account tab (no Figma screen; docs/TASKS.md §3 "Women account")
   wallet: '/account/wallet', // No Figma screen; Paystack returns here (PAYSTACK_CALLBACK_URL)
 

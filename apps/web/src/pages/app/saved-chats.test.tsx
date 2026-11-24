@@ -77,7 +77,7 @@ async function sendMessage(text: string) {
 
 describe('Saved chats', () => {
   it('saves the chat, puts it in the URL, and reopens it after a reload', async () => {
-    const api = createMockApi({ latencyMs: 0, startSignedIn: true });
+    const api = createMockApi({ latencyMs: 0, startSignedIn: true, seedChats: false });
     const first = await renderApp(api, paths.ask);
     await sendMessage('Is spotting normal on the pill?');
     await waitFor(() => expect(location.current).toMatch(/^\/ask\?c=/));
@@ -99,7 +99,7 @@ describe('Saved chats', () => {
   });
 
   it('starts a blank chat with New chat', async () => {
-    const api = createMockApi({ latencyMs: 0, startSignedIn: true });
+    const api = createMockApi({ latencyMs: 0, startSignedIn: true, seedChats: false });
     await renderApp(api, paths.ask);
     await sendMessage('Is spotting normal on the pill?');
     // The mobile top bar and the desktop header each have one (CSS shows one).
@@ -109,7 +109,7 @@ describe('Saved chats', () => {
   });
 
   it('says so when a saved chat cannot be found', async () => {
-    const api = createMockApi({ latencyMs: 0, startSignedIn: true });
+    const api = createMockApi({ latencyMs: 0, startSignedIn: true, seedChats: false });
     await renderApp(api, chatPath('missing'));
     expect(await screen.findByText(/deleted or is not yours/)).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Start a new chat' }));
@@ -117,16 +117,21 @@ describe('Saved chats', () => {
   });
 });
 
-describe('History → Assistant chats', () => {
+describe('History (saved chats)', () => {
   it('lists saved chats, opens one and deletes one', async () => {
-    const api = createMockApi({ latencyMs: 0, startSignedIn: true });
+    const api = createMockApi({ latencyMs: 0, startSignedIn: true, seedChats: false });
     const sent = await api.chat.send({ messages: [{ role: 'user', text: 'Period pain help' }] });
-    await renderApp(api, `${paths.history}?tab=chats`);
+    await renderApp(api, paths.history);
 
     const link = await screen.findByRole('link', { name: /Period pain help/ });
     expect(link.getAttribute('href')).toBe(chatPath(sent.conversationId!));
 
-    fireEvent.click(screen.getByRole('button', { name: 'Delete chat: Period pain help' }));
+    // No message count on the card; Delete lives in the "⋯" menu, then asks to confirm.
+    expect(screen.queryByText(/messages?$/)).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Delete' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'More options for: Period pain help' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete chat' }));
+    expect(screen.queryByRole('menu')).toBeNull();
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Delete' }));
     });
@@ -134,11 +139,18 @@ describe('History → Assistant chats', () => {
     expect((await api.chat.listConversations()).items).toEqual([]);
   });
 
-  it('switches between the two tabs', async () => {
-    const api = createMockApi({ latencyMs: 0, startSignedIn: true });
+  it('closes the menu with Escape and Cancel keeps the chat', async () => {
+    const api = createMockApi({ latencyMs: 0, startSignedIn: true, seedChats: false });
+    await api.chat.send({ messages: [{ role: 'user', text: 'Keep me' }] });
     await renderApp(api, paths.history);
-    fireEvent.click(await screen.findByRole('button', { name: 'Assistant chats' }));
-    await waitFor(() => expect(location.current).toBe(`${paths.history}?tab=chats`));
-    expect(await screen.findByText('No chats yet')).toBeTruthy();
+    const more = await screen.findByRole('button', { name: 'More options for: Keep me' });
+    fireEvent.click(more);
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    fireEvent.click(more);
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Delete chat' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.getByRole('link', { name: /Keep me/ })).toBeTruthy();
+    expect((await api.chat.listConversations()).items).toHaveLength(1);
   });
 });

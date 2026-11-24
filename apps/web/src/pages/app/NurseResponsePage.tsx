@@ -63,7 +63,7 @@ export function NurseResponsePage() {
 
   return (
     <div className={styles.page}>
-      <FlowHeader title="Your nurse has replied" backTo={paths.history} />
+      <FlowHeader title="Your nurse has replied" backTo={paths.consultations} />
 
       {question.status === 'loading' && (
         <p className={styles.message} role="status">

@@ -8,6 +8,7 @@ import { useSessionGuard } from '../../../auth/useSessionGuard';
 import { useChat } from '../../../chat/useChat';
 import { Alert } from '../../../components/Alert/Alert';
 import { Button, ButtonLink } from '../../../components/Button/Button';
+import { OverflowMenu } from '../../../components/OverflowMenu/OverflowMenu';
 import { chatPath, paths } from '../../../routes/paths';
 import { formatFullDate, formatListDate } from '../../../utils/dates';
 import historyStyles from '../HistoryPage.module.css';
@@ -83,10 +84,6 @@ export function ChatHistory() {
 
   return (
     <>
-      <p className={historyStyles.summary}>
-        Only you can see your chats. Delete any you don’t want to keep.
-      </p>
-
       {Boolean(deleteError) && (
         <Alert tone="error">
           {loadErrorMessage(deleteError, 'That chat was not deleted. Please try again.')}
@@ -95,30 +92,36 @@ export function ChatHistory() {
 
       <ul role="list" className={historyStyles.cards}>
         {chats.items.map((c) => (
-          <li key={c.id} className={styles.item}>
-            <Link to={chatPath(c.id)} className={historyStyles.card}>
-              <span className={historyStyles.cardTop}>
-                <span className={styles.count}>
-                  {c.messageCount} {c.messageCount === 1 ? 'message' : 'messages'}
-                </span>
-                <time
-                  dateTime={c.updatedAt}
-                  title={formatFullDate(c.updatedAt)}
-                  className={historyStyles.cardDate}
-                >
-                  {formatListDate(c.updatedAt, { weekday: true })}
-                </time>
-              </span>
+          <li key={c.id} className={styles.card}>
+            <Link to={chatPath(c.id)} className={styles.link}>
+              <time
+                dateTime={c.updatedAt}
+                title={formatFullDate(c.updatedAt)}
+                className={historyStyles.cardDate}
+              >
+                {formatListDate(c.updatedAt, { weekday: true })}
+              </time>
               <span className={historyStyles.cardTitle}>{c.title}</span>
               {c.preview && c.preview !== c.title && (
                 <span className={styles.preview}>{c.preview}</span>
               )}
             </Link>
 
-            <div className={styles.actions}>
-              {confirming === c.id ? (
-                <>
-                  <span className={styles.confirmText}>Delete this chat for good?</span>
+            <OverflowMenu
+              label={`More options for: ${c.title}`}
+              className={styles.menu}
+              items={[
+                { label: 'Delete chat', tone: 'danger', onSelect: () => setConfirming(c.id) },
+              ]}
+            />
+
+            {confirming === c.id && (
+              <div className={styles.confirm} role="group" aria-label="Delete this chat">
+                <span className={styles.confirmText}>Delete this chat for good?</span>
+                <div className={styles.confirmActions}>
+                  <Button variant="ghost" onClick={() => setConfirming(null)}>
+                    Cancel
+                  </Button>
                   <Button
                     variant="emergency"
                     onClick={() => void remove(c)}
@@ -126,20 +129,9 @@ export function ChatHistory() {
                   >
                     {deleting === c.id ? 'Deleting…' : 'Delete'}
                   </Button>
-                  <Button variant="ghost" onClick={() => setConfirming(null)}>
-                    Cancel
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  variant="ghost"
-                  onClick={() => setConfirming(c.id)}
-                  aria-label={`Delete chat: ${c.title}`}
-                >
-                  Delete
-                </Button>
-              )}
-            </div>
+                </div>
+              </div>
+            )}
           </li>
         ))}
       </ul>
