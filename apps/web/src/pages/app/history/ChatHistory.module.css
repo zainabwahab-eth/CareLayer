@@ -1,0 +1,71 @@
+/*
+ * History chat cards. Same look as the W12 cards (16px padding, radius 20, line border);
+ * the "⋯" menu sits top right, outside the link so the two never nest.
+ */
+.card {
+  position: relative;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+}
+
+.card:has(.link:hover) {
+  border-color: var(--color-primary-text);
+}
+
+.link {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-height: var(--size-touch-target-min);
+  padding: var(--space-16) 3.5rem var(--space-16) var(--space-16);
+  border-radius: inherit;
+  color: inherit;
+  text-decoration: none;
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--color-primary-text);
+  outline-offset: 2px;
+}
+
+.menu {
+  position: absolute;
+  top: var(--space-8);
+  right: var(--space-8);
+}
+
+.preview {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  color: var(--color-text-muted);
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+}
+
+.confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-8) var(--space-12);
+  margin: 0 var(--space-16) var(--space-16);
+  padding-top: var(--space-12);
+  border-top: 1px solid var(--color-border);
+}
+
+.confirmText {
+  color: var(--color-text);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+.confirmActions {
+  display: flex;
+  gap: var(--space-8);
+}

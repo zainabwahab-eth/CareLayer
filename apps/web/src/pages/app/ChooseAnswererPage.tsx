@@ -1,247 +1,215 @@
-import {
-  CHOSEN_NURSE_WINDOW_MINUTES,
-  QUESTION_CLAIMS_CLOSE_MINUTES,
-  type NursePublicProfile,
-} from '@carelayer/shared';
-import { useEffect } from 'react';
+import type { NursePublicProfile } from '@carelayer/shared';
 import { Navigate, useNavigate } from 'react-router';
-import { loadErrorMessage } from '../../api/error-message';
 import { useApiQuery } from '../../api/useApiQuery';
-import { draftFor, FIRST_AVAILABLE, type PreparedDraft } from '../../ask-nurse/send-flow';
-import { useSendFlow } from '../../ask-nurse/useSendFlow';
 import { useSessionGuard } from '../../auth/useSessionGuard';
 import { useChat } from '../../chat/useChat';
 import { Alert } from '../../components/Alert/Alert';
 import { Avatar } from '../../components/Avatar/Avatar';
 import { Badge } from '../../components/Badge/Badge';
 import { Button } from '../../components/Button/Button';
-import { cx } from '../../components/cx';
-import { Icon } from '../../components/Icon/Icon';
 import { Toggle } from '../../components/Toggle/Toggle';
 import { paths } from '../../routes/paths';
 import { categoryLabel } from '../../utils/categories';
 import { formatNaira } from '../../utils/money';
-import { FlowScreen } from './send/FlowScreen';
-import styles from './send/flow.module.css';
-import {
-  helpfulLabel,
-  languagesLabel,
-  nurseExperienceLine,
-  responseTimeLabel,
-} from './send/labels';
+import { helpfulLabel, languagesLabel, nurseRoleLabel } from '../../utils/nurses';
+import styles from './ask/AskFlow.module.css';
+import { FlowHeader } from './ask/FlowHeader';
+import { flowErrorMessage } from './ask/flow-errors';
 
-/*
- * W08 Choose who answers (Figma "W08 Choose who answers").
- *
- * "First available" (default) or one approved, available nurse from
- * GET /nurses?topic=&femaleOnly= (contract §8.0). Everything shown about a
- * nurse comes from her public profile: rating as "% helpful (count)", no stars;
- * response time only once she has answered; never contact details.
+const FIRST_AVAILABLE = 'first_available';
+
+/**
+ * W08 Choose who answers (Figma: W08 / D-W08). "First available" (the default) or a
+ * specific approved, available nurse from GET /nurses for her question's topic.
+ * "Only female health workers" filters the list and is sent with the question.
  */
 export function ChooseAnswererPage() {
-  const chat = useChat();
-  const flow = useSendFlow();
-  const draft = draftFor(flow, chat.turns);
-  // Already sent: go where the send went (Back from W10 lands here).
-  if (flow.finished) {
-    return <Navigate to={flow.finished.to} state={flow.finished.state} replace />;
-  }
-  // Steps are in order: no draft or no consent yet means W07 first.
-  if (!draft || !flow.consented) return <Navigate to={paths.askConsent} replace />;
-  return <ChooseAnswerer draft={draft} />;
-}
-
-function ChooseAnswerer({ draft: { draft, offer } }: { draft: PreparedDraft }) {
-  const flow = useSendFlow();
+  const { request, setRequest } = useChat();
   const navigate = useNavigate();
-  const { choice, femaleOnly, choose, setFemaleOnly } = flow;
-  const topic = draft.category;
-
+  const topic = request?.draft.category;
+  const femaleOnly = request?.femaleOnly ?? false;
   const nurses = useApiQuery(
-    (api) => api.nurses.list({ topic, ...(femaleOnly ? { femaleOnly: true } : {}) }),
+    (api) => (topic ? api.nurses.list({ topic, femaleOnly }) : Promise.resolve([])),
     [topic, femaleOnly],
   );
   useSessionGuard(nurses.error);
 
-  // A chosen nurse who is no longer listed (now unavailable, or filtered out by
-  // "Only female health workers") can't be sent to: fall back to first available.
-  const chosenId = choice.kind === 'chosen_nurse' ? choice.nurse.id : null;
-  useEffect(() => {
-    if (chosenId && nurses.data && !nurses.data.some((n) => n.id === chosenId)) {
-      choose(FIRST_AVAILABLE);
-    }
-  }, [chosenId, nurses.data, choose]);
+  // W07 first: no consent, no question.
+  if (!request?.consented) return <Navigate to={paths.askConsent} replace />;
 
-  const list = nurses.data ?? [];
-  const priceLine = offer.isFree
-    ? 'Free: this uses one of your free answers.'
-    : `${formatNaira(offer.price)}, charged only when your answer is delivered.`;
+  const { offer } = request;
+  const price = offer.isFree ? 'Free' : formatNaira(offer.price);
+  const selected =
+    request.nurseSelection === 'chosen_nurse' && request.chosenNurse
+      ? request.chosenNurse.id
+      : FIRST_AVAILABLE;
+  const available = nurses.data ?? [];
+
+  const choose = (value: string) => {
+    const nurse = available.find((n) => n.id === value) ?? null;
+    setRequest((current) =>
+      current
+        ? {
+            ...current,
+            nurseSelection: nurse ? 'chosen_nurse' : 'first_available',
+            chosenNurse: nurse,
+          }
+        : current,
+    );
+  };
+
+  const setFemaleOnly = (checked: boolean) => {
+    setRequest((current) => {
+      if (!current) return current;
+      // A chosen man is no longer a valid choice once she asks for women only.
+      const keepChoice = !checked || current.chosenNurse?.gender === 'female';
+      return {
+        ...current,
+        femaleOnly: checked,
+        nurseSelection: keepChoice ? current.nurseSelection : 'first_available',
+        chosenNurse: keepChoice ? current.chosenNurse : null,
+      };
+    });
+  };
+
+  // The list may have changed since she chose (she went offline, filter changed).
+  const choiceMissing =
+    nurses.status === 'success' &&
+    selected !== FIRST_AVAILABLE &&
+    !available.some((n) => n.id === selected);
 
   return (
-    <FlowScreen
-      title="Send to a nurse"
-      subtitle="Step 2 of 3"
-      step={2}
-      backTo={paths.askConsent}
-      backLabel="Back to step 1"
-      footer={
-        <>
-          <Toggle
-            label="Only female health workers"
-            checked={femaleOnly}
-            onCheckedChange={setFemaleOnly}
-          />
-          <Button fullWidth onClick={() => navigate(paths.askConfirm)}>
-            Continue
-          </Button>
-        </>
-      }
-    >
-      <h2 className={styles.heading}>Who should answer?</h2>
-      <AvailabilityLine status={nurses.status} count={list.length} topic={categoryLabel(topic)} />
+    <div className={styles.page}>
+      <FlowHeader title="Send to a nurse" subtitle="Step 2 of 3" backTo={paths.askConsent} />
 
-      {nurses.status === 'error' && (
-        <div className={styles.errorBlock}>
-          <Alert tone="error">
-            {loadErrorMessage(
-              nurses.error,
-              'We could not load who is available. You can still send it to the first available nurse.',
-            )}
-          </Alert>
-          <Button variant="secondary" onClick={nurses.reload}>
-            Try again
-          </Button>
-        </div>
-      )}
+      <div className={styles.heading}>
+        <h2 className={styles.title}>Who should answer?</h2>
+        {nurses.status === 'success' && (
+          <p className={styles.lead}>
+            {available.length === 0
+              ? `No one is available for ${categoryLabel(request.draft.category).toLowerCase()} questions right now. First available sends it to the next verified nurse who comes online.`
+              : `${available.length} verified ${available.length === 1 ? 'nurse is' : 'nurses are'} available for ${categoryLabel(request.draft.category).toLowerCase()} questions right now.`}
+          </p>
+        )}
+      </div>
 
-      <fieldset className={styles.options}>
-        <legend className="visually-hidden">Who should answer your question</legend>
-
-        <label className={styles.option}>
-          <span className={styles.optionIcon} aria-hidden>
-            <Icon name="zap" size={20} />
-          </span>
-          <span className={styles.optionText}>
-            <span className={styles.optionTitleRow}>
-              <span className={cx(styles.optionTitle, styles.optionTitleLarge)}>
-                First available
-              </span>
-              <Badge variant="primary">Fastest</Badge>
-            </span>
-            <span className={styles.small}>
-              The first verified nurse or midwife who is free answers it. {priceLine}
-            </span>
-          </span>
+      <fieldset className={styles.choices}>
+        <legend className="visually-hidden">Who should answer</legend>
+        <label className={styles.choice}>
           <input
             type="radio"
             name="answerer"
-            className={styles.radio}
-            checked={choice.kind === 'first_available'}
+            value={FIRST_AVAILABLE}
+            checked={selected === FIRST_AVAILABLE}
             onChange={() => choose(FIRST_AVAILABLE)}
+            className={styles.radio}
           />
+          <span className={styles.choiceBody}>
+            <span className={styles.choiceTop}>
+              <span className={styles.choiceName}>First available</span>
+              <Badge variant="primary">Fastest</Badge>
+              <span className={styles.price}>{price}</span>
+            </span>
+            <span className={styles.small}>
+              The first verified nurse or midwife free to answer.
+            </span>
+          </span>
         </label>
-
-        {list.length > 0 && <p className={styles.sectionLabel}>Or choose a nurse or midwife</p>}
-        {list.map((nurse) => (
-          <NurseOption
-            key={nurse.id}
-            nurse={nurse}
-            checked={chosenId === nurse.id}
-            onSelect={() => choose({ kind: 'chosen_nurse', nurse })}
-          />
-        ))}
       </fieldset>
 
-      {choice.kind === 'chosen_nurse' && (
-        <p className={styles.small} role="status">
-          {choice.nurse.fullName} has {CHOSEN_NURSE_WINDOW_MINUTES} minutes to pick it up. After
-          that, any available nurse or midwife can answer.
-        </p>
-      )}
-    </FlowScreen>
+      <Toggle
+        checked={femaleOnly}
+        onCheckedChange={setFemaleOnly}
+        label="Only female health workers"
+        description="Only women nurses and midwives will see your question."
+      />
+
+      <section className={styles.choices} aria-labelledby="choose-nurse">
+        <h3 id="choose-nurse" className={styles.sectionTitle}>
+          Or choose a nurse
+        </h3>
+        {nurses.status === 'loading' && (
+          <p className={styles.message} role="status">
+            Loading nurses…
+          </p>
+        )}
+        {nurses.status === 'error' && (
+          <div className={styles.errorBlock}>
+            <Alert tone="error">
+              {flowErrorMessage(nurses.error, 'We could not load the nurses. Please try again.')}
+            </Alert>
+            <Button variant="secondary" onClick={nurses.reload}>
+              Try again
+            </Button>
+          </div>
+        )}
+        {available.map((nurse) => (
+          <NurseChoice
+            key={nurse.id}
+            nurse={nurse}
+            price={price}
+            checked={selected === nurse.id}
+            onChoose={() => choose(nurse.id)}
+          />
+        ))}
+        {choiceMissing && (
+          <Alert tone="info">
+            The nurse you chose is not available any more. Choose someone else or First available.
+          </Alert>
+        )}
+      </section>
+
+      <div className={styles.actions}>
+        <Button
+          fullWidth
+          disabled={nurses.status === 'loading' || choiceMissing}
+          onClick={() => navigate(paths.askConfirm)}
+        >
+          Continue
+        </Button>
+      </div>
+    </div>
   );
 }
 
-function AvailabilityLine({
-  status,
-  count,
-  topic,
-}: {
-  status: 'loading' | 'success' | 'error';
-  count: number;
-  topic: string;
-}) {
-  if (status === 'loading') {
-    return (
-      <p className={styles.lead} role="status">
-        Checking who is available…
-      </p>
-    );
-  }
-  if (status === 'error') return null;
-  if (count === 0) {
-    return (
-      <p className={styles.lead} role="status">
-        No one is available for {topic.toLowerCase()} questions right now. You can still send it: if
-        no one picks it up within {QUESTION_CLAIMS_CLOSE_MINUTES} minutes, you pay nothing.
-      </p>
-    );
-  }
-  return (
-    <p className={styles.lead} role="status">
-      {count} verified {count === 1 ? 'professional is' : 'professionals are'} available for{' '}
-      {topic.toLowerCase()} questions right now.
-    </p>
-  );
-}
-
-function NurseOption({
+function NurseChoice({
   nurse,
+  price,
   checked,
-  onSelect,
+  onChoose,
 }: {
   nurse: NursePublicProfile;
+  price: string;
   checked: boolean;
-  onSelect: () => void;
+  onChoose: () => void;
 }) {
-  const responseTime = responseTimeLabel(nurse.avgResponseMinutes);
   return (
-    <label className={styles.option}>
-      <Avatar name={nurse.fullName} decorative />
-      <span className={styles.optionText}>
-        <span className={styles.optionTitleRow}>
-          <span className={styles.optionTitle}>{nurse.fullName}</span>
-          <Badge variant="verified">Verified</Badge>
-        </span>
-        <span className={styles.small}>{nurseExperienceLine(nurse)}</span>
-        <span className={styles.meta}>
-          <span className={styles.metaItem}>
-            <Icon name="heart" size={14} />
-            {helpfulLabel(nurse.helpful)}
-          </span>
-          {responseTime && (
-            <span className={styles.metaItem}>
-              <Icon name="clock" size={14} />
-              <span className="visually-hidden">Usually answers in </span>
-              {responseTime}
-            </span>
-          )}
-          {nurse.languages.length > 0 && (
-            <span className={styles.metaItem}>
-              <Icon name="chat" size={14} />
-              <span className="visually-hidden">Speaks </span>
-              {languagesLabel(nurse.languages)}
-            </span>
-          )}
-        </span>
-      </span>
+    <label className={styles.choice}>
       <input
         type="radio"
         name="answerer"
-        className={styles.radio}
+        value={nurse.id}
         checked={checked}
-        onChange={onSelect}
+        onChange={onChoose}
+        className={styles.radio}
       />
+      <Avatar name={nurse.fullName} size={40} decorative />
+      <span className={styles.choiceBody}>
+        <span className={styles.choiceTop}>
+          <span className={styles.choiceName}>{nurse.fullName}</span>
+          <Badge variant="verified">Verified</Badge>
+          <span className={styles.price}>{price}</span>
+        </span>
+        <span className={styles.small}>
+          {nurseRoleLabel(nurse.role)} · {nurse.yearsOfPractice}{' '}
+          {nurse.yearsOfPractice === 1 ? 'year' : 'years'}
+        </span>
+        <span className={styles.small}>
+          {helpfulLabel(nurse.helpful)}
+          {nurse.avgResponseMinutes != null && ` · usually ~${nurse.avgResponseMinutes} min`}
+          {nurse.languages.length > 0 && ` · ${languagesLabel(nurse.languages)}`}
+        </span>
+      </span>
     </label>
   );
 }

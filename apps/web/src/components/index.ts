@@ -31,6 +31,11 @@ export {
 } from './navigation/Sidebar';
 export { TabBar, type TabBarProps } from './navigation/TabBar';
 export { TopBar, type TopBarProps } from './navigation/TopBar';
+export {
+  OverflowMenu,
+  type OverflowMenuItem,
+  type OverflowMenuProps,
+} from './OverflowMenu/OverflowMenu';
 export { PageHeader, type PageHeaderProps } from './PageHeader/PageHeader';
 export { quickExit } from './QuickExit/quick-exit';
 export { QuickExitButton, type QuickExitButtonProps } from './QuickExit/QuickExitButton';

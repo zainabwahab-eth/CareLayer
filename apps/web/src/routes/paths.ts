@@ -20,7 +20,8 @@ export const paths = {
   askConfirm: '/ask/confirm', // W09 Confirm and pay
   consultation: '/consultations/:consultationId', // W11 Nurse response
   consultationWaiting: '/consultations/:consultationId/waiting', // W10
-  history: '/history', // W12
+  consultations: '/consultations', // W12 Questions sent to nurses (was History)
+  history: '/history', // Saved chats with the assistant
   account: '/account', // Account tab (no Figma screen; docs/TASKS.md §3 "Women account")
   wallet: '/account/wallet', // No Figma screen; Paystack returns here (PAYSTACK_CALLBACK_URL)
 
@@ -34,4 +35,12 @@ export function consultationPath(consultationId: string) {
 
 export function consultationWaitingPath(consultationId: string) {
   return paths.consultationWaiting.replace(':consultationId', encodeURIComponent(consultationId));
+}
+
+/** Query parameter holding the open saved chat on the Ask screen (/ask?c=…). */
+export const CHAT_PARAM = 'c';
+
+/** The Ask screen with a saved chat open (reload and History both use it). */
+export function chatPath(conversationId: string) {
+  return `${paths.ask}?${CHAT_PARAM}=${encodeURIComponent(conversationId)}`;
 }

@@ -1,4 +1,4 @@
-import type { NurseRole, PublicNurse } from '@carelayer/shared';
+import type { HelpfulRating, NurseLanguage, NurseRole, PublicNurse } from '@carelayer/shared';
 
 const ROLE_LABELS: Record<NurseRole, string> = {
   nurse: 'Registered nurse',
@@ -19,4 +19,23 @@ export function shortNurseName(displayName: string): string {
 /** "Amaka O., Registered midwife". */
 export function nurseLine(nurse: PublicNurse): string {
   return `${shortNurseName(nurse.displayName)}, ${nurseRoleLabel(nurse.role)}`;
+}
+
+const LANGUAGE_LABELS: Record<NurseLanguage, string> = {
+  english: 'English',
+  pidgin: 'Pidgin',
+  yoruba: 'Yoruba',
+  hausa: 'Hausa',
+  igbo: 'Igbo',
+};
+
+/** "English, Yoruba" (W08). */
+export function languagesLabel(languages: readonly NurseLanguage[]): string {
+  return languages.map((language) => LANGUAGE_LABELS[language]).join(', ');
+}
+
+/** "92% helpful (31)" or "New" before her first rating (W08: no stars, contract §9). */
+export function helpfulLabel(helpful: HelpfulRating): string {
+  if (helpful.percent == null || helpful.count === 0) return 'New';
+  return `${helpful.percent}% helpful (${helpful.count})`;
 }

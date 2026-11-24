@@ -4,4 +4,6 @@
 export const externalLinks = {
   /** Health workers' app (apps/workers). "For nurses and midwives" on W01. */
   workersApp: import.meta.env.VITE_WORKERS_APP_URL ?? 'http://localhost:5174',
+  /** Public contact address (landing page footer). */
+  contactEmail: 'hello@carelayer.health',
 } as const;

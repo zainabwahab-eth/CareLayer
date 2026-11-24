@@ -1,0 +1,341 @@
+/* Figma W07-W11 (Send to a nurse, waiting, nurse response). Shared by the five screens. */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-gap-group);
+  max-width: 40rem;
+}
+
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.title {
+  color: var(--color-text);
+  font-family: var(--text-title-l-family);
+  font-size: var(--text-title-l-size);
+  line-height: var(--text-title-l-leading);
+  font-weight: var(--text-title-l-weight);
+}
+
+.lead,
+.message,
+.muted {
+  color: var(--color-text-muted);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+.small {
+  color: var(--color-text-muted);
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+}
+
+/* ---- Cards ---- */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: var(--space-16);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+
+.cardTitle {
+  color: var(--color-text-muted);
+  font-family: var(--text-label-s-family);
+  font-size: var(--text-label-s-size);
+  line-height: var(--text-label-s-leading);
+  font-weight: var(--text-label-s-weight);
+  letter-spacing: var(--text-label-s-tracking);
+}
+
+.body {
+  color: var(--color-text);
+  font-family: var(--text-body-l-family);
+  font-size: var(--text-body-l-size);
+  line-height: var(--text-body-l-leading);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.link {
+  color: var(--color-primary-text);
+  font-family: var(--text-label-s-family);
+  font-size: var(--text-label-s-size);
+  line-height: var(--text-label-s-leading);
+  font-weight: var(--text-label-s-weight);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* ---- Notes: privacy (lock), pay on delivery (warning), emergency ---- */
+.note,
+.warning,
+.emergency {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-12);
+  padding: var(--space-12) var(--space-16);
+  border-radius: var(--radius-md);
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+}
+
+.note {
+  background: var(--color-bg-surface-soft);
+  color: var(--color-text);
+}
+
+.warning {
+  background: var(--color-warning-bg-soft);
+  color: var(--color-text);
+}
+
+.emergency {
+  background: var(--color-emergency-bg-soft);
+  color: var(--color-text);
+}
+
+.noteIcon {
+  flex: none;
+  margin-top: 2px;
+}
+
+.noteBody {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-8);
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.errorBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-12);
+}
+
+/* ---- W08 choices ---- */
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.sectionTitle {
+  margin-bottom: var(--space-4);
+  color: var(--color-text);
+  font-family: var(--text-title-m-family);
+  font-size: var(--text-title-m-size);
+  line-height: var(--text-title-m-leading);
+  font-weight: var(--text-title-m-weight);
+}
+
+.choice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-12);
+  padding: var(--space-16);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  cursor: pointer;
+}
+
+.choice:has(input:checked) {
+  border-color: var(--color-primary-text);
+  background: var(--color-primary-bg-soft);
+}
+
+.choice:has(input:focus-visible) {
+  outline: 2px solid var(--color-primary-text);
+  outline-offset: 2px;
+}
+
+.radio {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 2px 0 0;
+  accent-color: var(--color-primary);
+}
+
+.choiceBody {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.choiceTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.choiceName {
+  color: var(--color-text);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+}
+
+.price {
+  margin-left: auto;
+  color: var(--color-text);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+}
+
+/* ---- W09 summary rows ---- */
+.rows {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-16);
+  padding: var(--space-12) 0;
+  border-bottom: 1px solid var(--color-border);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+.row:last-child {
+  border-bottom: 0;
+}
+
+.row dt {
+  color: var(--color-text-muted);
+}
+
+.row dd {
+  margin: 0;
+  color: var(--color-text);
+  font-weight: var(--text-label-m-weight);
+  text-align: right;
+}
+
+/* ---- W10 timeline ---- */
+.timeline {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-12);
+  color: var(--color-text-muted);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+.dot {
+  display: grid;
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  place-items: center;
+  border: 2px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-surface);
+}
+
+.stepDone .dot {
+  border-color: var(--color-primary);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.stepCurrent .dot {
+  border-color: var(--color-primary);
+}
+
+.stepDone,
+.stepCurrent {
+  color: var(--color-text);
+}
+
+.stepText {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- W11 nurse card ---- */
+.nurse {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.nurseText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.feedback {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.feedbackLabel {
+  margin-right: var(--space-4);
+  color: var(--color-text);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+}

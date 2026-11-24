@@ -73,7 +73,7 @@ describe('POST /chat', () => {
       escalationOffer: null,
     });
     expect(res.body.message.id).toMatch(/^msg_/);
-    // The whole thread reached the model, in order (its own earlier reply as Mode A JSON).
+    // The whole thread reached the model, in order (earlier replies in the Mode A JSON shape).
     const sent = llm.calls[0]!.messages.slice(1);
     expect(sent.map((m) => m.role)).toEqual(['user', 'assistant', 'user']);
     expect(sent[0]!.content).toBe('hi');

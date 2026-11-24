@@ -24,14 +24,19 @@ import {
   AUTH_RULES,
   CHAT_LIMITS,
   CHOSEN_NURSE_WINDOW_MINUTES,
+  AGENT_TOKEN_PREFIX,
   FREE_ANSWERS_PER_WOMAN,
+  MAX_AGENT_TOKENS,
   QUESTION_CLAIMS_CLOSE_MINUTES,
   SHARED_FIELDS,
   TOPUP_LIMITS_KOBO,
+  type AgentTokenSummary,
   type AnswerResponse,
   type ApiErrorCode,
   type AuthTokensResponse,
   type ChatTurn,
+  type Conversation,
+  type ConversationMessage,
   type CreatedQuestion,
   type EscalationOffer,
   type Id,
@@ -79,6 +84,8 @@ export interface MockApiOptions {
   latencyMs?: number;
   /** Start signed in as the demo user (Tolu) unless she logged out this session. Default true. */
   startSignedIn?: boolean;
+  /** Start the demo user with two saved chats (History). Default true; tests pass false. */
+  seedChats?: boolean;
   /** Simulated nurse timings for new questions. */
   claimAfterMs?: number;
   answerAfterMs?: number;
@@ -111,6 +118,10 @@ interface UserData {
   questions: MockQuestionRecord[];
   transactions: WalletTransaction[];
   topups: MockTopup[];
+  /** Claude connections (agent tokens). Revoked ones are removed. */
+  agentTokens: AgentTokenSummary[];
+  /** Saved chats, as POST /chat stores them. */
+  conversations: Conversation[];
 }
 
 interface MockTopup {
@@ -243,10 +254,56 @@ function questionTextFrom(turns: readonly ChatTurn[]): string {
     .join('\n\n');
 }
 
+/** Two saved chats for the demo user, so History is not empty in mock mode. */
+function seedConversations(): Conversation[] {
+  const at = (minutesAgo: number) => new Date(Date.now() - minutesAgo * 60_000).toISOString();
+  const chat = (id: string, minutesAgo: number, turns: Array<[string, string]>): Conversation => ({
+    id,
+    title: turns[0]![0],
+    createdAt: at(minutesAgo + 5),
+    updatedAt: at(minutesAgo),
+    messages: turns.flatMap(([q, a], i) => [
+      {
+        id: `${id}_u${i}`,
+        role: 'user' as const,
+        text: q,
+        emergency: false,
+        createdAt: at(minutesAgo + 4 - i),
+      },
+      {
+        id: `${id}_a${i}`,
+        role: 'assistant' as const,
+        text: a,
+        emergency: false,
+        createdAt: at(minutesAgo + 4 - i),
+      },
+    ]),
+  });
+  return [
+    chat('mock_chat_seed_1', 30, [
+      [
+        'I have a mosquito bite, what can I do?',
+        'Wash the area with soap and water and try not to scratch it. A cool cloth or calamine lotion can soothe the itch.',
+      ],
+      [
+        'Are there ointments I can use?',
+        'Yes, there are ointments you can use to help with itching and swelling, such as hydrocortisone cream or calamine lotion.',
+      ],
+    ]),
+    chat('mock_chat_seed_2', 60 * 26, [
+      [
+        'Is it normal to have cramps a week before my period?',
+        'Mild cramps before a period are common. If they are severe or new for you, a nurse can check.',
+      ],
+    ]),
+  ];
+}
+
 export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
   const {
     latencyMs = 350,
     startSignedIn = true,
+    seedChats = true,
     claimAfterMs = 45_000,
     answerAfterMs = 120_000,
     topupPaidAfterMs = 1_500,
@@ -271,6 +328,8 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
         questions: seedQuestions(),
         transactions: seedTransactions(),
         topups: readStoredTopups()[MOCK_USER.id] ?? [],
+        agentTokens: [],
+        conversations: seedChats ? seedConversations() : [],
       },
     ],
   ]);
@@ -333,6 +392,8 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
       questions: [],
       transactions: [],
       topups: [],
+      agentTokens: [],
+      conversations: [],
     });
     return user;
   }
@@ -689,32 +750,96 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
     },
 
     chat: {
-      // Stateless, like POST /chat: the thread comes from the client, nothing is kept.
+      // Like POST /chat: the thread comes from the client; her message and the reply are saved.
       send: (body) =>
         respond(() => {
           const data = currentData();
           const turns = requireTurns(body?.messages, true);
           const text = turns[turns.length - 1]!.text;
+          const existing = body.conversationId
+            ? data.conversations.find((c) => c.id === body.conversationId)
+            : undefined;
+          if (body.conversationId && !existing) fail(404, 'NOT_FOUND', 'Chat not found.');
+
+          const save = (messages: Array<Omit<ConversationMessage, 'id' | 'createdAt'>>) => {
+            const at = iso();
+            const rows = messages.map((m) => ({ ...m, id: nextId('cmsg'), createdAt: at }));
+            if (existing) {
+              existing.messages.push(...rows);
+              existing.updatedAt = at;
+              return existing.id;
+            }
+            const conversation: Conversation = {
+              id: nextId('chat'),
+              title: text.replace(/\s+/g, ' ').trim().slice(0, 80),
+              createdAt: at,
+              updatedAt: at,
+              messages: rows,
+            };
+            data.conversations.push(conversation);
+            return conversation.id;
+          };
 
           // Red-flag check on her new message first: emergency, nothing queued, free.
           const flags = detectMockRedFlags(text);
-          if (flags.length > 0) return mockEmergencyResponse(flags);
+          if (flags.length > 0) {
+            const conversationId = save([{ role: 'user', text, emergency: true }]);
+            return { ...mockEmergencyResponse(flags), conversationId };
+          }
 
           // Categorise from everything she has said, not just the latest message.
           const category = mockCategorise(questionTextFrom(turns));
           const userCount = turns.filter((t) => t.role === 'user').length;
+          const reply = mockAssistantReply(category);
+          const conversationId = save([
+            { role: 'user', text, emergency: false },
+            { role: 'assistant', text: reply, emergency: false },
+          ]);
           return {
             kind: 'reply' as const,
             message: {
               id: nextId('msg'),
               role: 'assistant' as const,
-              text: mockAssistantReply(category),
+              text: reply,
               createdAt: iso(),
             },
             escalationOffer: mockShouldOfferEscalation(text, userCount)
               ? escalationOffer(data, category)
               : null,
+            conversationId,
           };
+        }),
+
+      listConversations: (query = {}) =>
+        respond(() => {
+          const sorted = [...currentData().conversations].sort((a, b) =>
+            b.updatedAt.localeCompare(a.updatedAt),
+          );
+          return paginate(
+            sorted.map((c) => ({
+              id: c.id,
+              title: c.title,
+              preview: (c.messages.at(-1)?.text ?? '').slice(0, 120),
+              messageCount: c.messages.length,
+              createdAt: c.createdAt,
+              updatedAt: c.updatedAt,
+            })),
+            query,
+          );
+        }),
+
+      getConversation: (id) =>
+        respond(() => {
+          const found = currentData().conversations.find((c) => c.id === id);
+          return found ?? fail(404, 'NOT_FOUND', 'Chat not found.');
+        }),
+
+      deleteConversation: (id) =>
+        respond(() => {
+          const data = currentData();
+          const index = data.conversations.findIndex((c) => c.id === id);
+          if (index === -1) fail(404, 'NOT_FOUND', 'Chat not found.');
+          data.conversations.splice(index, 1);
         }),
       draft: (body) =>
         respond(() => {
@@ -918,15 +1043,12 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
           if (q.isFree) {
             data.wallet.freeAnswersRemaining = Math.max(0, data.wallet.freeAnswersRemaining - 1);
           } else {
-            // Same order as the API (contract §8.4): her limit first, then her balance.
             const limitKobo = data.settings.spendingLimitPerAnswerKobo;
-            if (MOCK_ANSWER_PRICE_KOBO > limitKobo && body.approvedAboveLimit !== true) {
-              fail(
-                409,
-                'SPENDING_LIMIT_EXCEEDED',
-                'This answer costs more than your limit per answer. Approve it to continue.',
-                { priceKobo: MOCK_ANSWER_PRICE_KOBO, spendingLimitKobo: limitKobo },
-              );
+            if (MOCK_ANSWER_PRICE_KOBO > limitKobo && !body.approvedAboveLimit) {
+              fail(409, 'SPENDING_LIMIT_EXCEEDED', 'This answer costs more than your limit.', {
+                priceKobo: MOCK_ANSWER_PRICE_KOBO,
+                spendingLimitKobo: limitKobo,
+              });
             }
             if (data.wallet.balanceKobo < MOCK_ANSWER_PRICE_KOBO) {
               fail(
@@ -966,6 +1088,43 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
           }
           q.feedback = { helpful: body.helpful, updatedAt: iso() };
           return { questionId: q.id, helpful: q.feedback.helpful, updatedAt: q.feedback.updatedAt };
+        }),
+    },
+
+    agentTokens: {
+      list: () =>
+        respond(() =>
+          [...currentData().agentTokens].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+        ),
+
+      create: (body) =>
+        respond(() => {
+          const data = currentData();
+          const label = typeof body.label === 'string' ? body.label.trim() : '';
+          if (!label || label.length > 60) {
+            fail(400, 'VALIDATION_FAILED', 'Give this connection a name (up to 60 characters).', {
+              field: 'label',
+            });
+          }
+          if (data.agentTokens.length >= MAX_AGENT_TOKENS) {
+            fail(409, 'CONFLICT', `You can have up to ${MAX_AGENT_TOKENS} Claude connections.`);
+          }
+          const summary: AgentTokenSummary = {
+            id: nextId('agent'),
+            label,
+            createdAt: iso(),
+            lastUsedAt: null,
+          };
+          data.agentTokens.push(summary);
+          return { ...summary, token: `${AGENT_TOKEN_PREFIX}${nextId('secret')}` };
+        }),
+
+      revoke: (id) =>
+        respond(() => {
+          const data = currentData();
+          const index = data.agentTokens.findIndex((t) => t.id === id);
+          if (index === -1) fail(404, 'NOT_FOUND', 'That connection was not found.');
+          data.agentTokens.splice(index, 1);
         }),
     },
 

@@ -6,6 +6,10 @@ import { RootLayout } from '../layouts/RootLayout';
 import { StandaloneLayout } from '../layouts/StandaloneLayout';
 import { AccountPage } from '../pages/app/AccountPage';
 import { AskPage } from '../pages/app/AskPage';
+import { ChooseAnswererPage } from '../pages/app/ChooseAnswererPage';
+import { ConfirmPayPage } from '../pages/app/ConfirmPayPage';
+import { ConsentPage } from '../pages/app/ConsentPage';
+import { ConsultationsPage } from '../pages/app/ConsultationsPage';
 import { HistoryPage } from '../pages/app/HistoryPage';
 import { HomePage } from '../pages/app/HomePage';
 import { WalletPage } from '../pages/app/WalletPage';
@@ -15,8 +19,8 @@ import { BeforeYouStartPage } from '../pages/public/BeforeYouStartPage';
 import { LogInPage } from '../pages/public/LogInPage';
 import { SignUpPage } from '../pages/public/SignUpPage';
 import { VerifyEmailPage } from '../pages/public/VerifyEmailPage';
-import { WelcomePage } from '../pages/public/WelcomePage';
 import { GuestOnly } from './GuestOnly';
+import { LandingRoute } from './LandingRoute';
 import { paths } from './paths';
 import { RequireAuth } from './RequireAuth';
 import type { RouteHandle } from './route-handle';
@@ -61,7 +65,8 @@ export const routes: RouteObject[] = [
     HydrateFallback: SessionLoading,
     children: [
       // Public: W01 landing page. Full-bleed, renders its own header and <main>.
-      { path: paths.welcome, Component: WelcomePage },
+      // Signed-in visitors go straight to Home (LandingRoute).
+      { path: paths.welcome, Component: LandingRoute },
 
       // Public: W13 emergency. Full-bleed emergency background, renders its own <main>.
       // Never behind sign-in: emergencies are free and never queued.
@@ -111,13 +116,18 @@ export const routes: RouteObject[] = [
               { path: paths.askConfirm, lazy: askFlow.confirm, handle: handle({ nav: 'ask' }) },
               {
                 path: paths.consultationWaiting,
-                lazy: askFlow.waiting,
-                handle: handle({ nav: 'history' }),
+                Component: WaitingPage,
+                handle: handle({ nav: 'consultations' }),
               },
               {
                 path: paths.consultation,
-                lazy: askFlow.response,
-                handle: handle({ nav: 'history' }),
+                Component: NurseResponsePage,
+                handle: handle({ nav: 'consultations' }),
+              },
+              {
+                path: paths.consultations,
+                Component: ConsultationsPage,
+                handle: handle({ nav: 'consultations', tabBar: true }),
               },
               {
                 path: paths.history,

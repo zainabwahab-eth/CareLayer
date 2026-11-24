@@ -1,9 +1,14 @@
 import type {
+  AgentTokenSummary,
   AnswerResponse,
   AuthTokensResponse,
+  CollectAnswerBody,
+  CreateAgentTokenBody,
+  CreateAgentTokenResponse,
   ChatRequestBody,
   ChatResponse,
-  CollectAnswerBody,
+  Conversation,
+  ConversationSummary,
   CreateQuestionBody,
   CreateQuestionResponse,
   CreateTopupBody,
@@ -52,7 +57,7 @@ export type MyQuestionsQuery = PageQuery & { status?: QuestionStatus };
  * Every method rejects with `ApiError` (see errors.ts) on failure.
  *
  * Not covered yet (no women's screen needs them in this milestone):
- * sessions list, step-up, agent tokens.
+ * sessions list, step-up.
  */
 export interface CareLayerApi {
   /** Which implementation is active. Use only for diagnostics, never for UI logic. */
@@ -103,12 +108,21 @@ export interface CareLayerApi {
   };
 
   /**
-   * The assistant (contract §7). Stateless: nothing about the chat is stored on the
-   * server, so every call sends the thread so far (the client keeps it in memory).
+   * The assistant (contract §7). Every call sends the thread she sees; POST /chat also saves
+   * her message and the reply to her account (a conversation), listed in History.
    */
   chat: {
-    /** POST /chat. The last turn is her new message. May return an EmergencyResponse. */
+    /**
+     * POST /chat. The last turn is her new message; `conversationId` adds to a saved chat.
+     * May return an EmergencyResponse. Both carry the conversationId it was saved in.
+     */
     send(body: ChatRequestBody): Promise<ChatResponse>;
+    /** GET /chat/conversations. Her saved chats, most recently active first. */
+    listConversations(query?: PageQuery): Promise<Page<ConversationSummary>>;
+    /** GET /chat/conversations/:id. One chat's messages, oldest first. */
+    getConversation(id: Id): Promise<Conversation>;
+    /** DELETE /chat/conversations/:id. Deletes the chat and its messages. */
+    deleteConversation(id: Id): Promise<void>;
     /**
      * POST /chat/draft. Exactly what a nurse would receive (W07), a signed `draftToken`
      * for POST /questions, and the price offer. May return an EmergencyResponse.
@@ -132,14 +146,24 @@ export interface CareLayerApi {
     getMine(id: Id): Promise<MyQuestion>;
     /**
      * POST /me/questions/:id/collect. Pays (or uses a free answer) and returns the nurse's answer.
-     * The API's own agent pays over x402 from her custodial wallet; the client never pays itself.
-     * Calling it again for a collected answer returns the same answer and receipt, never a second
-     * charge (contract §8.3 step 3). Pass `approvedAboveLimit` only after she approved a price above
-     * her limit (409 SPENDING_LIMIT_EXCEEDED).
+     * `approvedAboveLimit` once she approved paying above her per-answer limit (409 otherwise).
      */
     collectAnswer(id: Id, body?: CollectAnswerBody): Promise<AnswerResponse>;
     /** POST /questions/:id/feedback. Helpful / not helpful; sending again changes it. */
     submitFeedback(id: Id, body: FeedbackBody): Promise<FeedbackResponse>;
+  };
+
+  /**
+   * Claude connections (contract §2, Z12): agent tokens Claude uses through apps/mcp.
+   * Signed-in session only; the token is shown once, at creation.
+   */
+  agentTokens: {
+    /** GET /auth/agent-tokens. Active connections, newest first. Never the token. */
+    list(): Promise<AgentTokenSummary[]>;
+    /** POST /auth/agent-tokens. 409 CONFLICT when she already has MAX_AGENT_TOKENS. */
+    create(body: CreateAgentTokenBody): Promise<CreateAgentTokenResponse>;
+    /** DELETE /auth/agent-tokens/:id. Immediate: Claude's next call is refused. */
+    revoke(id: Id): Promise<void>;
   };
 
   emergency: {

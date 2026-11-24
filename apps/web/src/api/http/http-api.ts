@@ -1,8 +1,12 @@
 import type {
+  AgentTokenSummary,
   AnswerResponse,
+  CreateAgentTokenResponse,
   ApiErrorBody,
   AuthTokensResponse,
   ChatResponse,
+  Conversation,
+  ConversationSummary,
   CreateQuestionResponse,
   CreateTopupResponse,
   DraftResponse,
@@ -210,6 +214,12 @@ export function createHttpApi(
 
     chat: {
       send: (body) => authed<ChatResponse>('POST', 'chat', { body }),
+      listConversations: (query) =>
+        authed<Page<ConversationSummary>>('GET', 'chat/conversations', { query: { ...query } }),
+      getConversation: (conversationId) =>
+        authed<Conversation>('GET', `chat/conversations/${id(conversationId)}`),
+      deleteConversation: (conversationId) =>
+        authed<void>('DELETE', `chat/conversations/${id(conversationId)}`),
       draft: (body) => authed<DraftResponse>('POST', 'chat/draft', { body }),
     },
 
@@ -224,13 +234,17 @@ export function createHttpApi(
       listMine: (query) => authed<Page<MyQuestion>>('GET', 'me/questions', { query: { ...query } }),
       getMine: (questionId) => authed<MyQuestion>('GET', `me/questions/${id(questionId)}`),
       collectAnswer: (questionId, body) =>
-        authed<AnswerResponse>(
-          'POST',
-          `me/questions/${id(questionId)}/collect`,
-          body ? { body } : undefined,
-        ),
+        authed<AnswerResponse>('POST', `me/questions/${id(questionId)}/collect`, {
+          body: body ?? {},
+        }),
       submitFeedback: (questionId, body) =>
         authed<FeedbackResponse>('POST', `questions/${id(questionId)}/feedback`, { body }),
+    },
+
+    agentTokens: {
+      list: () => authed<AgentTokenSummary[]>('GET', 'auth/agent-tokens'),
+      create: (body) => authed<CreateAgentTokenResponse>('POST', 'auth/agent-tokens', { body }),
+      revoke: (tokenId) => authed<void>('DELETE', `auth/agent-tokens/${id(tokenId)}`),
     },
 
     emergency: {

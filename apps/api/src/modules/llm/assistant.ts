@@ -186,6 +186,25 @@ function statedFacts(original: string, statedAge?: number | null, weeks?: number
   return { ageRange, pregnancyWeeks };
 }
 
+/**
+ * One chat turn as a Mode A message. Her turns are her words. The assistant's earlier replies go
+ * back in the Mode A JSON shape the model must answer in: sent as plain prose, the model copies
+ * them and answers the next message in prose too, which fails validation (the second message of
+ * every chat returned 503). Only the reply text is stored client-side, so the flags are neutral.
+ */
+export function toModeAMessage(turn: ChatTurn): LlmMessage {
+  if (turn.role !== 'assistant') return { role: turn.role, content: turn.text };
+  return {
+    role: 'assistant',
+    content: JSON.stringify({
+      replyText: turn.text,
+      redFlagSuspected: false,
+      offerEscalation: false,
+      suggestedCategory: null,
+    }),
+  };
+}
+
 export function createAssistant(deps: {
   llm: LlmClient;
   systemPrompt: string;
@@ -239,7 +258,7 @@ export function createAssistant(deps: {
       const turns = history.slice(-MAX_HISTORY_TURNS);
       const messages: LlmMessage[] = [
         { role: 'system', content: deps.systemPrompt + MODE_A_INSTRUCTIONS },
-        ...modeAHistory(turns),
+        ...turns.map(toModeAMessage),
       ];
       return call('A', messages, (raw) => {
         const r = ModeASchema.safeParse(raw);

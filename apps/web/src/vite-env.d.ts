@@ -9,6 +9,8 @@ interface ImportMetaEnv {
   readonly VITE_GOOGLE_CLIENT_ID?: string;
   /** Health workers' app (apps/workers), linked from the landing page. */
   readonly VITE_WORKERS_APP_URL?: string;
+  /** Hosted CareLayer MCP server, shown on Account → Use CareLayer in Claude. */
+  readonly VITE_MCP_URL?: string;
 }
 
 interface ImportMeta {

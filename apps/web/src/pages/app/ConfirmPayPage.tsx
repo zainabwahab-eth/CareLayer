@@ -1,345 +1,228 @@
-import {
-  FREE_ANSWERS_PER_WOMAN,
-  QUESTION_CLAIMS_CLOSE_MINUTES,
-  type CreateQuestionBody,
-  type CreateQuestionResponse,
-} from '@carelayer/shared';
+import { QUESTION_CLAIMS_CLOSE_MINUTES } from '@carelayer/shared';
 import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router';
 import { hasErrorCode, isApiError } from '../../api/errors';
 import { useApi } from '../../api/useApi';
 import { useApiQuery } from '../../api/useApiQuery';
-import {
-  CONSENT_VERSION,
-  draftFor,
-  sharedFieldsFor,
-  type PreparedDraft,
-} from '../../ask-nurse/send-flow';
-import { useSendFlow } from '../../ask-nurse/useSendFlow';
-import { isSessionError } from '../../auth/auth-flow';
-import { useAuth } from '../../auth/useAuth';
 import { useSessionGuard } from '../../auth/useSessionGuard';
+import { CONSENT_VERSION, isDraftExpired, sharedFieldsFor } from '../../chat/ask-request';
 import type { EmergencyLocationState } from '../../chat/emergency-state';
 import { useChat } from '../../chat/useChat';
 import { Alert } from '../../components/Alert/Alert';
-import { Button, ButtonLink } from '../../components/Button/Button';
+import { Button } from '../../components/Button/Button';
 import { Checkbox } from '../../components/Checkbox/Checkbox';
-import { cx } from '../../components/cx';
 import { Icon } from '../../components/Icon/Icon';
-import { useAppShell } from '../../layouts/app-shell';
 import { consultationWaitingPath, paths } from '../../routes/paths';
 import { categoryLabel } from '../../utils/categories';
 import { formatNaira } from '../../utils/money';
-import { createErrorMessage, isUncertainSend } from './send/flow-errors';
-import { FlowScreen } from './send/FlowScreen';
-import styles from './send/flow.module.css';
+import { shortNurseName } from '../../utils/nurses';
+import styles from './ask/AskFlow.module.css';
+import { FlowHeader } from './ask/FlowHeader';
+import { flowErrorMessage } from './ask/flow-errors';
 
-/*
- * W09 Confirm and send (Figma "W09 Confirm and pay").
- *
- * "Confirm and send" calls POST /questions with her consent, the signed draft
- * and her nurse choice (contract §8.1). Nothing is charged here: payment is on
- * delivery, when she opens the answer on W11, and the API's own agent pays over
- * x402 from her wallet. A question no one answers in 30 minutes costs nothing.
+type Failure = { message: string; action?: 'choose' | 'review' };
+
+/**
+ * W09 Confirm and send (Figma: W09 / D-W09). Sends POST /questions with the W07 draft
+ * token, her consent and her W08 choice. Free to send: pay on delivery, so nothing is
+ * charged until she opens the answer (W11), and nothing at all if no one answers.
  */
 export function ConfirmPayPage() {
-  const chat = useChat();
-  const flow = useSendFlow();
-  const draft = draftFor(flow, chat.turns);
-  // Sent: go to W10 (or W13). Checked first, so clearing the draft can never bounce her to W07.
-  if (flow.finished) {
-    return <Navigate to={flow.finished.to} state={flow.finished.state} replace />;
-  }
-  if (!draft || !flow.consented) return <Navigate to={paths.askConsent} replace />;
-  return <ConfirmSend draft={draft} />;
-}
-
-type SendState =
-  | { status: 'idle' }
-  | { status: 'sending' }
-  /** Something failed; nothing was sent. */
-  | { status: 'error'; message: string; action?: 'review' | 'choose' }
-  /** The request may have reached the API: check History before sending again. */
-  | { status: 'uncertain' };
-
-function ConfirmSend({ draft: prepared }: { draft: PreparedDraft }) {
-  const { draft, draftToken, offer } = prepared;
   const api = useApi();
-  const chat = useChat();
-  const flow = useSendFlow();
   const navigate = useNavigate();
-  const { sessionExpired } = useAuth();
-  const { refreshWallet } = useAppShell();
-
-  const wallet = useApiQuery((a) => a.wallet.get());
-  const settings = useApiQuery((a) => a.me.getSettings());
-  useSessionGuard(wallet.error, settings.error);
-
-  const [send, setSend] = useState<SendState>({ status: 'idle' });
+  const { request, setRequest } = useChat();
+  const wallet = useApiQuery((client) => client.wallet.get());
+  const settings = useApiQuery((client) => client.me.getSettings());
   const [approved, setApproved] = useState(false);
-  const [showApprovalError, setShowApprovalError] = useState(false);
-  /** The API said the price is above her limit, even if the quote did not. */
-  const [limitFromApi, setLimitFromApi] = useState<number | null>(null);
+  const [limitRefused, setLimitRefused] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [failure, setFailure] = useState<Failure | null>(null);
+  const [sendError, setSendError] = useState<unknown>(null);
+  /** Set once sent: the cleared request must not bounce her back to W07 on the way out. */
+  const [sent, setSent] = useState(false);
+  useSessionGuard(wallet.error, settings.error, sendError);
 
-  const isFree = offer.isFree;
-  const price = offer.price;
-  const limitKobo = limitFromApi ?? settings.data?.spendingLimitPerAnswerKobo ?? null;
-  const needsApproval =
-    !isFree &&
-    (limitFromApi !== null ||
-      (limitKobo !== null ? price.kobo > limitKobo : offer.exceedsSpendingLimit));
-  const balanceAfterKobo = wallet.data ? wallet.data.balance.kobo - price.kobo : null;
-  const shortOfFunds = !isFree && balanceAfterKobo !== null && balanceAfterKobo < 0;
-  const walletNotReady = !isFree && wallet.data?.status === 'pending';
+  if (!request?.consented) {
+    return sent ? null : <Navigate to={paths.askConsent} replace />;
+  }
 
+  const { draft, offer } = request;
+  const price = formatNaira(offer.price);
+  const needsApproval = !offer.isFree && (offer.exceedsSpendingLimit || limitRefused);
+  const limitKobo = settings.data?.spendingLimitPerAnswerKobo;
+  const balanceKobo = wallet.data?.balance.kobo;
+  const balanceAfter =
+    balanceKobo == null ? null : offer.isFree ? balanceKobo : balanceKobo - offer.price.kobo;
   const answeredBy =
-    flow.choice.kind === 'chosen_nurse'
-      ? flow.choice.nurse.fullName
-      : 'First available nurse or midwife';
-
-  const onConfirm = async () => {
-    if (send.status === 'sending') return;
-    if (needsApproval && !approved) {
-      setShowApprovalError(true);
-      return;
-    }
-    setSend({ status: 'sending' });
-
-    const body: CreateQuestionBody = {
-      originalText: draft.originalText,
-      source: 'web',
-      consent: { sharedFields: sharedFieldsFor(draft), consentVersion: CONSENT_VERSION },
-      nurseSelection: flow.choice.kind,
-      ...(flow.choice.kind === 'chosen_nurse' ? { chosenNurseId: flow.choice.nurse.id } : {}),
-      femaleOnly: flow.femaleOnly,
-      ...(needsApproval && approved ? { approvedAboveLimit: true } : {}),
-      draftToken,
-    };
-
-    let response: CreateQuestionResponse;
-    try {
-      response = await api.questions.create(body);
-    } catch (error) {
-      if (isSessionError(error)) {
-        sessionExpired();
-        return;
-      }
-      if (isUncertainSend(error)) {
-        setSend({ status: 'uncertain' });
-        return;
-      }
-      if (hasErrorCode(error, 'SPENDING_LIMIT_EXCEEDED')) {
-        const limit = Number(error.details?.spendingLimitKobo);
-        setLimitFromApi(Number.isFinite(limit) ? limit : (limitKobo ?? 0));
-        setApproved(false);
-        setSend({
-          status: 'error',
-          message: 'This answer costs more than your limit per answer. Approve it below to send.',
-        });
-        return;
-      }
-      if (hasErrorCode(error, 'CHOSEN_NURSE_UNAVAILABLE')) {
-        setSend({
-          status: 'error',
-          message: `${answeredBy} is not available right now. Choose someone else, or the first available nurse.`,
-          action: 'choose',
-        });
-        return;
-      }
-      if (
-        hasErrorCode(error, 'CONSENT_REQUIRED') ||
-        (isApiError(error) &&
-          error.code === 'VALIDATION_FAILED' &&
-          (error.details?.field === 'draftToken' || error.details?.field === 'originalText'))
-      ) {
-        setSend({
-          status: 'error',
-          message:
-            'This review has expired. Look over your question again, then send it. Nothing was sent.',
-          action: 'review',
-        });
-        return;
-      }
-      setSend({ status: 'error', message: createErrorMessage(error) });
-      return;
-    }
-
-    // Sent. finish() clears the draft and the guard above takes her on, in one update.
-    chat.dismissOffer();
-    if (response.kind === 'emergency') {
-      // Red flag found on the final check: free, nothing queued, nothing to pay.
-      const state: EmergencyLocationState = { emergency: response };
-      flow.finish(paths.emergency, state);
-      return;
-    }
-    // Free answers left changes as soon as a free question is in flight.
-    refreshWallet();
-    flow.finish(consultationWaitingPath(response.id));
-  };
+    request.nurseSelection === 'chosen_nurse' && request.chosenNurse
+      ? shortNurseName(request.chosenNurse.fullName)
+      : 'First available';
 
   const reviewAgain = () => {
-    flow.clearDraft();
-    navigate(paths.askConsent, { replace: true });
+    // Mark the draft stale: W07 fetches a fresh one and keeps her W08 choices.
+    setRequest((current) =>
+      current ? { ...current, consented: false, draftExpiresAt: new Date(0).toISOString() } : null,
+    );
+    navigate(paths.askConsent);
+  };
+
+  const handleSend = async () => {
+    if (sending || (needsApproval && !approved)) return;
+    if (isDraftExpired(request)) {
+      setFailure({
+        message: 'This draft has expired. Review your question again before sending it.',
+        action: 'review',
+      });
+      return;
+    }
+    setSending(true);
+    setFailure(null);
+    setSendError(null);
+    try {
+      const created = await api.questions.create({
+        originalText: draft.originalText,
+        source: 'web',
+        consent: { sharedFields: sharedFieldsFor(draft), consentVersion: CONSENT_VERSION },
+        nurseSelection: request.nurseSelection,
+        chosenNurseId:
+          request.nurseSelection === 'chosen_nurse' ? request.chosenNurse?.id : undefined,
+        femaleOnly: request.femaleOnly,
+        approvedAboveLimit: needsApproval ? approved : undefined,
+        draftToken: request.draftToken,
+      });
+      if (created.kind === 'emergency') {
+        const state: EmergencyLocationState = { emergency: created };
+        navigate(paths.emergency, { state, replace: true });
+        return;
+      }
+      setSent(true);
+      navigate(consultationWaitingPath(created.id), { replace: true });
+      // Sent: the draft is used up, so going back never sends it twice.
+      setRequest(null);
+    } catch (error) {
+      setSending(false);
+      setSendError(error);
+      if (hasErrorCode(error, 'SPENDING_LIMIT_EXCEEDED')) {
+        setLimitRefused(true);
+        setFailure({ message: 'This answer costs more than your limit. Approve it to send.' });
+      } else if (hasErrorCode(error, 'CHOSEN_NURSE_UNAVAILABLE')) {
+        setFailure({
+          message: 'That nurse is not available right now. Choose someone else or First available.',
+          action: 'choose',
+        });
+      } else if (
+        isApiError(error) &&
+        error.code === 'VALIDATION_FAILED' &&
+        error.details?.field === 'draftToken'
+      ) {
+        setFailure({ message: error.message, action: 'review' });
+      } else {
+        setFailure({
+          message: flowErrorMessage(error, 'Your question was not sent. Please try again.'),
+        });
+      }
+    }
   };
 
   return (
-    <FlowScreen
-      title="Send to a nurse"
-      subtitle="Step 3 of 3"
-      step={3}
-      backTo={paths.askChoose}
-      backLabel="Back to step 2"
-      footer={
-        <>
-          <p className={styles.lockNote}>
-            <Icon name="lock" size={16} className={styles.noteIcon} />
-            {isFree
-              ? 'Free answers are paid to the nurse by CareLayer. Your answer appears in History.'
-              : 'Paid in USDC on Stellar through x402. Your receipt appears in History.'}
-          </p>
-          {send.status === 'uncertain' ? (
-            <>
-              <ButtonLink to={paths.history} fullWidth>
-                Check History
-              </ButtonLink>
-              <Button variant="ghost" fullWidth onClick={() => void onConfirm()}>
-                It’s not there: send again
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button
-                fullWidth
-                onClick={() => void onConfirm()}
-                disabled={send.status === 'sending'}
-                aria-busy={send.status === 'sending'}
-              >
-                {send.status === 'sending' ? 'Sending…' : 'Confirm and send'}
-              </Button>
-              <Button
-                variant="ghost"
-                fullWidth
-                onClick={() => navigate(paths.askChoose)}
-                disabled={send.status === 'sending'}
-              >
-                Back
-              </Button>
-            </>
-          )}
-        </>
-      }
-    >
-      <h2 className={styles.heading}>Confirm and send</h2>
+    <div className={styles.page}>
+      <FlowHeader title="Send to a nurse" subtitle="Step 3 of 3" backTo={paths.askChoose} />
 
-      <dl className={styles.summary}>
-        <Row label="Answered by" value={answeredBy} />
-        <Row label="Topic" value={categoryLabel(draft.category)} />
-        <Row label="Answer price" value={isFree ? 'Free' : formatNaira(price)} large />
-        <Row
-          label="Paid from"
-          value={
-            isFree
-              ? `Free answer (${offer.freeAnswersRemaining} of ${FREE_ANSWERS_PER_WOMAN} left)`
-              : 'CareLayer balance'
-          }
-        />
-        {!isFree && (
-          <Row
-            label="Balance after"
-            value={
-              balanceAfterKobo === null
-                ? wallet.status === 'error'
-                  ? 'Not available'
-                  : 'Checking…'
-                : formatNaira(balanceAfterKobo)
-            }
-          />
-        )}
-        <Row
-          label="Your limit per answer"
-          value={
-            limitKobo === null
-              ? settings.status === 'error'
-                ? 'Not available'
-                : 'Checking…'
-              : formatNaira(limitKobo)
-          }
-        />
-      </dl>
+      <h2 className={styles.title}>Confirm and send</h2>
 
-      <div className={styles.accentNote}>
-        <Icon name="clock" size={22} className={styles.noteIcon} />
-        <div className={styles.noteText}>
-          <p className={styles.noteTitle}>Nothing is charged now</p>
-          <p className={styles.noteBody}>
-            {isFree
-              ? `This answer is free. If no one answers within ${QUESTION_CLAIMS_CLOSE_MINUTES} minutes, you keep your free answer.`
-              : `${formatNaira(price)} moves only when your answer is delivered. If no one answers within ${QUESTION_CLAIMS_CLOSE_MINUTES} minutes, you pay nothing.`}
-          </p>
-        </div>
-      </div>
+      <section className={styles.card} aria-label="Summary">
+        <dl className={styles.rows}>
+          <div className={styles.row}>
+            <dt>Answered by</dt>
+            <dd>{answeredBy}</dd>
+          </div>
+          <div className={styles.row}>
+            <dt>Topic</dt>
+            <dd>{categoryLabel(draft.category)}</dd>
+          </div>
+          <div className={styles.row}>
+            <dt>Answer price</dt>
+            <dd>{offer.isFree ? 'Free' : price}</dd>
+          </div>
+          <div className={styles.row}>
+            <dt>Paid from</dt>
+            <dd>
+              {offer.isFree
+                ? `Free answer (${offer.freeAnswersRemaining} left)`
+                : 'CareLayer balance'}
+            </dd>
+          </div>
+          <div className={styles.row}>
+            <dt>Balance after</dt>
+            <dd>{balanceAfter == null ? '–' : formatNaira(Math.max(balanceAfter, 0))}</dd>
+          </div>
+          <div className={styles.row}>
+            <dt>Your limit per answer</dt>
+            <dd>{limitKobo == null ? '–' : formatNaira(limitKobo)}</dd>
+          </div>
+        </dl>
+      </section>
 
-      {(shortOfFunds || walletNotReady) && (
+      <p className={styles.warning}>
+        <Icon name="wallet" size={18} className={styles.noteIcon} />
+        <span>
+          {offer.isFree
+            ? `Nothing is charged: this answer is free. If no one answers within ${QUESTION_CLAIMS_CLOSE_MINUTES} minutes, your free answer is not used.`
+            : `Nothing is charged now. ${price} moves only when your answer is delivered. If no one answers within ${QUESTION_CLAIMS_CLOSE_MINUTES} minutes, you pay nothing.`}
+        </span>
+      </p>
+
+      {!offer.isFree && balanceAfter != null && balanceAfter < 0 && (
         <Alert tone="info">
-          {walletNotReady
-            ? 'Your wallet is still being set up. '
-            : `Your balance is ${formatNaira(wallet.data!.balance)}. `}
-          Top up before your answer arrives so it can be paid when you open it.{' '}
+          Your balance is lower than the price. You can send now and{' '}
           <Link to={paths.wallet} className={styles.link}>
-            Top up
-          </Link>
+            top up
+          </Link>{' '}
+          before you open the answer.
         </Alert>
       )}
 
       {needsApproval && (
-        <Checkbox
-          checked={approved}
-          onChange={(event) => {
-            setApproved(event.target.checked);
-            if (event.target.checked) setShowApprovalError(false);
-          }}
-          error={
-            showApprovalError
-              ? 'Approve the price to send, or go back and change your limit.'
-              : undefined
-          }
-        >
-          I approve paying {formatNaira(price)}, which is above my limit of{' '}
-          {limitKobo === null ? 'my limit' : formatNaira(limitKobo)} per answer.
+        <Checkbox checked={approved} onChange={(event) => setApproved(event.target.checked)}>
+          Pay {price} for this answer, above my limit
+          {limitKobo == null ? '' : ` of ${formatNaira(limitKobo)}`}.
         </Checkbox>
       )}
 
-      {send.status === 'error' && (
+      {failure && (
         <div className={styles.errorBlock}>
-          <Alert tone="error">{send.message}</Alert>
-          {send.action === 'review' && (
-            <Button variant="secondary" onClick={reviewAgain}>
-              Review my question
-            </Button>
-          )}
-          {send.action === 'choose' && (
+          <Alert tone="error">{failure.message}</Alert>
+          {failure.action === 'choose' && (
             <Button variant="secondary" onClick={() => navigate(paths.askChoose)}>
               Choose again
+            </Button>
+          )}
+          {failure.action === 'review' && (
+            <Button variant="secondary" onClick={reviewAgain}>
+              Review my question
             </Button>
           )}
         </div>
       )}
 
-      {send.status === 'uncertain' && (
-        <Alert tone="error">
-          We could not confirm whether your question was sent. Check History first, so it isn’t sent
-          twice.
-        </Alert>
+      {!offer.isFree && (
+        <p className={styles.small}>
+          Paid in USDC on Stellar through x402. Your receipt appears in History.
+        </p>
       )}
-    </FlowScreen>
-  );
-}
 
-function Row({ label, value, large = false }: { label: string; value: string; large?: boolean }) {
-  return (
-    <div className={styles.row}>
-      <dt className={styles.rowLabel}>{label}</dt>
-      <dd className={cx(styles.rowValue, large && styles.rowValueLarge)}>{value}</dd>
+      <div className={styles.actions}>
+        <Button
+          fullWidth
+          disabled={sending || (needsApproval && !approved)}
+          onClick={() => void handleSend()}
+        >
+          {sending ? 'Sending…' : 'Confirm and send'}
+        </Button>
+        <Button variant="ghost" fullWidth onClick={() => navigate(paths.askChoose)}>
+          Back
+        </Button>
+      </div>
     </div>
   );
 }
