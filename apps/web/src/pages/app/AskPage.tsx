@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { Alert } from '../../components/Alert/Alert';
 import { Button } from '../../components/Button/Button';
 import { TopBar } from '../../components/navigation/TopBar';
@@ -7,6 +7,7 @@ import { QuickExitButton } from '../../components/QuickExit/QuickExitButton';
 import type { EmergencyLocationState } from '../../chat/emergency-state';
 import { useChat } from '../../chat/useChat';
 import { CHAT_PARAM, paths } from '../../routes/paths';
+import { readAskPrefill } from './ask/ask-prefill';
 import { AssistantAvatar, ChatMessage, TypingIndicator } from './ask/ChatMessage';
 import { ChatComposer } from './ask/ChatComposer';
 import { ChatContextRail } from './ask/ChatContextRail';
@@ -29,6 +30,9 @@ const SUBTITLE = 'AI guidance, not a nurse';
 export function AskPage() {
   const chat = useChat();
   const navigate = useNavigate();
+  // W05 "Start with a topic": the composer starts with a few words she can edit.
+  const { state: locationState } = useLocation();
+  const prefill = readAskPrefill(locationState);
   const emptyTitleId = useId();
   const endRef = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<HTMLTextAreaElement>(null);
@@ -207,6 +211,7 @@ export function AskPage() {
           pending={chat.pending}
           canAskNurse={chat.canAskNurse}
           textareaRef={fieldRef}
+          initialText={prefill}
         />
       </div>
 
