@@ -62,6 +62,8 @@ export const DraftRequestSchema = z.object({
     (m) => m.some((t) => t.role === 'user'),
     'Include at least one of her messages (role "user").',
   ),
+  /** Index in `messages` of her message the assistant offered a nurse for (a hint). */
+  focusIndex: z.number().int().min(0).optional(),
 });
 
 export function createChatRouter(
@@ -118,11 +120,14 @@ export function createChatRouter(
   });
 
   router.post('/chat/draft', authedOrAgent, requireRole('woman'), async (req, res) => {
-    const { messages } = DraftRequestSchema.parse(req.body);
+    const { messages, focusIndex } = DraftRequestSchema.parse(req.body);
     const { userId, via } = getAuth(res);
     limiter.hit(userId);
     res.setHeader('Cache-Control', 'no-store');
-    res.json(await chat.draft(userId, messages, via === 'agent' ? 'mcp' : 'web'));
+    // A hint that does not point at one of her messages is ignored, not an error.
+    const focus =
+      focusIndex !== undefined && messages[focusIndex]?.role === 'user' ? focusIndex : undefined;
+    res.json(await chat.draft(userId, messages, via === 'agent' ? 'mcp' : 'web', focus));
   });
 
   return router;

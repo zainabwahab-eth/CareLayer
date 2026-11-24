@@ -328,3 +328,45 @@ describe('W07 Consent: edit the question', () => {
     expect(screen.getByText(/spotting/i, { selector: 'p' }).textContent).toBe(before);
   });
 });
+
+describe('W07 Consent: notes from the assistant', () => {
+  it('"Don’t include" keeps the notes out of what is shared; "Include" puts them back', async () => {
+    const api = createMockApi({ latencyMs: 0, startSignedIn: true, seedChats: false });
+    const realDraft = api.chat.draft.bind(api.chat);
+    // The mock writes no notes: give this draft some, as the API would.
+    vi.spyOn(api.chat, 'draft').mockImplementation(async (body) => {
+      const response = await realDraft(body);
+      return response.kind === 'draft'
+        ? { ...response, draft: { ...response.draft, assistantNotes: 'She is 26 and smokes.' } }
+        : response;
+    });
+    const create = vi.spyOn(api.questions, 'create');
+    renderApp(api, paths.ask);
+    await screen.findByText('authenticated');
+    await act(() => chat.current!.send('Which contraceptive would be best for me?'));
+    act(() => nav.current!(paths.askConsent));
+    expect(await screen.findByText('She is 26 and smokes.', {}, { timeout: 5000 })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Don’t include' }));
+    expect(screen.queryByText('She is 26 and smokes.')).toBeNull();
+    expect(screen.getByText(/Not shared/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Include' }));
+    expect(screen.getByText('She is 26 and smokes.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Don’t include' }));
+
+    fireEvent.click(screen.getByLabelText(/I agree to share this/));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await screen.findByText('Who should answer?', {}, { timeout: 5000 });
+    await waitFor(
+      () =>
+        expect(
+          (screen.getByRole('button', { name: 'Continue' }) as HTMLButtonElement).disabled,
+        ).toBe(false),
+      { timeout: 5000 },
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm and send' }));
+    await waitFor(() => expect(create).toHaveBeenCalled());
+    expect(create.mock.calls[0]![0].consent.sharedFields).not.toContain('assistant_notes');
+  });
+});

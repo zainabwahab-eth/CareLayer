@@ -53,6 +53,12 @@ export interface ChatState {
    */
   offer: EscalationOffer | null;
   /**
+   * Her message the assistant last offered a nurse for (its text). Sent to POST /chat/draft
+   * as a hint so the nurse gets that question, not the whole chat. Null after a reset or
+   * when a saved chat is reopened (the API then works it out).
+   */
+  offeredFor: string | null;
+  /**
    * The W07-W09 send flow (draft, consent, who answers). Cleared when she sends
    * another message (the draft no longer matches her chat) or starts a new chat.
    */

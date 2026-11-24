@@ -351,23 +351,24 @@ describe('POST /chat: a conversation of many turns', () => {
 });
 
 describe('POST /chat/draft', () => {
-  it('returns exactly what a nurse would get: her words verbatim + the cleaned version, signed', async () => {
-    const { app, llm } = setup(modeB());
+  it('returns exactly what a nurse would get: her chosen messages verbatim + the cleaned version, signed', async () => {
+    // She sent the question in two messages back to back; the model picks both (2 and 3).
+    const { app, llm } = setup(modeB({ questionMessages: [2, 3] }));
     const w = await signUpWoman(app, mail);
     const res = await request(app)
       .post('/chat/draft')
       .set('Authorization', `Bearer ${w.token}`)
       .send({
         messages: [
+          bot('Hello! How can I help?'),
           user('  my feet dey swell small small  '),
-          bot('Swelling can be common. How far along are you?'),
           user('im 30 weeks pregnant is it normal'),
         ],
       });
 
     expect(res.status).toBe(200);
     expect(res.body.kind).toBe('draft');
-    // Her messages, joined in order, word for word (only the outer spaces of each are trimmed).
+    // Her chosen messages, joined in order, word for word (only the outer spaces are trimmed).
     expect(res.body.draft).toEqual({
       originalText: 'my feet dey swell small small\n\nim 30 weeks pregnant is it normal',
       cleanedText: 'My feet are swelling a little. I am 30 weeks pregnant. Is it normal?',
@@ -376,8 +377,11 @@ describe('POST /chat/draft', () => {
       ageRange: null,
       pregnancyWeeks: 30,
     });
-    // The assistant's turns are not part of her question.
-    expect(llm.calls[0]!.messages[1]!.content).toBe(res.body.draft.originalText);
+    // The model sees the whole chat, numbered, as data.
+    const payload = JSON.parse(llm.calls[0]!.messages[1]!.content);
+    expect(payload.conversation).toHaveLength(3);
+    expect(payload.conversation[0]).toMatchObject({ n: 1, from: 'assistant' });
+    expect(payload.offeredFor).toBeNull();
     expect(res.body.offer).toMatchObject({ isFree: true, suggestedCategory: 'pregnancy' });
     // JWT expiry is in whole seconds.
     const ttl = new Date(res.body.draftExpiresAt).getTime() - clock().getTime();
@@ -386,6 +390,70 @@ describe('POST /chat/draft', () => {
     expect(await verifyDraftToken(res.body.draftToken, w.userId, JWT_SECRET, clock())).toEqual(
       res.body.draft,
     );
+  });
+
+  it('sends only the question that led to the offer, not the rest of the chat', async () => {
+    const { app, llm } = setup(
+      modeB({
+        questionMessages: [3],
+        cleanedText: 'Which contraceptive would be best for me? I smoke and I get migraines.',
+        assistantNotes: 'She is 26.',
+        category: 'contraception',
+        statedAge: 26,
+        pregnancyWeeks: null,
+      }),
+    );
+    const w = await signUpWoman(app, mail);
+    const res = await request(app)
+      .post('/chat/draft')
+      .set('Authorization', `Bearer ${w.token}`)
+      .send({
+        messages: [
+          user('I have a mosquito bite, what can I do? I am 26'),
+          bot('Wash it with soap and water.'),
+          user('Which contraceptive would be best for me? I smoke and I get migraines.'),
+          bot('A nurse could advise you on this. Would you like to ask one?'),
+          user('I am ready to ask now'),
+        ],
+        focusIndex: 2,
+      });
+
+    expect(res.status).toBe(200);
+    expect(res.body.draft).toMatchObject({
+      originalText: 'Which contraceptive would be best for me? I smoke and I get migraines.',
+      assistantNotes: 'She is 26.',
+      category: 'contraception',
+      // Her age came from an earlier message: still hers, still shown to her on W07.
+      ageRange: 'age_25_34',
+    });
+    // The offer was for her third turn (number 3).
+    expect(JSON.parse(llm.calls[0]!.messages[1]!.content).offeredFor).toBe(3);
+  });
+
+  it('an unusable choice (twice) falls back to the message the nurse was offered for', async () => {
+    const { app, llm } = setup(
+      // Number 2 is the assistant's message; 9 does not exist.
+      modeB({ questionMessages: [2] }),
+      modeB({ questionMessages: [9] }),
+      // Then the offered message is prepared on its own.
+      modeB({ cleanedText: 'Which contraceptive would be best for me?', pregnancyWeeks: null }),
+    );
+    const w = await signUpWoman(app, mail);
+    const res = await request(app)
+      .post('/chat/draft')
+      .set('Authorization', `Bearer ${w.token}`)
+      .send({
+        messages: [
+          user('Which contraceptive would be best for me?'),
+          bot('A nurse could help.'),
+          user('ok ready'),
+        ],
+        focusIndex: 0,
+      });
+    expect(res.status).toBe(200);
+    expect(res.body.draft.originalText).toBe('Which contraceptive would be best for me?');
+    expect(llm.calls).toHaveLength(3);
+    expect(llm.calls[2]!.messages[1]!.content).toBe('Which contraceptive would be best for me?');
   });
 
   it('a red flag anywhere in her messages: emergency, no draft', async () => {
@@ -402,7 +470,7 @@ describe('POST /chat/draft', () => {
   });
 
   it('the model’s red flag in Mode B: emergency', async () => {
-    const { app } = setup(modeB({ redFlagSuspected: true }));
+    const { app } = setup(modeB({ questionMessages: [1], redFlagSuspected: true }));
     const w = await signUpWoman(app, mail);
     const res = await request(app)
       .post('/chat/draft')
@@ -413,8 +481,8 @@ describe('POST /chat/draft', () => {
 
   it('a clean-up that summarises (twice) falls back to her own words', async () => {
     const { app } = setup(
-      modeB({ cleanedText: 'Feet swelling.' }),
-      modeB({ cleanedText: 'Swelling?' }),
+      modeB({ questionMessages: [1], cleanedText: 'Feet swelling.' }),
+      modeB({ questionMessages: [1], cleanedText: 'Swelling?' }),
     );
     const w = await signUpWoman(app, mail);
     const res = await request(app)
@@ -431,7 +499,7 @@ describe('POST /chat/draft', () => {
   // Regression (found in the live smoke test): after an offer the thread ends with the assistant's
   // reply, and that is exactly when the web app asks for the draft.
   it('accepts a thread that ends with the assistant’s offer; needs at least one of her messages', async () => {
-    const { app } = setup(modeB());
+    const { app } = setup(modeB({ questionMessages: [1] }));
     const w = await signUpWoman(app, mail);
     const ok = await request(app)
       .post('/chat/draft')
@@ -441,6 +509,8 @@ describe('POST /chat/draft', () => {
           user('my feet dey swell small small, im 30 weeks pregnant is it normal'),
           bot('Some swelling is common. Would you like me to send your question to a nurse?'),
         ],
+        // Not one of her messages: ignored, not an error.
+        focusIndex: 1,
       });
     expect(ok.status).toBe(200);
     expect(ok.body.draft.originalText).toBe(
@@ -453,25 +523,6 @@ describe('POST /chat/draft', () => {
       .send({ messages: [bot('Hello! How can I help?')] });
     expect(none.status).toBe(400);
     expect(none.body.error.details.field).toBe('messages');
-  });
-
-  it('too long to send as one question: 400', async () => {
-    const { app } = setup();
-    const w = await signUpWoman(app, mail);
-    const res = await request(app)
-      .post('/chat/draft')
-      .set('Authorization', `Bearer ${w.token}`)
-      .send({
-        messages: [
-          user('a'.repeat(4000)),
-          bot('ok'),
-          user('b'.repeat(4000)),
-          bot('ok'),
-          user('c'.repeat(100)),
-        ],
-      });
-    expect(res.status).toBe(400);
-    expect(res.body.error.details.field).toBe('messages');
   });
 });
 

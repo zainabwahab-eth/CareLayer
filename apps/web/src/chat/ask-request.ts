@@ -28,6 +28,8 @@ export interface AskRequest {
    * text alone, so a fresh draft (e.g. after it expires) is made from it too.
    */
   editedText?: string;
+  /** She removed "Notes from your assistant" on W07: they are not shared. */
+  notesRemoved?: boolean;
   /** She ticked "I agree to share this" on W07. */
   consented: boolean;
   nurseSelection: NurseSelection;
@@ -40,9 +42,12 @@ export interface AskRequest {
  * The fields W07 shows her, so the ones she agrees to share. Never her name, email,
  * phone or location (those are not in a draft at all).
  */
-export function sharedFieldsFor(draft: QuestionDraft): SharedField[] {
+export function sharedFieldsFor(
+  draft: QuestionDraft,
+  { notesRemoved = false }: { notesRemoved?: boolean } = {},
+): SharedField[] {
   const fields: SharedField[] = [...REQUIRED_SHARED_FIELDS];
-  if (draft.assistantNotes) fields.push('assistant_notes');
+  if (draft.assistantNotes && !notesRemoved) fields.push('assistant_notes');
   if (draft.ageRange) fields.push('age_range');
   if (draft.pregnancyWeeks != null) fields.push('pregnancy_weeks');
   return fields;

@@ -10,6 +10,8 @@ import {
   extractJsonObject,
   loadAssistantPrompt,
   MAX_HISTORY_TURNS,
+  fallbackQuestion,
+  questionFromChoice,
   toModeAMessage,
 } from '../src/modules/llm/assistant.js';
 import { LlmUnavailableError } from '../src/modules/llm/client.js';
@@ -330,5 +332,38 @@ describe('deterministic rules', () => {
     expect(ageRangeFor(45)).toBe('age_45_plus');
     expect(ageRangeFor(9)).toBeNull();
     expect(ageRangeFor(101)).toBeNull();
+  });
+});
+
+describe('choosing her question from a chat', () => {
+  const chat = [
+    { role: 'user' as const, text: 'I have a mosquito bite' },
+    { role: 'assistant' as const, text: 'Wash it.' },
+    { role: 'user' as const, text: ' Which contraceptive is best for me? ' },
+    { role: 'user' as const, text: 'I am 26 and I get migraines' },
+    { role: 'assistant' as const, text: 'A nurse could help.' },
+    { role: 'user' as const, text: 'ready now' },
+  ];
+
+  it('questionFromChoice: her chosen messages, verbatim, in order', () => {
+    expect(questionFromChoice(chat, [4, 3])).toBe(
+      'Which contraceptive is best for me?\n\nI am 26 and I get migraines',
+    );
+  });
+
+  it('questionFromChoice: refuses messages with an assistant reply between them', () => {
+    expect(questionFromChoice(chat, [1, 3])).toBeNull();
+  });
+
+  it('questionFromChoice: refuses the assistant’s messages, missing ones and nothing', () => {
+    expect(questionFromChoice(chat, [2])).toBeNull();
+    expect(questionFromChoice(chat, [3, 99])).toBeNull();
+    expect(questionFromChoice(chat, [])).toBeNull();
+  });
+
+  it('fallbackQuestion: the offered message, else her last real question (not "ready now")', () => {
+    expect(fallbackQuestion(chat, 0)).toBe('I have a mosquito bite');
+    expect(fallbackQuestion(chat)).toBe('I am 26 and I get migraines');
+    expect(fallbackQuestion(chat, 1)).toBe('I am 26 and I get migraines');
   });
 });

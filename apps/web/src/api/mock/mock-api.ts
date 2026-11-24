@@ -844,15 +844,21 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
       draft: (body) =>
         respond(() => {
           const data = currentData();
-          const originalText = questionTextFrom(requireTurns(body?.messages, false));
-          if (originalText.length > CHAT_LIMITS.maxQuestionLength) {
-            fail(400, 'VALIDATION_FAILED', 'Your messages are too long to send as one question.', {
-              field: 'messages',
-            });
-          }
-          // The whole question is checked, as on the API.
-          const flags = detectMockRedFlags(originalText);
+          const turns = requireTurns(body?.messages, false);
+          // Everything she wrote is checked for red flags, as on the API.
+          const flags = detectMockRedFlags(questionTextFrom(turns));
           if (flags.length > 0) return mockEmergencyResponse(flags);
+
+          // Like the API: the question is the message the nurse was offered for, else her
+          // latest real question (not "I'm ready to ask now"), never the whole chat.
+          const focus = body.focusIndex === undefined ? undefined : turns[body.focusIndex];
+          const hers = turns.filter((t) => t.role === 'user' && t.text.trim());
+          const question =
+            focus?.role === 'user' && focus.text.trim()
+              ? focus
+              : ([...hers].reverse().find((t) => t.text.trim().split(/\s+/).length > 4) ??
+                hers.at(-1)!);
+          const originalText = question.text.trim();
 
           const category = mockCategorise(originalText);
           const draft: QuestionDraft = {
