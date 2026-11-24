@@ -72,6 +72,23 @@ export function getInstallMode(): InstallMode {
   return 'none';
 }
 
+/**
+ * Where to send her when the browser has no install prompt (mode "none"):
+ * android - Chrome menu > Add to Home screen / Install app (or another Android browser)
+ * mac-safari - Safari on a Mac: File > Add to Dock
+ * desktop - any other computer browser
+ */
+export type ManualInstallPlatform = 'android' | 'mac-safari' | 'desktop';
+
+export function manualInstallPlatform(nav: Navigator = window.navigator): ManualInstallPlatform {
+  if (/android/i.test(nav.userAgent)) return 'android';
+  const safari =
+    /safari/i.test(nav.userAgent) &&
+    !/chrome|chromium|crios|edg|firefox|fxios/i.test(nav.userAgent);
+  if (/macintosh|mac os x/i.test(nav.userAgent) && safari) return 'mac-safari';
+  return 'desktop';
+}
+
 /** Open the browser's install dialog. Chrome allows this once per event. */
 export async function promptInstall(): Promise<InstallOutcome> {
   const event = deferred;

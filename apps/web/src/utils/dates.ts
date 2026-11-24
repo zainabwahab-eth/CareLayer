@@ -53,3 +53,29 @@ export function formatTime(iso: string) {
 export function formatFullDate(iso: string) {
   return fullDate.format(new Date(iso));
 }
+
+const longDay = new Intl.DateTimeFormat(LOCALE, { weekday: 'long', day: 'numeric', month: 'long' });
+
+/** "Tuesday, 11 November" (W05 desktop header). */
+export function formatLongDay(date: Date = new Date()) {
+  const parts = longDay.formatToParts(date);
+  const get = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value;
+  return `${get('weekday')}, ${get('day')} ${get('month')}`;
+}
+
+/** "Good morning" / "Good afternoon" / "Good evening" by her local time (W05). */
+export function greeting(date: Date = new Date()) {
+  const hour = date.getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 17) return 'Good afternoon';
+  return 'Good evening';
+}
+
+/** "Just now", "3 min ago", "2 h ago", then the list date (W05 active consultation). */
+export function formatTimeAgo(iso: string, now: Date = new Date()) {
+  const minutes = Math.floor((now.getTime() - Date.parse(iso)) / 60_000);
+  if (minutes < 1) return 'Just now';
+  if (minutes < 60) return `${minutes} min ago`;
+  if (minutes < 24 * 60) return `${Math.floor(minutes / 60)} h ago`;
+  return formatListDate(iso);
+}

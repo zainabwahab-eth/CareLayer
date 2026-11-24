@@ -1,3 +1,4 @@
+import { NEW_CHAT_STATE } from '../../chat/ask-route-state';
 import {
   stellarExplorerUrl,
   type AnswerResponse,
@@ -240,7 +241,7 @@ function AnswerView({ question, response }: { question: MyQuestion; response: An
       <Feedback questionId={question.id} initial={question.feedback?.helpful ?? null} />
 
       <div className={styles.actions}>
-        <ButtonLink to={paths.ask} fullWidth>
+        <ButtonLink to={paths.ask} state={NEW_CHAT_STATE} fullWidth>
           Ask another question
         </ButtonLink>
       </div>

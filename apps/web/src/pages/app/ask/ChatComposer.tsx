@@ -30,13 +30,21 @@ export interface ChatComposerProps {
   canAskNurse: boolean;
   /** The parent focuses the field (on open, after "Not now"). */
   textareaRef: RefObject<HTMLTextAreaElement | null>;
+  /** Text to start with (W05 "Start with a topic"). She edits it before sending. */
+  initialText?: string;
 }
 
 const COUNTER_FROM = Math.floor(CHAT_MESSAGE_MAX_LENGTH * 0.9);
 
-export function ChatComposer({ onSend, pending, canAskNurse, textareaRef }: ChatComposerProps) {
+export function ChatComposer({
+  onSend,
+  pending,
+  canAskNurse,
+  textareaRef,
+  initialText = '',
+}: ChatComposerProps) {
   const navigate = useNavigate();
-  const [text, setText] = useState('');
+  const [text, setText] = useState(initialText);
   const [askHint, setAskHint] = useState<string | null>(null);
   const fieldRef = textareaRef;
   const baseId = useId();

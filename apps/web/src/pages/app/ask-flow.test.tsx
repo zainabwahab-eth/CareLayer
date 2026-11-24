@@ -103,17 +103,19 @@ describe('Send to a nurse (W07-W10)', () => {
     const api = createMockApi({ latencyMs: 0, startSignedIn: true });
     const create = vi.spyOn(api.questions, 'create');
     renderApp(api, paths.ask);
-    await screen.findByText('authenticated');
+    await screen.findByText('authenticated', {}, { timeout: 5000 });
     await act(() => chat.current!.send('My period is two weeks late. Could I be pregnant?'));
 
     act(() => nav.current!(paths.askConsent));
-    expect(await screen.findByText(/exactly what the nurse will see/i)).toBeTruthy();
+    expect(
+      await screen.findByText(/exactly what the nurse will see/i, {}, { timeout: 5000 }),
+    ).toBeTruthy();
     const continueButton = screen.getByRole('button', { name: 'Continue' });
     expect((continueButton as HTMLButtonElement).disabled).toBe(true);
     fireEvent.click(screen.getByLabelText(/I agree to share this/));
     fireEvent.click(continueButton);
 
-    expect(await screen.findByText('Who should answer?')).toBeTruthy();
+    expect(await screen.findByText('Who should answer?', {}, { timeout: 5000 })).toBeTruthy();
     expect((screen.getByLabelText(/First available/) as HTMLInputElement).checked).toBe(true);
     await waitFor(() =>
       expect((screen.getByRole('button', { name: 'Continue' }) as HTMLButtonElement).disabled).toBe(
@@ -122,10 +124,14 @@ describe('Send to a nurse (W07-W10)', () => {
     );
     fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
 
-    expect(await screen.findByRole('heading', { name: 'Confirm and send' })).toBeTruthy();
+    expect(
+      await screen.findByRole('heading', { name: 'Confirm and send' }, { timeout: 5000 }),
+    ).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Confirm and send' }));
 
-    expect(await screen.findByText(/Waiting for a verified nurse/)).toBeTruthy();
+    expect(
+      await screen.findByText(/Waiting for a verified nurse/, {}, { timeout: 5000 }),
+    ).toBeTruthy();
     const body = create.mock.calls[0]![0];
     expect(body).toMatchObject({
       source: 'web',

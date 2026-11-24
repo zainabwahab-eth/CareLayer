@@ -1,4 +1,511 @@
-/* H8 install banner sits under the W05 content, one group gap below it. */
-.install {
-  margin-top: var(--layout-gap-group);
+/*
+ * W05 Home (Figma "W05 Home", "D-W05 Home", "D-W05 Home - empty").
+ * Mobile: one column, 16px gaps, 18px card padding. Desktop: 24px gaps, a flexible
+ * left column (Ask card, Recent consultations) and a 380px right column.
+ */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+
+.caption {
+  color: var(--color-text-muted);
+  font-family: var(--text-caption-family);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-leading);
+  font-weight: var(--text-caption-weight);
+  letter-spacing: var(--text-caption-tracking);
+}
+
+.small {
+  color: var(--color-text-muted);
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+}
+
+/* ---- Bell (desktop header): Consultations, with a dot when an answer is ready ---- */
+.bell {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-touch-target-min);
+  height: var(--size-touch-target-min);
+  border-radius: var(--radius-full);
+  color: var(--color-text);
+}
+
+.bell:hover {
+  background: var(--color-bg-surface-soft);
+}
+
+.bellDot {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  width: 0.5rem;
+  height: 0.5rem;
+  border: 2px solid var(--color-bg);
+  border-radius: var(--radius-full);
+  background: var(--color-accent);
+  box-sizing: content-box;
+}
+
+/* ---- Ask card ---- */
+.askCard {
+  display: flex;
+  flex-direction: column;
+  gap: 1.125rem;
+  padding: var(--space-32);
+  border-radius: var(--radius-lg);
+  background: var(--color-primary-bg);
+  color: var(--color-on-primary-bg);
+}
+
+.askTitle {
+  font-family: var(--text-display-m-family);
+  font-size: var(--text-display-m-size);
+  line-height: var(--text-display-m-leading);
+  font-weight: var(--text-display-m-weight);
+  letter-spacing: -0.01em;
+}
+
+.askText {
+  color: var(--color-on-primary-muted);
+  font-family: var(--text-body-l-family);
+  font-size: var(--text-body-l-size);
+  line-height: var(--text-body-l-leading);
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: var(--space-8) var(--space-8) var(--space-8) var(--space-20);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-surface);
+}
+
+.field:focus-within {
+  outline: 2px solid var(--color-on-primary);
+  outline-offset: 2px;
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  font-family: var(--text-body-l-family);
+  font-size: var(--text-body-l-size);
+  line-height: var(--text-body-l-leading);
+}
+
+.input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.input:focus {
+  outline: none;
+}
+
+.send {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-touch-target-min);
+  height: var(--size-touch-target-min);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--color-accent-bg);
+  color: var(--color-on-accent-bg);
+  cursor: pointer;
+}
+
+.send:hover {
+  filter: brightness(0.95);
+}
+
+.send:focus-visible {
+  outline: 2px solid var(--color-primary-text);
+  outline-offset: 2px;
+}
+
+/* Mobile Ask card: 18px padding, Display/S title, Body/M text, 40px send. */
+.askCompact {
+  gap: 0.875rem;
+  padding: 1.125rem;
+}
+
+.askCompact .askTitle {
+  font-family: var(--text-display-s-family);
+  font-size: var(--text-display-s-size);
+  line-height: var(--text-display-s-leading);
+  letter-spacing: -0.005em;
+}
+
+.askCompact .askText,
+.askCompact .input {
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+.askCompact .field {
+  padding: 0.375rem 0.375rem 0.375rem var(--space-16);
+}
+
+.askCompact .send {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+/* ---- Cards ---- */
+.card {
+  display: flex;
+  flex-direction: column;
+  padding: 1.125rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  color: inherit;
+  text-decoration: none;
+}
+
+/* ---- Active consultation ---- */
+.active {
+  gap: 0.625rem;
+}
+
+a.active:hover {
+  border-color: var(--color-primary-text);
+}
+
+a.active:focus-visible {
+  outline: 2px solid var(--color-primary-text);
+  outline-offset: 2px;
+}
+
+.activeTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-12);
+}
+
+.activeTitle {
+  color: var(--color-text);
+  font-family: var(--text-title-l-family);
+  font-size: var(--text-title-l-size);
+  line-height: var(--text-title-l-leading);
+  font-weight: var(--text-title-l-weight);
+  letter-spacing: var(--text-title-l-tracking);
+  overflow-wrap: anywhere;
+}
+
+.activeTitleCompact {
+  font-family: var(--text-title-m-family);
+  font-size: var(--text-title-m-size);
+  line-height: var(--text-title-m-leading);
+  letter-spacing: 0;
+}
+
+.who {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.progress {
+  display: block;
+  overflow: hidden;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-bg-surface-soft);
+}
+
+.progressBar {
+  display: block;
+  height: 100%;
+  border-radius: 3px;
+  background: var(--color-accent);
+}
+
+/* ---- Balance + free answers ---- */
+.stats {
+  display: flex;
+  gap: var(--space-12);
+}
+
+.stat {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-4);
+  min-width: 0;
+  padding: 0.875rem var(--space-16);
+  border: 1px solid var(--color-border);
+  border-radius: 1.125rem;
+  background: var(--color-bg-surface);
+}
+
+.statValue {
+  color: var(--color-text);
+  font-family: var(--text-title-l-family);
+  font-size: var(--text-title-l-size);
+  line-height: var(--text-title-l-leading);
+  font-weight: var(--text-title-l-weight);
+  letter-spacing: var(--text-title-l-tracking);
+}
+
+.statLink,
+.statMuted {
+  font-family: var(--text-label-s-family);
+  font-size: var(--text-label-s-size);
+  line-height: var(--text-label-s-leading);
+  font-weight: var(--text-label-s-weight);
+  letter-spacing: var(--text-label-s-tracking);
+}
+
+.statLink {
+  color: var(--color-primary-text);
+  text-decoration: none;
+}
+
+.statLink:hover {
+  text-decoration: underline;
+}
+
+.statMuted {
+  color: var(--color-text-muted);
+}
+
+/* ---- Private by default ---- */
+.privacy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: var(--space-20);
+  border-radius: var(--radius-lg);
+  background: var(--color-primary-bg-soft);
+  color: var(--color-primary-text);
+}
+
+.privacyTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  font-family: var(--text-title-m-family);
+  font-size: var(--text-title-m-size);
+  line-height: var(--text-title-m-leading);
+  font-weight: var(--text-title-m-weight);
+}
+
+.privacyText {
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+}
+
+/* ---- Recent consultations (desktop) ---- */
+.recent {
+  flex: 1 1 auto;
+  min-height: 18rem;
+  padding: var(--space-20);
+}
+
+.recentHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-12);
+  padding-bottom: var(--space-8);
+}
+
+.recentTitle {
+  color: var(--color-text);
+  font-family: var(--text-title-m-family);
+  font-size: var(--text-title-m-size);
+  line-height: var(--text-title-m-leading);
+  font-weight: var(--text-title-m-weight);
+}
+
+/* Figma "D-W05 Home - empty": the message sits in the middle of the card. */
+.recentEmpty {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-12);
+  color: var(--color-text-muted);
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+  text-align: center;
+}
+
+.rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  padding: 0.875rem 0;
+  border-top: 1px solid var(--color-border);
+  color: inherit;
+  text-decoration: none;
+}
+
+.row:hover .rowTitle {
+  text-decoration: underline;
+}
+
+.row:focus-visible {
+  outline: 2px solid var(--color-primary-text);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.rowText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rowTitle {
+  overflow: hidden;
+  color: var(--color-text);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rowCost {
+  flex: none;
+  color: var(--color-text);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+}
+
+.chevron {
+  flex: none;
+  color: var(--color-text-muted);
+}
+
+/* ---- Start with a topic (mobile) ---- */
+.topics {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.topicsTitle {
+  color: var(--color-text);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Figma "Chip/Default" as a link. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.5rem;
+  padding: 0 var(--space-16);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-surface);
+  color: var(--color-text);
+  font-family: var(--text-label-s-family);
+  font-size: var(--text-label-s-size);
+  line-height: var(--text-label-s-leading);
+  font-weight: var(--text-label-s-weight);
+  letter-spacing: var(--text-label-s-tracking);
+  text-decoration: none;
+}
+
+.chip:hover {
+  border-color: var(--color-primary-text);
+}
+
+.chip:focus-visible {
+  outline: 2px solid var(--color-primary-text);
+  outline-offset: 2px;
+}
+
+/* "Others": filled, as in the Figma frame. */
+.chipStrong {
+  border-color: var(--color-primary-bg);
+  background: var(--color-primary-bg);
+  color: var(--color-on-primary-bg);
+}
+
+/* ---- Desktop ---- */
+@media (min-width: 60rem) {
+  .page {
+    gap: var(--space-24);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 23.75rem; /* right column 380 */
+    align-items: stretch;
+    gap: var(--space-24);
+    min-height: calc(100dvh - 12rem);
+  }
+
+  .left,
+  .right {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-24);
+    min-width: 0;
+  }
+
+  .card {
+    padding: var(--space-20);
+  }
+
+  .active {
+    gap: var(--space-12);
+  }
+
+  .stats {
+    gap: var(--space-16);
+  }
+
+  .stat {
+    padding: var(--space-16) 1.125rem;
+    border-radius: var(--radius-lg);
+  }
 }
