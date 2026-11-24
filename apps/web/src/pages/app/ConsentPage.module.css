@@ -168,6 +168,17 @@
   background: var(--color-bg-surface-soft);
 }
 
+.notesRemoved {
+  border: 1px dashed var(--color-border);
+  background: transparent;
+}
+
+.edit:disabled {
+  color: var(--color-text-muted);
+  cursor: default;
+  text-decoration: none;
+}
+
 .badges {
   display: flex;
   flex-wrap: wrap;

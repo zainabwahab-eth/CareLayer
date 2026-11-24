@@ -3,8 +3,9 @@
 //
 //   reply  POST /chat        fixed red flags on her new message -> LLM (Mode A) -> its own red-flag
 //                            judgement -> reply, with a price offer when it suggests a nurse.
-//   draft  POST /chat/draft  her messages joined verbatim -> fixed red flags -> LLM (Mode B) ->
-//                            the exact question a nurse would get, signed, plus the price offer.
+//   draft  POST /chat/draft  fixed red flags on everything she wrote -> LLM (Mode B) picks which
+//                            of her messages are the question (verbatim) and writes notes from
+//                            the rest -> the exact question a nurse would get, signed, + price.
 //
 // The fixed list always runs before the LLM, so it works even when the LLM is down.
 import { randomUUID } from 'node:crypto';
@@ -110,30 +111,37 @@ export function createChatService(d: ChatServiceDeps) {
       };
     },
 
-    /** `channel` "mcp": Claude via an agent token (Claude's spending limit, emergencies logged as MCP). */
+    /**
+     * `channel` "mcp": Claude via an agent token (Claude's spending limit, emergencies logged as MCP).
+     * `focusIndex`: her message the assistant offered a nurse for (a hint for choosing the question).
+     * The question is her chosen message(s) verbatim, not the whole chat; relevant details from the
+     * rest of the chat go in the assistant notes.
+     */
     async draft(
       womanId: string,
       turns: ChatTurn[],
       channel: Channel = 'web',
+      focusIndex?: number,
     ): Promise<DraftResponse> {
-      const originalText = questionTextFrom(turns);
-      if (originalText.length > CHAT_LIMITS.maxQuestionLength) {
-        throw new AppError(
-          400,
-          'VALIDATION_FAILED',
-          `Your messages are too long to send as one question (max ${CHAT_LIMITS.maxQuestionLength} characters). Start a new question with just what you want to ask.`,
-          { field: 'messages' },
-        );
-      }
+      // Safety first: the fixed red-flag list runs on everything she wrote in the chat.
       const emergencySource = channel === 'mcp' ? 'MCP' : 'CHAT';
-      const flagged = matchRedFlags(d.redFlags, originalText);
+      const flagged = matchRedFlags(d.redFlags, questionTextFrom(turns));
       if (flagged.length) return recordEmergency(d, emergencySource, flagged);
 
       let prepared;
       try {
-        prepared = await d.assistant.prepareQuestion(originalText);
+        prepared = await d.assistant.prepareFromConversation(turns, focusIndex);
       } catch (err) {
         throw llmToAppError(err);
+      }
+      const originalText = prepared.originalText;
+      if (originalText.length > CHAT_LIMITS.maxQuestionLength) {
+        throw new AppError(
+          400,
+          'VALIDATION_FAILED',
+          `Your question is too long to send (max ${CHAT_LIMITS.maxQuestionLength} characters). Start a new question with just what you want to ask.`,
+          { field: 'messages' },
+        );
       }
       if (prepared.redFlagSuspected) return recordEmergency(d, emergencySource, ['llm']);
 
@@ -153,6 +161,7 @@ export function createChatService(d: ChatServiceDeps) {
         category: draft.category,
         cleanupFellBack: prepared.cleanupFellBack,
         hasNotes: draft.assistantNotes !== null,
+        selection: prepared.selection,
       });
       return {
         kind: 'draft',

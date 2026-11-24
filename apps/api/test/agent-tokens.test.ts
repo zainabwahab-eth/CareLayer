@@ -23,6 +23,8 @@ const JWT_SECRET = testConfig().auth.jwtAccessSecret;
 const hash = () => randomBytes(32).toString('hex');
 const CONSENT = { sharedFields: ['cleaned_text', 'category'], consentVersion: 'mcp-v1' };
 const MODE_B = {
+  // Claude's draft has one message of hers: that is the question.
+  questionMessages: [1],
   cleanedText: 'My period is two weeks late. Could I be pregnant?',
   assistantNotes: null,
   category: 'periods',

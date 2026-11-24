@@ -54,13 +54,22 @@ describe('mock chat.send (POST /chat)', () => {
 });
 
 describe('mock chat.draft (POST /chat/draft) + questions.create with draftToken', () => {
-  it('drafts her messages joined verbatim, and the question is stored as that draft', async () => {
+  it('drafts only her question (the offered message), and the question is stored as that draft', async () => {
     const api = signedIn();
     const draft = await api.chat.draft({
-      messages: [user('my period is late'), assistant('How late?'), user('two weeks')],
+      messages: [
+        user('I have a mosquito bite, what can I do about it?'),
+        assistant('Wash it.'),
+        user('Which contraceptive would be best for me if I get migraines?'),
+        assistant('A nurse could help.'),
+        user('ready now'),
+      ],
+      focusIndex: 2,
     });
     if (draft.kind !== 'draft') throw new Error('expected a draft');
-    expect(draft.draft.originalText).toBe('my period is late\n\ntwo weeks');
+    expect(draft.draft.originalText).toBe(
+      'Which contraceptive would be best for me if I get migraines?',
+    );
     expect(draft.offer).toMatchObject({ suggestedCategory: draft.draft.category });
 
     const created = (await api.questions.create({
@@ -72,6 +81,19 @@ describe('mock chat.draft (POST /chat/draft) + questions.create with draftToken'
     expect(created).toMatchObject({ kind: 'question', category: draft.draft.category });
     const mine = await api.questions.getMine(created.id);
     expect(mine.cleanedText).toBe(draft.draft.cleanedText);
+  });
+
+  it('without a hint, takes her latest real question, not "ready now"', async () => {
+    const api = signedIn();
+    const draft = await api.chat.draft({
+      messages: [
+        user('Is a 40-day cycle normal for someone my age?'),
+        assistant('...'),
+        user('ready now'),
+      ],
+    });
+    if (draft.kind !== 'draft') throw new Error('expected a draft');
+    expect(draft.draft.originalText).toBe('Is a 40-day cycle normal for someone my age?');
   });
 
   it('checks the whole question for red flags', async () => {

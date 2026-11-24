@@ -25,6 +25,7 @@ const EMPTY: ChatState = {
   offer: null,
   request: null,
   conversationId: null,
+  offeredFor: null,
 };
 
 /**
@@ -131,6 +132,7 @@ function ChatStore({ children }: { children: ReactNode }) {
           ...current,
           pending: false,
           offer: response.escalationOffer,
+          offeredFor: response.escalationOffer ? text : current.offeredFor,
           conversationId,
           entries: [
             ...current.entries.map((entry) =>

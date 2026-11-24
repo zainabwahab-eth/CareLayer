@@ -82,7 +82,10 @@ export function ConfirmPayPage() {
       const created = await api.questions.create({
         originalText: draft.originalText,
         source: 'web',
-        consent: { sharedFields: sharedFieldsFor(draft), consentVersion: CONSENT_VERSION },
+        consent: {
+          sharedFields: sharedFieldsFor(draft, { notesRemoved: request.notesRemoved }),
+          consentVersion: CONSENT_VERSION,
+        },
         nurseSelection: request.nurseSelection,
         chosenNurseId:
           request.nurseSelection === 'chosen_nurse' ? request.chosenNurse?.id : undefined,

@@ -39,7 +39,7 @@ export function ConsentPage() {
   const api = useApi();
   const navigate = useNavigate();
   const isDesktop = useMediaQuery(DESKTOP_QUERY);
-  const { canAskNurse, request, setRequest, thread } = chat;
+  const { canAskNurse, request, setRequest, thread, offeredFor } = chat;
   const [error, setError] = useState<unknown>(null);
   const [attempt, setAttempt] = useState(0);
   const [agreed, setAgreed] = useState(request?.consented ?? false);
@@ -63,6 +63,7 @@ export function ConsentPage() {
       draftExpiresAt: response.draftExpiresAt,
       offer: response.offer,
       editedText: edited,
+      notesRemoved: false,
       consented: false,
       // Keep her W08 choices if she came back for a fresh draft.
       nurseSelection: current?.nurseSelection ?? 'first_available',
@@ -79,9 +80,14 @@ export function ConsentPage() {
   useEffect(() => {
     if (!needsDraft) return;
     let cancelled = false;
-    // An edited question is drafted on its own; otherwise from the chat.
-    const messages: ChatTurn[] = editedText ? [{ role: 'user', text: editedText }] : thread();
-    api.chat.draft({ messages }).then(
+    // An edited question is drafted on its own. Otherwise the chat (the API's last 40 turns),
+    // with a hint at the message the assistant offered a nurse for: the API sends only her
+    // question to the nurse, and puts relevant details from the rest in the notes.
+    const messages: ChatTurn[] = editedText
+      ? [{ role: 'user', text: editedText }]
+      : thread().slice(-CHAT_LIMITS.maxTurns);
+    const focus = editedText ? -1 : lastIndexOfHers(messages, offeredFor);
+    api.chat.draft({ messages, focusIndex: focus >= 0 ? focus : undefined }).then(
       (response) => {
         if (!cancelled) applyDraftRef.current(response, editedText);
       },
@@ -92,7 +98,7 @@ export function ConsentPage() {
     return () => {
       cancelled = true;
     };
-  }, [api, needsDraft, attempt, thread, editedText]);
+  }, [api, needsDraft, attempt, thread, editedText, offeredFor]);
 
   // Nothing to consent to without her question (e.g. opened directly, or after a reload
   // without a saved chat). Send her back to the chat to ask it first.
@@ -185,12 +191,14 @@ export function ConsentPage() {
 
             <div className={styles.details}>
               {draft.assistantNotes && (
-                <section className={styles.notes} aria-labelledby="consent-notes">
-                  <h3 id="consent-notes" className={styles.label}>
-                    Notes from your assistant
-                  </h3>
-                  <p className={styles.bodyM}>{draft.assistantNotes}</p>
-                </section>
+                <Notes
+                  notes={draft.assistantNotes}
+                  removed={request?.notesRemoved ?? false}
+                  disabled={editing}
+                  onChange={(notesRemoved) =>
+                    setRequest((current) => (current ? { ...current, notesRemoved } : current))
+                  }
+                />
               )}
               <AlsoShared
                 badges={[
@@ -332,6 +340,57 @@ function QuestionCard({
           <p className={styles.question}>{text}</p>
           <p className={styles.caption}>Spelling tidied. Nothing removed or shortened.</p>
         </>
+      )}
+    </section>
+  );
+}
+
+/** Index of her latest message with this text (the one the nurse was offered for), or -1. */
+function lastIndexOfHers(turns: readonly ChatTurn[], text: string | null): number {
+  if (!text) return -1;
+  for (let i = turns.length - 1; i >= 0; i -= 1) {
+    if (turns[i]!.role === 'user' && turns[i]!.text === text) return i;
+  }
+  return -1;
+}
+
+/**
+ * "Notes from your assistant": relevant details from elsewhere in her chat. She can choose
+ * not to share them (they are then left out of the consent and never reach the nurse).
+ */
+function Notes({
+  notes,
+  removed,
+  disabled,
+  onChange,
+}: {
+  notes: string;
+  removed: boolean;
+  disabled: boolean;
+  onChange: (removed: boolean) => void;
+}) {
+  return (
+    <section
+      className={cx(styles.notes, removed && styles.notesRemoved)}
+      aria-labelledby="consent-notes"
+    >
+      <div className={styles.cardHead}>
+        <h3 id="consent-notes" className={styles.label}>
+          Notes from your assistant
+        </h3>
+        <button
+          type="button"
+          className={styles.edit}
+          disabled={disabled}
+          onClick={() => onChange(!removed)}
+        >
+          {removed ? 'Include' : 'Don’t include'}
+        </button>
+      </div>
+      {removed ? (
+        <p className={styles.caption}>Not shared. The nurse will only see your question.</p>
+      ) : (
+        <p className={styles.bodyM}>{notes}</p>
       )}
     </section>
   );

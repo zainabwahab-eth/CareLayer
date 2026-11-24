@@ -100,8 +100,10 @@ export interface Conversation {
 }
 
 /**
- * Exactly what a nurse would receive (W07 Consent shows it). `originalText` is her messages
- * joined verbatim; `cleanedText` fixes spelling and grammar only, never shortened.
+ * Exactly what a nurse would receive (W07 Consent shows it). `originalText` is her question:
+ * the message(s) of hers that ask it, verbatim (not the whole chat). `cleanedText` fixes spelling
+ * and grammar only, never shortened. `assistantNotes` summarises relevant details from the rest
+ * of the chat.
  */
 export interface QuestionDraft {
   originalText: string;
@@ -115,7 +117,15 @@ export interface QuestionDraft {
 }
 
 // POST /chat/draft  (W07 Consent, and "Ask a nurse directly")
-export type DraftRequestBody = ChatRequestBody;
+export interface DraftRequestBody {
+  /** The chat so far, oldest first. Only her chosen message(s) become the question. */
+  messages: ChatTurn[];
+  /**
+   * Index in `messages` of her message the assistant offered a nurse for, when known. A hint:
+   * the model still picks the question (e.g. she later wrote "I'm ready to ask now").
+   */
+  focusIndex?: number;
+}
 
 export type DraftResponse =
   | {

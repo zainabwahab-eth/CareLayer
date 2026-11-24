@@ -326,3 +326,35 @@ describe('ChatProvider send flow (W07-W09)', () => {
     expect(chat.current!.request).toBeNull();
   });
 });
+
+describe('ChatProvider: the message a nurse was offered for', () => {
+  const offer = {
+    price: { kobo: 50_000, usdc: '0.31' },
+    isFree: true,
+    freeAnswersRemaining: 3,
+    suggestedCategory: 'contraception' as const,
+    exceedsSpendingLimit: false,
+  };
+
+  it('remembers it through later messages, and forgets it on a new chat', async () => {
+    const { chat } = setup(async ({ messages }) => {
+      const her = messages.at(-1)!.text;
+      return {
+        ...reply(`re:${her}`),
+        escalationOffer: her.includes('contraceptive') ? offer : null,
+      };
+    });
+    await screen.findByText('authenticated');
+
+    await act(() => chat.current!.send('I have a mosquito bite'));
+    expect(chat.current!.offeredFor).toBeNull();
+    await act(() => chat.current!.send('Which contraceptive is best for me?'));
+    expect(chat.current!.offeredFor).toBe('Which contraceptive is best for me?');
+    // "I'm ready to ask now" gets no new offer: the question stays the one offered for.
+    await act(() => chat.current!.send('I am ready to ask now'));
+    expect(chat.current!.offeredFor).toBe('Which contraceptive is best for me?');
+
+    act(() => chat.current!.reset());
+    expect(chat.current!.offeredFor).toBeNull();
+  });
+});
