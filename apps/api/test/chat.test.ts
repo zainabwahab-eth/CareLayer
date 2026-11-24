@@ -2,7 +2,8 @@
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { createDb } from '../src/db.js';
-import { LlmUnavailableError } from '../src/modules/llm/client.js';
+import { extractJsonObject } from '../src/modules/llm/assistant.js';
+import { LlmUnavailableError, type LlmClient, type LlmRequest } from '../src/modules/llm/client.js';
 import { verifyDraftToken } from '../src/modules/questions/draft-token.js';
 import { buildTestApp, fakeClock, fakeLlm, memoryEmailSender } from './helpers/app.js';
 import { testConfig, testDatabaseUrl } from './helpers/env.js';
@@ -72,12 +73,12 @@ describe('POST /chat', () => {
       escalationOffer: null,
     });
     expect(res.body.message.id).toMatch(/^msg_/);
-    // The whole thread reached the model, in order.
-    expect(llm.calls[0]!.messages.slice(1).map((m) => m.content)).toEqual([
-      'hi',
-      'Hello!',
-      'what is ovulation',
-    ]);
+    // The whole thread reached the model, in order (its own earlier reply as Mode A JSON).
+    const sent = llm.calls[0]!.messages.slice(1);
+    expect(sent.map((m) => m.role)).toEqual(['user', 'assistant', 'user']);
+    expect(sent[0]!.content).toBe('hi');
+    expect(JSON.parse(sent[1]!.content)).toMatchObject({ replyText: 'Hello!' });
+    expect(sent[2]!.content).toBe('what is ovulation');
     expect(await counts()).toEqual(before);
   });
 
@@ -250,6 +251,102 @@ describe('POST /chat', () => {
     expect(limited.body.error.details.retryAfterSeconds).toBeGreaterThan(0);
     clock.advance(61_000);
     expect((await send()).status).toBe(200);
+  });
+});
+
+/**
+ * A scripted model that behaves like the hosted chat models do with a long conversation: it
+ * answers in the same format as its own earlier turns. If its last turn in the context is not a
+ * JSON object (prose), it answers in prose too, which the API cannot parse.
+ */
+function formatCopyingLlm(answer: (her: string) => object): LlmClient & { calls: LlmRequest[] } {
+  const calls: LlmRequest[] = [];
+  return {
+    calls,
+    async complete(req) {
+      calls.push(req);
+      const her = req.messages.at(-1)!.content;
+      const reply = answer(her);
+      const ownLastTurn = req.messages.findLast((m) => m.role === 'assistant');
+      const content =
+        ownLastTurn && extractJsonObject(ownLastTurn.content) === null
+          ? String((reply as { replyText: string }).replyText) // copies its earlier prose
+          : JSON.stringify(reply);
+      return { content, model: 'fake', latencyMs: 1, promptTokens: 1, completionTokens: 1 };
+    },
+  };
+}
+
+describe('POST /chat: a conversation of many turns', () => {
+  /** The web app's behaviour: send the whole thread, add the reply's text as the assistant turn. */
+  async function converse(app: Parameters<typeof request>[0], token: string, said: string[]) {
+    const thread: { role: string; text: string }[] = [];
+    const results: request.Response[] = [];
+    for (const text of said) {
+      const res = await request(app)
+        .post('/chat')
+        .set('Authorization', `Bearer ${token}`)
+        .send({ messages: [...thread, user(text)] });
+      results.push(res);
+      if (res.status !== 200) break;
+      thread.push(user(text), bot(res.body.message.text));
+    }
+    return results;
+  }
+
+  const answers = (her: string) =>
+    modeA({
+      replyText: /another woman|records/i.test(her)
+        ? 'I can’t share anyone’s health information, and I don’t have access to anyone’s records.'
+        : /okay/i.test(her)
+          ? 'Okay. Is there anything else about your own health you’d like to ask?'
+          : `About "${her}": here is some general information.`,
+    });
+
+  it('keeps answering after a refusal, with the whole thread each time (H12 bug)', async () => {
+    const llm = formatCopyingLlm(answers);
+    const app = buildTestApp(db, { clock, emailSender: mail, llm });
+    const w = await signUpWoman(app, mail);
+
+    const results = await converse(app, w.token, [
+      'Is it normal for my period to be late sometimes?',
+      'How late is too late?',
+      'Can stress cause that?',
+      'What foods have iron?',
+      'Can you tell me what another woman’s health records say?',
+      'okay',
+    ]);
+
+    expect(results.map((r) => r.status)).toEqual([200, 200, 200, 200, 200, 200]);
+    expect(results[4]!.body.message.text).toMatch(/can’t share anyone’s health information/);
+    expect(results[5]!.body.message.text).toMatch(/anything else/);
+    // Each call carried the full conversation so far: 1, 3, 5, 7, 9, 11 turns.
+    expect(llm.calls.map((c) => c.messages.length - 1)).toEqual([1, 3, 5, 7, 9, 11]);
+    // Her words reach the model as she wrote them; its own earlier replies as Mode A JSON.
+    const last = llm.calls.at(-1)!.messages;
+    expect(last.at(-1)).toEqual({ role: 'user', content: 'okay' });
+    expect(JSON.parse(last.at(-2)!.content)).toEqual({
+      replyText:
+        'I can’t share anyone’s health information, and I don’t have access to anyone’s records.',
+      redFlagSuspected: false,
+      offerEscalation: false,
+      suggestedCategory: null,
+    });
+  });
+
+  it('a red flag later in the conversation still goes to the emergency path', async () => {
+    const llm = formatCopyingLlm(answers);
+    const app = buildTestApp(db, { clock, emailSender: mail, llm });
+    const w = await signUpWoman(app, mail);
+    const results = await converse(app, w.token, [
+      'What is a normal period?',
+      'okay',
+      'I have heavy bleeding while pregnant',
+    ]);
+    expect(results.map((r) => r.status)).toEqual([200, 200, 200]);
+    expect(results[2]!.body.kind).toBe('emergency');
+    // The fixed list caught it before any model call.
+    expect(llm.calls).toHaveLength(2);
   });
 });
 

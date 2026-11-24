@@ -11,6 +11,7 @@ import check16 from '../../assets/icons/check-16.svg';
 import chevron18 from '../../assets/icons/chevron-18.svg';
 import chat from '../../assets/icons/chat.svg';
 import clock from '../../assets/icons/clock.svg';
+import edit14 from '../../assets/icons/edit-14.svg';
 import eyeOff22 from '../../assets/icons/eye-off-22.svg';
 import heart22 from '../../assets/icons/heart-22.svg';
 import eyeOff from '../../assets/icons/eye-off.svg';
@@ -19,6 +20,7 @@ import lock18 from '../../assets/icons/lock-18.svg';
 import lock22 from '../../assets/icons/lock-22.svg';
 import lock from '../../assets/icons/lock.svg';
 import mail30 from '../../assets/icons/mail-30.svg';
+import receipt20 from '../../assets/icons/receipt-20.svg';
 import search18 from '../../assets/icons/search-18.svg';
 import send20 from '../../assets/icons/send-20.svg';
 import shield18 from '../../assets/icons/shield-18.svg';
@@ -33,6 +35,7 @@ import sparkle20 from '../../assets/icons/sparkle-20.svg';
 import upload20 from '../../assets/icons/upload-20.svg';
 import user from '../../assets/icons/user.svg';
 import wallet22 from '../../assets/icons/wallet-22.svg';
+import zap20 from '../../assets/icons/zap-20.svg';
 
 /*
  * Icons exported from the Figma design system (icon/* layers).
@@ -73,6 +76,10 @@ export const icons = {
   heart: { src: heart22, frame: 22, x: 3.708, y: 4.667, w: 14.583, h: 14.083 },
   upload: { src: upload20, frame: 20, x: 2.875, y: 2.875, w: 14.25, h: 14.667 },
   camera: { src: camera20, frame: 20, x: 2.042, y: 2.875, w: 15.917, h: 13.833 },
+  // Ask a nurse flow (W07 "Edit", W08 "First available", W11 receipt).
+  edit: { src: edit14, frame: 14, x: 2.041, y: 2.334, w: 9.625, h: 9.625 },
+  zap: { src: zap20, frame: 20, x: 3.709, y: 2.041, w: 12.583, h: 15.917 },
+  receipt: { src: receipt20, frame: 20, x: 4.125, y: 2.041, w: 11.75, h: 15.917 },
   sparkle: [
     { src: sparkle16, frame: 16, x: 2.792, y: 1.792, w: 10.417, h: 10.417 },
     { src: sparkle20, frame: 20, x: 3.708, y: 2.458, w: 12.583, h: 12.583 },

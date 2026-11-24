@@ -49,6 +49,12 @@ export interface ChatState {
    * (emergencies never go through payment or the nurse queue).
    */
   offer: EscalationOffer | null;
+  /**
+   * The thread the API has seen, oldest first: her delivered messages and the
+   * assistant's replies (failed sends left out). W07 sends it to POST /chat/draft,
+   * which turns all of her messages into the question, word for word.
+   */
+  turns: readonly ChatTurn[];
 }
 
 export type SendResult =
@@ -78,6 +84,21 @@ export interface ChatContextValue extends ChatState {
 /** See ChatContextValue.canAskNurse. */
 export function hasAnsweredQuestion(entries: readonly ChatEntry[]): boolean {
   return entries.some((entry) => entry.kind === 'user' && entry.outcome === 'reply');
+}
+
+/**
+ * An assistant reply as it is sent back in the thread. POST /chat accepts at most
+ * CHAT_LIMITS.maxTextLength characters per turn, assistant turns included, but a reply
+ * itself may be longer: sent whole, one long reply would make every later message fail
+ * with 400. She still sees the full reply; only the context sent back is clipped.
+ */
+export function historyText(text: string): string {
+  const max = CHAT_LIMITS.maxTextLength;
+  if (text.length <= max) return text;
+  let clipped = text.slice(0, max - 1);
+  // Never leave half of a surrogate pair (emoji) at the end.
+  if (/[\uD800-\uDBFF]$/.test(clipped)) clipped = clipped.slice(0, -1);
+  return `${clipped}…`;
 }
 
 /**

@@ -3,6 +3,7 @@ import type {
   AuthTokensResponse,
   ChatRequestBody,
   ChatResponse,
+  CollectAnswerBody,
   CreateQuestionBody,
   CreateQuestionResponse,
   CreateTopupBody,
@@ -129,8 +130,14 @@ export interface CareLayerApi {
     listMine(query?: MyQuestionsQuery): Promise<Page<MyQuestion>>;
     /** GET /me/questions/:id */
     getMine(id: Id): Promise<MyQuestion>;
-    /** POST /me/questions/:id/collect. Pays (or uses a free answer) and returns the nurse's answer. */
-    collectAnswer(id: Id): Promise<AnswerResponse>;
+    /**
+     * POST /me/questions/:id/collect. Pays (or uses a free answer) and returns the nurse's answer.
+     * The API's own agent pays over x402 from her custodial wallet; the client never pays itself.
+     * Calling it again for a collected answer returns the same answer and receipt, never a second
+     * charge (contract §8.3 step 3). Pass `approvedAboveLimit` only after she approved a price above
+     * her limit (409 SPENDING_LIMIT_EXCEEDED).
+     */
+    collectAnswer(id: Id, body?: CollectAnswerBody): Promise<AnswerResponse>;
     /** POST /questions/:id/feedback. Helpful / not helpful; sending again changes it. */
     submitFeedback(id: Id, body: FeedbackBody): Promise<FeedbackResponse>;
   };

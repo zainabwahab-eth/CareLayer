@@ -1,17 +1,13 @@
 import { createBrowserRouter, type RouteObject } from 'react-router';
 import { AppLayout } from '../layouts/AppLayout';
+import { SessionLoading } from '../auth/SessionLoading';
 import { AuthLayout } from '../layouts/AuthLayout';
 import { RootLayout } from '../layouts/RootLayout';
 import { StandaloneLayout } from '../layouts/StandaloneLayout';
 import { AccountPage } from '../pages/app/AccountPage';
 import { AskPage } from '../pages/app/AskPage';
-import { ChooseAnswererPage } from '../pages/app/ChooseAnswererPage';
-import { ConfirmPayPage } from '../pages/app/ConfirmPayPage';
-import { ConsentPage } from '../pages/app/ConsentPage';
 import { HistoryPage } from '../pages/app/HistoryPage';
 import { HomePage } from '../pages/app/HomePage';
-import { NurseResponsePage } from '../pages/app/NurseResponsePage';
-import { WaitingPage } from '../pages/app/WaitingPage';
 import { WalletPage } from '../pages/app/WalletPage';
 import { EmergencyPage } from '../pages/EmergencyPage';
 import { NotFoundPage } from '../pages/NotFoundPage';
@@ -26,6 +22,26 @@ import { RequireAuth } from './RequireAuth';
 import type { RouteHandle } from './route-handle';
 
 const handle = (value: RouteHandle) => value;
+
+/*
+ * The ask-a-nurse screens (W07-W11) load on demand: most visits never send a
+ * question, so their code stays out of the first download. Navigating to one
+ * keeps the current screen until it has loaded; opening one directly (e.g. the
+ * "your answer is ready" email) shows the loading screen, with Quick exit.
+ */
+const askFlow = {
+  consent: async () => ({ Component: (await import('../pages/app/ConsentPage')).ConsentPage }),
+  choose: async () => ({
+    Component: (await import('../pages/app/ChooseAnswererPage')).ChooseAnswererPage,
+  }),
+  confirm: async () => ({
+    Component: (await import('../pages/app/ConfirmPayPage')).ConfirmPayPage,
+  }),
+  waiting: async () => ({ Component: (await import('../pages/app/WaitingPage')).WaitingPage }),
+  response: async () => ({
+    Component: (await import('../pages/app/NurseResponsePage')).NurseResponsePage,
+  }),
+} satisfies Record<string, RouteObject['lazy']>;
 
 /* Dev-only component gallery: lazy so it is never in the production bundle. */
 const devRoutes: RouteObject[] = import.meta.env.DEV
@@ -42,6 +58,7 @@ const devRoutes: RouteObject[] = import.meta.env.DEV
 export const routes: RouteObject[] = [
   {
     Component: RootLayout,
+    HydrateFallback: SessionLoading,
     children: [
       // Public: W01 landing page. Full-bleed, renders its own header and <main>.
       { path: paths.welcome, Component: WelcomePage },
@@ -89,21 +106,17 @@ export const routes: RouteObject[] = [
                 Component: AskPage,
                 handle: handle({ nav: 'ask', fullBleed: true }),
               },
-              { path: paths.askConsent, Component: ConsentPage, handle: handle({ nav: 'ask' }) },
-              {
-                path: paths.askChoose,
-                Component: ChooseAnswererPage,
-                handle: handle({ nav: 'ask' }),
-              },
-              { path: paths.askConfirm, Component: ConfirmPayPage, handle: handle({ nav: 'ask' }) },
+              { path: paths.askConsent, lazy: askFlow.consent, handle: handle({ nav: 'ask' }) },
+              { path: paths.askChoose, lazy: askFlow.choose, handle: handle({ nav: 'ask' }) },
+              { path: paths.askConfirm, lazy: askFlow.confirm, handle: handle({ nav: 'ask' }) },
               {
                 path: paths.consultationWaiting,
-                Component: WaitingPage,
+                lazy: askFlow.waiting,
                 handle: handle({ nav: 'history' }),
               },
               {
                 path: paths.consultation,
-                Component: NurseResponsePage,
+                lazy: askFlow.response,
                 handle: handle({ nav: 'history' }),
               },
               {

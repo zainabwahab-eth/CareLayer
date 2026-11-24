@@ -901,7 +901,7 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
 
       getMine: (id) => respond(() => toMyQuestion(findQuestion(id))),
 
-      collectAnswer: (id) =>
+      collectAnswer: (id, body = {}) =>
         respond(() => {
           const data = currentData();
           const q = findQuestion(id);
@@ -918,11 +918,26 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
           if (q.isFree) {
             data.wallet.freeAnswersRemaining = Math.max(0, data.wallet.freeAnswersRemaining - 1);
           } else {
+            // Same order as the API (contract §8.4): her limit first, then her balance.
+            const limitKobo = data.settings.spendingLimitPerAnswerKobo;
+            if (MOCK_ANSWER_PRICE_KOBO > limitKobo && body.approvedAboveLimit !== true) {
+              fail(
+                409,
+                'SPENDING_LIMIT_EXCEEDED',
+                'This answer costs more than your limit per answer. Approve it to continue.',
+                { priceKobo: MOCK_ANSWER_PRICE_KOBO, spendingLimitKobo: limitKobo },
+              );
+            }
             if (data.wallet.balanceKobo < MOCK_ANSWER_PRICE_KOBO) {
-              fail(409, 'INSUFFICIENT_BALANCE', 'Top up your balance to see this answer.', {
-                priceKobo: MOCK_ANSWER_PRICE_KOBO,
-                balanceKobo: data.wallet.balanceKobo,
-              });
+              fail(
+                409,
+                'INSUFFICIENT_BALANCE',
+                'Not enough in your wallet for this answer. Top up to continue.',
+                {
+                  price: mockMoney(MOCK_ANSWER_PRICE_KOBO),
+                  balance: mockMoney(data.wallet.balanceKobo),
+                },
+              );
             }
             data.wallet.balanceKobo -= MOCK_ANSWER_PRICE_KOBO;
             q.stellarTxHash = mockStellar('tx', nextId('pay').replace(/^mock_/, ''));

@@ -12,10 +12,11 @@ import {
   type ChatState,
   type SendResult,
   hasAnsweredQuestion,
+  historyText,
   threadFor,
 } from './chat-context';
 
-const EMPTY: ChatState = { entries: [], pending: false, offer: null };
+const EMPTY: ChatState = { entries: [], pending: false, offer: null, turns: [] };
 
 /**
  * Holds the current W06 chat above the router, so it survives moving to the
@@ -80,6 +81,7 @@ function ChatStore({ children }: { children: ReactNode }) {
             ...current,
             pending: false,
             offer: null,
+            turns: messages,
             entries: [
               ...current.entries.map((entry) =>
                 entry.kind === 'user' && entry.id === entryId
@@ -102,11 +104,16 @@ function ChatStore({ children }: { children: ReactNode }) {
           return { kind: 'emergency', response };
         }
 
-        delivered.current = [...messages, { role: 'assistant', text: response.message.text }];
+        const turns: ChatTurn[] = [
+          ...messages,
+          { role: 'assistant', text: historyText(response.message.text) },
+        ];
+        delivered.current = turns;
         setChat((current) => ({
           ...current,
           pending: false,
           offer: response.escalationOffer,
+          turns,
           entries: [
             ...current.entries.map((entry) =>
               entry.kind === 'user' && entry.id === entryId

@@ -45,8 +45,9 @@ export const MAX_HISTORY_TURNS = 20;
 const MODE_A_INSTRUCTIONS = `
 ---
 ## Call instructions (added by the API)
-This call is **Mode A — Conversational reply**. The messages that follow are the conversation so far, oldest first; the last one is her new message. Respond with only the Mode A JSON object, with no text, markdown or code fence around it:
-{"replyText": string, "redFlagSuspected": boolean, "offerEscalation": boolean, "suggestedCategory": "pregnancy" | "periods" | "contraception" | "sexual_health" | "general" | null}`;
+This call is **Mode A — Conversational reply**. The messages that follow are the conversation so far, oldest first; the last one is her new message. Her messages are plain text. Your earlier replies are shown as the Mode A JSON objects you returned. Respond with only the Mode A JSON object, with no text, markdown or code fence around it:
+{"replyText": string, "redFlagSuspected": boolean, "offerEscalation": boolean, "suggestedCategory": "pregnancy" | "periods" | "contraception" | "sexual_health" | "general" | null}
+Every reply must be this JSON object, however short or casual her message is (for example "okay", "thanks" or a follow-up question), and also after you have declined a request.`;
 
 const MODE_B_INSTRUCTIONS = `
 ---
@@ -74,6 +75,30 @@ const ModeBSchema = z.object({
   statedAge: z.number().int().nullable().optional(),
   pregnancyWeeks: z.number().int().nullable().optional(),
 });
+
+/**
+ * The conversation as the model sees it in Mode A. Her turns are her words. The assistant's
+ * earlier turns are re-encoded as the Mode A JSON object the model is told to return, because the
+ * client only keeps their text: sent as bare prose, they contradict the "JSON only" instruction,
+ * and models copy the format of their own earlier turns. That is what broke the second message of
+ * a conversation (prose reply -> invalid twice -> 503). An earlier offer or red flag is not kept by
+ * the client, so they are shown as false: the model judges each new message on its own.
+ */
+export function modeAHistory(turns: readonly ChatTurn[]): LlmMessage[] {
+  return turns.map((t) =>
+    t.role === 'assistant'
+      ? {
+          role: 'assistant',
+          content: JSON.stringify({
+            replyText: t.text,
+            redFlagSuspected: false,
+            offerEscalation: false,
+            suggestedCategory: null,
+          }),
+        }
+      : { role: 'user', content: t.text },
+  );
+}
 
 export interface AssistantReply {
   text: string;
@@ -214,7 +239,7 @@ export function createAssistant(deps: {
       const turns = history.slice(-MAX_HISTORY_TURNS);
       const messages: LlmMessage[] = [
         { role: 'system', content: deps.systemPrompt + MODE_A_INSTRUCTIONS },
-        ...turns.map((t) => ({ role: t.role, content: t.text })),
+        ...modeAHistory(turns),
       ];
       return call('A', messages, (raw) => {
         const r = ModeASchema.safeParse(raw);

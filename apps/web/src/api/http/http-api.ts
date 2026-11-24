@@ -223,8 +223,12 @@ export function createHttpApi(
         authed<QuestionStatusResponse>('GET', `questions/${id(questionId)}/status`),
       listMine: (query) => authed<Page<MyQuestion>>('GET', 'me/questions', { query: { ...query } }),
       getMine: (questionId) => authed<MyQuestion>('GET', `me/questions/${id(questionId)}`),
-      collectAnswer: (questionId) =>
-        authed<AnswerResponse>('POST', `me/questions/${id(questionId)}/collect`),
+      collectAnswer: (questionId, body) =>
+        authed<AnswerResponse>(
+          'POST',
+          `me/questions/${id(questionId)}/collect`,
+          body ? { body } : undefined,
+        ),
       submitFeedback: (questionId, body) =>
         authed<FeedbackResponse>('POST', `questions/${id(questionId)}/feedback`, { body }),
     },
