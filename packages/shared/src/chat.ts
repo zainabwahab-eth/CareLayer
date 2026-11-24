@@ -1,6 +1,7 @@
 // AI assistant chat (free) and question drafts. See docs/API_CONTRACT.md §7.
-// Chat history is NOT stored on the server: the client keeps the thread in memory and sends it
-// with every message (decisions log, docs/TASKS.md §2).
+// Chat history is saved to her account (decision changed 2026-11-24): POST /chat stores her new
+// message and the reply in a conversation, and History lists them. The client still sends the
+// thread it shows, so the assistant always answers what she sees.
 import type { Id, IsoDateTime, Money } from './common.js';
 import type { EmergencyResponse } from './emergency.js';
 import type { AgeRange, QuestionCategory } from './questions.js';
@@ -24,7 +25,7 @@ export const CHAT_LIMITS = {
   requestsPerMinute: 12,
 } as const;
 
-/** A message the assistant wrote. `id` is generated per reply; nothing is stored. */
+/** A message in a conversation (the assistant's reply, or a stored turn). */
 export interface ChatMessage {
   id: Id;
   role: ChatRole;
@@ -46,11 +47,57 @@ export interface EscalationOffer {
 export interface ChatRequestBody {
   /** The whole thread so far, oldest first. The last turn is her new message (role "user"). */
   messages: ChatTurn[];
+  /**
+   * The conversation to add to (from an earlier POST /chat). Omit for a new chat: the server
+   * creates one and returns its id. Another woman's id is 404.
+   */
+  conversationId?: Id;
 }
 
 export type ChatResponse =
-  | { kind: 'reply'; message: ChatMessage; escalationOffer: EscalationOffer | null }
-  | EmergencyResponse;
+  | {
+      kind: 'reply';
+      message: ChatMessage;
+      escalationOffer: EscalationOffer | null;
+      /** The conversation her message and this reply were saved in (null if saving failed). */
+      conversationId: Id | null;
+    }
+  | (EmergencyResponse & {
+      /** The conversation her message was saved in (null if saving failed). No reply follows. */
+      conversationId: Id | null;
+    });
+
+// GET /chat/conversations (paged, most recently active first)
+export interface ConversationSummary {
+  id: Id;
+  /** The start of her first message. */
+  title: string;
+  /** The start of the last message in it. */
+  preview: string;
+  messageCount: number;
+  createdAt: IsoDateTime;
+  /** When the last message was added. */
+  updatedAt: IsoDateTime;
+}
+
+/** A stored message. `emergency`: her message raised an emergency (no reply follows it). */
+export interface ConversationMessage {
+  id: Id;
+  role: ChatRole;
+  text: string;
+  emergency: boolean;
+  createdAt: IsoDateTime;
+}
+
+// GET /chat/conversations/:id
+export interface Conversation {
+  id: Id;
+  title: string;
+  createdAt: IsoDateTime;
+  updatedAt: IsoDateTime;
+  /** Oldest first. */
+  messages: ConversationMessage[];
+}
 
 /**
  * Exactly what a nurse would receive (W07 Consent shows it). `originalText` is her messages
@@ -81,21 +128,3 @@ export type DraftResponse =
       offer: EscalationOffer;
     }
   | EmergencyResponse;
-
-// ---- Deprecated (contract v0 §7, replaced in Z6 by POST /chat). Kept so apps/web compiles until
-// it switches. The routes no longer exist. ----
-
-/** @deprecated Conversations are not stored. Use ChatRequestBody with POST /chat. */
-export interface Conversation {
-  id: Id;
-  createdAt: IsoDateTime;
-  messages: ChatMessage[];
-}
-
-/** @deprecated Use ChatRequestBody with POST /chat. */
-export interface SendMessageBody {
-  text: string;
-}
-
-/** @deprecated Same shape as ChatResponse. */
-export type SendMessageResponse = ChatResponse;

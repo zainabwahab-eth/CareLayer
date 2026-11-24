@@ -35,3 +35,11 @@ export function consultationPath(consultationId: string) {
 export function consultationWaitingPath(consultationId: string) {
   return paths.consultationWaiting.replace(':consultationId', encodeURIComponent(consultationId));
 }
+
+/** Query parameter holding the open saved chat on the Ask screen (/ask?c=…). */
+export const CHAT_PARAM = 'c';
+
+/** The Ask screen with a saved chat open (reload and History both use it). */
+export function chatPath(conversationId: string) {
+  return `${paths.ask}?${CHAT_PARAM}=${encodeURIComponent(conversationId)}`;
+}

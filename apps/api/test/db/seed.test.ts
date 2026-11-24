@@ -236,8 +236,14 @@ describe('schema invariants', () => {
     expect(cols).toEqual(['createdAt', 'id', 'source']);
   });
 
-  it('stores no chat history', async () => {
-    const tables = new Set((await columns()).map((c) => c.table_name.toLowerCase()));
-    for (const t of tables) expect(t).not.toMatch(/chat|message|conversation/);
+  it('keeps saved chats apart from questions (nurses never reach a chat)', async () => {
+    // Chats are saved to her account (2026-11-24), but nothing a nurse can read links to one.
+    const cols = await columns();
+    const chatLinks = cols.filter(
+      (c) =>
+        !['conversation', 'conversationmessage'].includes(c.table_name.toLowerCase()) &&
+        /conversation|chat/i.test(c.column_name),
+    );
+    expect(chatLinks).toEqual([]);
   });
 });

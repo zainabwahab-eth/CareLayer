@@ -64,7 +64,7 @@ Built for the **EmpowerHer: Building the Agent Economy** hackathon (women-focuse
   - **nothing sent to the queue**
   - emergency call options and help finding the nearest hospital
   - logged as an event with source and timestamp only (no user, no message text)
-- Chat history is not stored on the server; only questions sent to nurses are stored.
+- Chats with the assistant are saved to her account (changed 2026-11-24; previously not stored) so she can come back to them. Only she can see them (never nurses, never agent tokens) and she can delete any chat. Questions sent to nurses are stored separately.
 - **Emergency numbers must be verified before the demo.**
 
 ## 5. Payments (Stellar testnet, x402, USDC)

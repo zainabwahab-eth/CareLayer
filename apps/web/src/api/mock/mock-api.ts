@@ -35,6 +35,8 @@ import {
   type ApiErrorCode,
   type AuthTokensResponse,
   type ChatTurn,
+  type Conversation,
+  type ConversationMessage,
   type CreatedQuestion,
   type EscalationOffer,
   type Id,
@@ -116,6 +118,8 @@ interface UserData {
   topups: MockTopup[];
   /** Claude connections (agent tokens). Revoked ones are removed. */
   agentTokens: AgentTokenSummary[];
+  /** Saved chats, as POST /chat stores them. */
+  conversations: Conversation[];
 }
 
 interface MockTopup {
@@ -277,6 +281,7 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
         transactions: seedTransactions(),
         topups: readStoredTopups()[MOCK_USER.id] ?? [],
         agentTokens: [],
+        conversations: [],
       },
     ],
   ]);
@@ -340,6 +345,7 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
       transactions: [],
       topups: [],
       agentTokens: [],
+      conversations: [],
     });
     return user;
   }
@@ -696,32 +702,96 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
     },
 
     chat: {
-      // Stateless, like POST /chat: the thread comes from the client, nothing is kept.
+      // Like POST /chat: the thread comes from the client; her message and the reply are saved.
       send: (body) =>
         respond(() => {
           const data = currentData();
           const turns = requireTurns(body?.messages, true);
           const text = turns[turns.length - 1]!.text;
+          const existing = body.conversationId
+            ? data.conversations.find((c) => c.id === body.conversationId)
+            : undefined;
+          if (body.conversationId && !existing) fail(404, 'NOT_FOUND', 'Chat not found.');
+
+          const save = (messages: Array<Omit<ConversationMessage, 'id' | 'createdAt'>>) => {
+            const at = iso();
+            const rows = messages.map((m) => ({ ...m, id: nextId('cmsg'), createdAt: at }));
+            if (existing) {
+              existing.messages.push(...rows);
+              existing.updatedAt = at;
+              return existing.id;
+            }
+            const conversation: Conversation = {
+              id: nextId('chat'),
+              title: text.replace(/\s+/g, ' ').trim().slice(0, 80),
+              createdAt: at,
+              updatedAt: at,
+              messages: rows,
+            };
+            data.conversations.push(conversation);
+            return conversation.id;
+          };
 
           // Red-flag check on her new message first: emergency, nothing queued, free.
           const flags = detectMockRedFlags(text);
-          if (flags.length > 0) return mockEmergencyResponse(flags);
+          if (flags.length > 0) {
+            const conversationId = save([{ role: 'user', text, emergency: true }]);
+            return { ...mockEmergencyResponse(flags), conversationId };
+          }
 
           // Categorise from everything she has said, not just the latest message.
           const category = mockCategorise(questionTextFrom(turns));
           const userCount = turns.filter((t) => t.role === 'user').length;
+          const reply = mockAssistantReply(category);
+          const conversationId = save([
+            { role: 'user', text, emergency: false },
+            { role: 'assistant', text: reply, emergency: false },
+          ]);
           return {
             kind: 'reply' as const,
             message: {
               id: nextId('msg'),
               role: 'assistant' as const,
-              text: mockAssistantReply(category),
+              text: reply,
               createdAt: iso(),
             },
             escalationOffer: mockShouldOfferEscalation(text, userCount)
               ? escalationOffer(data, category)
               : null,
+            conversationId,
           };
+        }),
+
+      listConversations: (query = {}) =>
+        respond(() => {
+          const sorted = [...currentData().conversations].sort((a, b) =>
+            b.updatedAt.localeCompare(a.updatedAt),
+          );
+          return paginate(
+            sorted.map((c) => ({
+              id: c.id,
+              title: c.title,
+              preview: (c.messages.at(-1)?.text ?? '').slice(0, 120),
+              messageCount: c.messages.length,
+              createdAt: c.createdAt,
+              updatedAt: c.updatedAt,
+            })),
+            query,
+          );
+        }),
+
+      getConversation: (id) =>
+        respond(() => {
+          const found = currentData().conversations.find((c) => c.id === id);
+          return found ?? fail(404, 'NOT_FOUND', 'Chat not found.');
+        }),
+
+      deleteConversation: (id) =>
+        respond(() => {
+          const data = currentData();
+          const index = data.conversations.findIndex((c) => c.id === id);
+          if (index === -1) fail(404, 'NOT_FOUND', 'Chat not found.');
+          data.conversations.splice(index, 1);
         }),
       draft: (body) =>
         respond(() => {

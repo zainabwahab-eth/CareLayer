@@ -1,6 +1,6 @@
 import type { MyQuestion } from '@carelayer/shared';
-import { useDeferredValue, useId, useMemo, useState } from 'react';
-import { Link } from 'react-router';
+import { useDeferredValue, useId, useMemo, useState, type ReactNode } from 'react';
+import { Link, useSearchParams } from 'react-router';
 import { loadErrorMessage } from '../../api/error-message';
 import { usePagedQuery } from '../../api/usePagedQuery';
 import { useSessionGuard } from '../../auth/useSessionGuard';
@@ -15,6 +15,7 @@ import { paths } from '../../routes/paths';
 import { formatFullDate, formatListDate } from '../../utils/dates';
 import { formatNaira } from '../../utils/money';
 import styles from './HistoryPage.module.css';
+import { ChatHistory } from './history/ChatHistory';
 import {
   HISTORY_FILTERS,
   costLabel,
@@ -38,13 +39,66 @@ const EMPTY_FILTER_TEXT: Record<HistoryFilter, string> = {
   in_review: 'Nothing is waiting for a nurse right now.',
 };
 
+/** History tabs: questions sent to nurses (W12) and saved assistant chats. */
+export type HistoryTab = 'questions' | 'chats';
+const TAB_PARAM = 'tab';
+
 /**
- * W12 History (Figma: W12 History 8:232 / D-W12 History 26:673).
- * Mobile: filter chips, summary line, one card per question.
- * Desktop: stat cards, filters + search, table.
- * Data: GET /me/questions (contract §8.4).
+ * History: two tabs.
+ *   Nurse questions: W12 (Figma: W12 History 8:232 / D-W12 History 26:673), GET /me/questions.
+ *   Assistant chats: her saved chats (no Figma frame; built from the W12 card pattern),
+ *   GET /chat/conversations.
+ * The tab is in the URL (?tab=chats) so Back and reload keep it.
  */
 export function HistoryPage() {
+  const isDesktop = useMediaQuery(DESKTOP_QUERY);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tab: HistoryTab = searchParams.get(TAB_PARAM) === 'chats' ? 'chats' : 'questions';
+
+  const header = (
+    <PageHeader
+      title="History"
+      subtitle={
+        isDesktop
+          ? tab === 'chats'
+            ? 'Your chats with the assistant. Only you can see them.'
+            : 'Every question you’ve sent to a nurse, with answers and receipts.'
+          : undefined
+      }
+    />
+  );
+  const tabs = (
+    <div className={styles.tabs} role="group" aria-label="Show">
+      <Chip selected={tab === 'questions'} onClick={() => setSearchParams({}, { replace: true })}>
+        Nurse questions
+      </Chip>
+      <Chip
+        selected={tab === 'chats'}
+        onClick={() => setSearchParams({ [TAB_PARAM]: 'chats' }, { replace: true })}
+      >
+        Assistant chats
+      </Chip>
+    </div>
+  );
+  const top = (
+    <>
+      {header}
+      {tabs}
+    </>
+  );
+
+  return tab === 'chats' ? (
+    <div className={styles.page}>
+      {top}
+      <ChatHistory />
+    </div>
+  ) : (
+    <QuestionHistory top={top} />
+  );
+}
+
+/** The W12 list of questions sent to nurses. */
+function QuestionHistory({ top }: { top: ReactNode }) {
   const isDesktop = useMediaQuery(DESKTOP_QUERY);
   const questions = usePagedQuery((api, cursor) =>
     api.questions.listMine({ cursor, limit: PAGE_SIZE }),
@@ -73,14 +127,7 @@ export function HistoryPage() {
   const stats =
     questions.status === 'success' && !questions.hasMore ? historyStats(questions.items) : null;
 
-  const header = (
-    <PageHeader
-      title={isDesktop ? 'Consultation history' : 'History'}
-      subtitle={
-        isDesktop ? 'Every question you’ve sent to a nurse, with answers and receipts.' : undefined
-      }
-    />
-  );
+  const header = top;
 
   if (questions.status === 'loading') {
     return (
