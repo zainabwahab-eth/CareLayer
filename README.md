@@ -14,9 +14,9 @@ Built for the EmpowerHer: Building the Agent Economy hackathon.
 | What                         | Link                                                                                                             |
 | ---------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | Women's app and landing page | [www.carelayer.health](https://www.carelayer.health)                                                             |
-| Health worker app            | [care-layer-workers.vercel.app](https://care-layer-workers.vercel.app)                                           |
+| Health worker app            | [practice.carelayer.health](https://practice.carelayer.health)                                                   |
 | API                          | [api.carelayer.health](https://api.carelayer.health/health) (`/health` returns `{ "status": "ok" }`)             |
-| Admin console (licences)     | [api.carelayer.health/admin-console](https://api.carelayer.health/admin-console)                                 |
+| Admin console (licences)     | [api.carelayer.health/admin-console](https://api.carelayer.health/admin-console) (admins only, see below)        |
 | MCP server for Claude        | `https://mcp.carelayer.health/mcp` (setup: [`apps/mcp/README.md`](apps/mcp/README.md))                           |
 | API docs (Postman)           | [documenter.getpostman.com/view/44554019/2sBYPv3YMs](https://documenter.getpostman.com/view/44554019/2sBYPv3YMs) |
 
@@ -25,31 +25,79 @@ Everything runs on **test money**:
 - Top-ups use Paystack test mode. Use a Paystack test card, not a real one.
 - USDC payments are on the Stellar **testnet**. Every transaction can be checked on [stellar.expert (testnet)](https://stellar.expert/explorer/testnet).
 
+**Admin console:** only existing admin accounts can sign in. Anyone can open the page, but:
+
+- Sign-in uses a code emailed to an admin address.
+- Admin accounts can't be created by signing up (the API refuses with 403). They are only created by the server's seed step.
+- Every `/admin/*` request checks for the admin role, so a woman's or nurse's account gets 403.
+
+## Built on x402 and Stellar
+
+### x402: agents pay per answer
+
+The nurse's answer is a paid resource behind **x402**. `GET /questions/:id/answer` returns `402 Payment Required` with the price in USDC. The agent signs a Stellar payment, retries with `PAYMENT-SIGNATURE`, and gets the answer with a `PAYMENT-RESPONSE` receipt.
+
+- **Official x402 packages:** `@x402/core`, `@x402/stellar`, `@x402/fetch` and `@x402/express`. Network `stellar:testnet`, settled through the OpenZeppelin Channels facilitator, which pays the fees.
+- **Pay on delivery:** no answer, no 402. An unanswered question returns `409` before any payment is asked for, and an expired one costs nothing.
+- **Settle before reveal:** the payment is verified, recorded and settled **before** the answer text is read. A failed payment never leaks the answer.
+- **Never charged twice:**
+  - Opening the answer again returns the same receipt.
+  - If the facilitator times out, the payment is looked up on chain before she is asked to pay again.
+- **Agents pay, not people:**
+  - In our web app and in Claude (through our MCP server), the payment is made by an agent from her custodial Stellar wallet. She only says yes.
+  - The paying side is the standard x402 client (`createPayingFetch` in `x402-client.ts`). Any agent with a Stellar keypair can pay this way.
+- **Agent guardrails:**
+  - Claude gets a revocable agent token that works on only 5 routes.
+  - Claude has its own spending limit.
+  - "Ask before each payment" is on by default.
+- **Code:** [`apps/api/src/modules/payments/`](apps/api/src/modules/payments/) (`answer-x402.ts`, `x402.ts`, `x402-client.ts`). The first proof payment on testnet: [b2ce5681…](https://stellar.expert/explorer/testnet/tx/b2ce568136e4372c5b5faa5ab963ebeac8ad94afaa661bb2ccbf2f6b09ef30ed).
+
+### Stellar: wallets, USDC and payouts
+
+- **A Stellar wallet for every user, with no crypto knowledge needed:**
+  - Every woman and nurse gets a Stellar account when they sign up.
+  - The platform treasury **sponsors its reserves**, so the account holds 0 XLM.
+  - The account gets a **USDC trustline** in the same transaction.
+  - Secret keys are encrypted at rest (AES-256-GCM) and never leave the server.
+- **Naira in, USDC on chain:** she tops up in naira with Paystack, and the same value lands in her wallet as testnet USDC.
+- **The chain is the source of truth:** balances are read live from Stellar, and every payment, payout, top-up and withdrawal links to its transaction on stellar.expert.
+- **Instant 80/20 split:**
+  - When she pays, 80% goes to the nurse's wallet in a treasury payment straight after settlement.
+  - 20% stays with the platform.
+  - Her first 3 free answers are paid to the nurse by the treasury, so nurses always earn.
+- **Withdraw to any Stellar wallet:**
+  - Nurses send USDC to any Stellar address, with a memo for exchanges.
+  - The platform pays the fee with a **fee-bump transaction**.
+  - The destination is checked first: the account must exist and trust USDC.
+  - Every withdrawal needs an emailed code.
+
 ## How it works
 
 ```mermaid
-sequenceDiagram
-    autonumber
-    actor W as Woman
-    participant A as AI assistant<br/>(web app or Claude via MCP)
-    participant API as CareLayer API
-    participant N as Nurse / midwife
-    participant S as Stellar testnet
+flowchart TD
+    A([She asks the AI assistant<br/>web app or Claude]) --> B{Emergency?}
+    B -- Yes --> C[Free urgent-care guidance<br/>never queued, never charged]
+    B -- No --> D[Free AI answer]
+    D --> E{Does her own situation<br/>need a nurse?}
+    E -- No --> F([Done, free])
+    E -- Yes --> G[Assistant offers a nurse]
+    G --> H[She reviews exactly what is shared<br/>and gives consent]
+    H --> I[Question goes to verified<br/>nurses and midwives]
+    I --> J{Answered within 30 min?}
+    J -- No --> K([Expires, she pays nothing])
+    J -- Yes --> L[A nurse claims it and answers]
+    L --> M[She opens the answer]
+    M --> N[[x402 pay on delivery<br/>402 Payment Required, USDC signed<br/>from her wallet, settled on Stellar<br/>first 3 answers free]]
+    N --> O([She reads the answer<br/>with a Stellar receipt])
+    N --> P[80% to the nurse's wallet<br/>20% platform]
+    P --> Q([Nurse withdraws USDC<br/>to any Stellar wallet])
 
-    W->>A: Asks in her own words
-    A->>API: POST /chat
-    API-->>A: Red-flag check first. An emergency gets free urgent guidance and is never sent to a nurse.
-    API-->>A: Otherwise a free AI answer, plus a nurse offer only if her situation needs judging
-    W->>A: "Send to a nurse": reviews exactly what is shared and agrees
-    A->>API: POST /questions (consent recorded, nothing charged yet)
-    N->>API: Sees the question in the queue, claims it and answers
-    API-->>W: "A nurse answered" (in the app, and by email if she turned it on)
-    A->>API: Open the answer
-    Note over API: x402 pay on delivery: GET /questions/:id/answer returns 402 with the price in USDC.<br/>The payment is signed from her custodial CareLayer wallet and sent back in PAYMENT-SIGNATURE.
-    API->>S: Settle through the x402 facilitator
-    API-->>W: The answer, the nurse's name and role, and a Stellar receipt
-    API->>S: 80% paid to the nurse's wallet (20% platform)
-    N->>S: Withdraws USDC to any Stellar wallet
+    classDef pay fill:#E8F1FF,stroke:#3B82F6,color:#0B1B3A
+    classDef stop fill:#FDECEC,stroke:#DC2626,color:#3A0B0B
+    classDef good fill:#E9F8EF,stroke:#16A34A,color:#0B3A1B
+    class N,P,Q pay
+    class C stop
+    class F,K,O good
 ```
 
 ### For women ([www.carelayer.health](https://www.carelayer.health))
@@ -69,7 +117,7 @@ sequenceDiagram
    - Her chats and questions are listed in History. She can delete a chat.
    - Nurses never see who she is.
 
-### For health workers ([care-layer-workers.vercel.app](https://care-layer-workers.vercel.app))
+### For health workers ([practice.carelayer.health](https://practice.carelayer.health))
 
 1. **Sign up** with their licence details. An admin approves the licence in the admin console before they can answer.
 2. **Answer:**
