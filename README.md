@@ -5,20 +5,20 @@ CareLayer is an open network of verified, registered Nigerian nurses and midwive
 - Women ask an AI assistant for free.
 - When a question needs a professional, the assistant sends it to a verified health worker, but only with her consent.
 - The answer is paid for with x402 agentic payments in USDC on Stellar, and the health worker gets their share straight away.
-- Any agent can use the network: our web app, Claude through our MCP server, or other apps.
+- Any agent can use the network: our web app, Claude through our MCP server, or other apps. WhatsApp is coming soon.
 
 Built for the EmpowerHer: Building the Agent Economy hackathon.
 
 ## Live
 
-| What                         | Link                                                                                                             |
-| ---------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Women's app and landing page | [www.carelayer.health](https://www.carelayer.health)                                                             |
-| Health worker app            | [practice.carelayer.health](https://practice.carelayer.health)                                                   |
-| API                          | [api.carelayer.health](https://api.carelayer.health/health) (`/health` returns `{ "status": "ok" }`)             |
-| Admin console (licences)     | [api.carelayer.health/admin-console](https://api.carelayer.health/admin-console) (admins only)                   |
-| MCP server for Claude        | `https://mcp.carelayer.health/mcp` (setup: [`apps/mcp/README.md`](apps/mcp/README.md))                           |
-| API docs (Postman)           | [documenter.getpostman.com/view/44554019/2sBYPv3YMs](https://documenter.getpostman.com/view/44554019/2sBYPv3YMs) |
+| What                         | Link                                                                                                                         |
+| ---------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Women's app and landing page | [www.carelayer.health](https://www.carelayer.health)                                                                         |
+| Health worker app            | [practice.carelayer.health](https://practice.carelayer.health)                                                               |
+| API                          | [api.carelayer.health](https://api.carelayer.health/health) (`/health` returns `{ "status": "ok" }`)                         |
+| Admin console (licences)     | [api.carelayer.health/admin-console](https://api.carelayer.health/admin-console) (admins only)                               |
+| MCP server for Claude        | `https://mcp.carelayer.health/mcp`: Claude Code in the terminal for now, claude.ai coming soon ([setup](apps/mcp/README.md)) |
+| API docs (Postman)           | [documenter.getpostman.com/view/44554019/2sBYPv3YMs](https://documenter.getpostman.com/view/44554019/2sBYPv3YMs)             |
 
 Everything runs on **test money**:
 
@@ -136,7 +136,20 @@ The MCP server gives Claude three tools: `ask_health_worker`, `get_answer` and `
 - Her own spending limit.
 - It asks before each payment, unless she turns that off.
 
+**Where it works:** today in **Claude Code in the terminal**: copy the `claude mcp add …` command from the Account screen and run it. **claude.ai on the web is coming soon.** It needs sign-in (OAuth) on our MCP server, which is next on our list.
+
 Setup: [`apps/mcp/README.md`](apps/mcp/README.md).
+
+### Coming soon: CareLayer on WhatsApp
+
+Many women already use WhatsApp every day, and it works on basic data plans. With the WhatsApp bot, she will be able to use CareLayer by messaging a WhatsApp number, with no app to install. Behind it is the same platform:
+
+- The same free AI assistant and emergency check.
+- The same consent step before anything is shared with a nurse.
+- The same verified nurses and midwives.
+- The same pay-per-answer with x402 from her CareLayer wallet on Stellar.
+
+The WhatsApp bot is just another agent on the network, like the web app and Claude.
 
 ## Setup (local)
 
