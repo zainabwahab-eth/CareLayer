@@ -30,6 +30,24 @@
   display: none;
 }
 
+/* "Opening your chat…" / could not open it. */
+.status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-12);
+  color: var(--color-text-muted);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+.newChat {
+  flex: none;
+  min-height: 2.25rem;
+  padding-inline: var(--space-12);
+}
+
 /* Figma W06 Body: 12/20/24 padding, 14px gap. */
 .messages {
   flex: 1 1 auto;

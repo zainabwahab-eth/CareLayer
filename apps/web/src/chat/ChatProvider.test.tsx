@@ -19,6 +19,7 @@ const reply = (text: string): ChatResponse => ({
   kind: 'reply',
   message: { id: `m_${text}`, role: 'assistant', text, createdAt: '2026-11-23T00:00:00Z' },
   escalationOffer: null,
+  conversationId: 'chat_1',
 });
 
 function setup(send: (body: ChatRequestBody) => Promise<ChatResponse>) {

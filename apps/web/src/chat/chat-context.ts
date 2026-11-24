@@ -1,6 +1,7 @@
 import {
   CHAT_LIMITS,
   type ChatTurn,
+  type Conversation,
   type EmergencyResponse,
   type EscalationOffer,
   type Id,
@@ -12,9 +13,10 @@ import type { AskRequest } from './ask-request';
 /*
  * W06 assistant chat state.
  *
- * Decisions log (docs/TASKS.md §2): chat history is not stored by CareLayer;
- * it lives in the client session. It is kept in memory only, so a reload,
- * logging out or quick exit always opens a blank new chat.
+ * Chats are saved to her account (decision changed 2026-11-24): POST /chat stores
+ * each message and reply in a conversation. The open chat's id is in the URL
+ * (/ask?c=…), so a reload reopens it; History lists every saved chat. Quick exit
+ * and logging out still open a blank new chat.
  */
 
 /** Longest message accepted (contract §7, CHAT_LIMITS.maxTextLength). */
@@ -55,7 +57,12 @@ export interface ChatState {
    * another message (the draft no longer matches her chat) or starts a new chat.
    */
   request: AskRequest | null;
+  /** The saved conversation this chat belongs to. Null until her first message is saved. */
+  conversationId: Id | null;
 }
+
+/** Result of reopening a saved chat. */
+export type OpenResult = 'opened' | 'not_found' | 'error';
 
 export type SendResult =
   | { kind: 'reply' }
@@ -83,6 +90,8 @@ export interface ChatContextValue extends ChatState {
   setRequest(update: AskRequest | null | ((current: AskRequest | null) => AskRequest | null)): void;
   /** Start a blank new chat. */
   reset(): void;
+  /** Load a saved chat (GET /chat/conversations/:id) and continue it. */
+  openConversation(id: Id): Promise<OpenResult>;
 }
 
 /** See ChatContextValue.canAskNurse. */
@@ -99,3 +108,36 @@ export function threadFor(delivered: readonly ChatTurn[], text: string): ChatTur
 }
 
 export const ChatContext = createContext<ChatContextValue | null>(null);
+
+/** A saved chat as the thread the API sees and the entries the screen shows. */
+export function fromConversation(
+  conversation: Conversation,
+  emergency: EmergencyResponse | null,
+): { turns: ChatTurn[]; entries: ChatEntry[] } {
+  const turns: ChatTurn[] = [];
+  const entries: ChatEntry[] = [];
+  for (const m of conversation.messages) {
+    turns.push({ role: m.role, text: m.text });
+    if (m.role === 'assistant') {
+      entries.push({ kind: 'assistant', id: m.id, text: m.text, createdAt: m.createdAt });
+      continue;
+    }
+    entries.push({
+      kind: 'user',
+      id: m.id,
+      text: m.text,
+      createdAt: m.createdAt,
+      status: 'sent',
+      outcome: m.emergency ? 'emergency' : 'reply',
+    });
+    if (m.emergency && emergency) {
+      entries.push({
+        kind: 'emergency',
+        id: `${m.id}_emergency`,
+        response: emergency,
+        createdAt: m.createdAt,
+      });
+    }
+  }
+  return { turns, entries };
+}

@@ -103,7 +103,7 @@ const faqs = [
   {
     question: 'Is it really anonymous?',
     answer:
-      'Yes. Nurses never see your name, email, phone number or location: only your question and the details you agree to share before sending it. Your chat with the assistant is not stored.',
+      'Yes. Nurses never see your name, email, phone number or location: only your question and the details you agree to share before sending it. Your chats with the assistant are saved to your account so you can come back to them: only you can see them, and you can delete any of them.',
   },
   {
     question: 'What if it’s an emergency?',

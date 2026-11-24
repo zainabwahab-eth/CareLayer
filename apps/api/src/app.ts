@@ -14,6 +14,7 @@ import { createNurseProfileService, type NurseProfileService } from './modules/n
 import { createEmailSender } from './modules/auth/email.js';
 import { createAuthRouter } from './modules/auth/router.js';
 import { createChatRouter } from './modules/chat/router.js';
+import { createConversationStore, type ConversationStore } from './modules/chat/conversations.js';
 import { createChatService, type ChatService } from './modules/chat/service.js';
 import { loadRedFlags } from './modules/emergency/red-flags.js';
 import { createAssistant, loadAssistantPrompt } from './modules/llm/assistant.js';
@@ -164,6 +165,7 @@ export interface AppServices {
   answers: AnswerService;
   topups: TopupService;
   chat: ChatService;
+  conversations: ConversationStore;
   questions: QuestionService;
   nurseProfiles: NurseProfileService;
   admin: AdminService;
@@ -182,6 +184,7 @@ export function buildChatAndQuestionServices(deps: AppDeps) {
     systemPrompt: loadAssistantPrompt(),
     logger: deps.logger,
   });
+  const conversations = createConversationStore({ db: deps.db, now });
   const shared = {
     db: deps.db,
     config: deps.config,
@@ -191,7 +194,8 @@ export function buildChatAndQuestionServices(deps: AppDeps) {
     now,
   };
   return {
-    chat: createChatService(shared),
+    chat: createChatService({ ...shared, conversations }),
+    conversations,
     questions: createQuestionService({
       ...shared,
       email: deps.emailSender ?? createEmailSender(deps.config.auth, deps.logger),
@@ -252,7 +256,7 @@ export function createApp(deps: AppDeps, services: AppServices = buildServices(d
   app.use(createUsersRouter(deps));
   app.use(createWalletsRouter(deps, services.wallets));
   app.use(createTopupsRouter(deps, services.topups));
-  app.use(createChatRouter(deps, services.chat));
+  app.use(createChatRouter(deps, services.chat, services.conversations));
   app.use(createQuestionsRouter(deps, services.questions, services.answers));
   app.use(createNursesRouter(deps, services.nurseProfiles, services.cases, services.earnings));
   app.use(createPaymentsRouter(deps));

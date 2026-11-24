@@ -7,6 +7,8 @@ import type {
   CreateAgentTokenResponse,
   ChatRequestBody,
   ChatResponse,
+  Conversation,
+  ConversationSummary,
   CreateQuestionBody,
   CreateQuestionResponse,
   CreateTopupBody,
@@ -106,12 +108,21 @@ export interface CareLayerApi {
   };
 
   /**
-   * The assistant (contract §7). Stateless: nothing about the chat is stored on the
-   * server, so every call sends the thread so far (the client keeps it in memory).
+   * The assistant (contract §7). Every call sends the thread she sees; POST /chat also saves
+   * her message and the reply to her account (a conversation), listed in History.
    */
   chat: {
-    /** POST /chat. The last turn is her new message. May return an EmergencyResponse. */
+    /**
+     * POST /chat. The last turn is her new message; `conversationId` adds to a saved chat.
+     * May return an EmergencyResponse. Both carry the conversationId it was saved in.
+     */
     send(body: ChatRequestBody): Promise<ChatResponse>;
+    /** GET /chat/conversations. Her saved chats, most recently active first. */
+    listConversations(query?: PageQuery): Promise<Page<ConversationSummary>>;
+    /** GET /chat/conversations/:id. One chat's messages, oldest first. */
+    getConversation(id: Id): Promise<Conversation>;
+    /** DELETE /chat/conversations/:id. Deletes the chat and its messages. */
+    deleteConversation(id: Id): Promise<void>;
     /**
      * POST /chat/draft. Exactly what a nurse would receive (W07), a signed `draftToken`
      * for POST /questions, and the price offer. May return an EmergencyResponse.

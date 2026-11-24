@@ -136,6 +136,11 @@ enum QuickExitTarget {
   NEWS
 }
 
+enum ChatRole {
+  USER
+  ASSISTANT
+}
+
 enum EmergencySource {
   CHAT
   QUESTION
@@ -173,6 +178,7 @@ model User {
   questions              Question[]
   topups                 Topup[]
   feedback               Feedback[]
+  conversations          Conversation[]
 
   @@unique([email, role])
   @@unique([googleSub, role])
@@ -680,4 +686,33 @@ model EmergencyEvent {
   createdAt DateTime        @default(now())
 
   @@index([createdAt])
+}
+
+/// A woman's chat with the assistant (POST /chat). Hers only: never shown to nurses or agents.
+/// Deleting it (or her account) deletes its messages.
+model Conversation {
+  id        String                @id @default(cuid())
+  womanId   String
+  woman     User                  @relation(fields: [womanId], references: [id], onDelete: Cascade)
+  /// The start of her first message (History list).
+  title     String
+  createdAt DateTime              @default(now())
+  /// When the last message was added (History sorts by it).
+  updatedAt DateTime              @updatedAt
+  messages  ConversationMessage[]
+
+  @@index([womanId, updatedAt])
+}
+
+model ConversationMessage {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  role           ChatRole
+  text           String
+  /// Her message raised an emergency: no assistant reply follows it.
+  emergency      Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
 }

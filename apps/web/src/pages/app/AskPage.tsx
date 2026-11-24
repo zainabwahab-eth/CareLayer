@@ -1,10 +1,12 @@
-import { useEffect, useId, useRef } from 'react';
-import { useNavigate } from 'react-router';
+import { useEffect, useId, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
+import { Alert } from '../../components/Alert/Alert';
+import { Button } from '../../components/Button/Button';
 import { TopBar } from '../../components/navigation/TopBar';
 import { QuickExitButton } from '../../components/QuickExit/QuickExitButton';
 import type { EmergencyLocationState } from '../../chat/emergency-state';
 import { useChat } from '../../chat/useChat';
-import { paths } from '../../routes/paths';
+import { CHAT_PARAM, paths } from '../../routes/paths';
 import { AssistantAvatar, ChatMessage, TypingIndicator } from './ask/ChatMessage';
 import { ChatComposer } from './ask/ChatComposer';
 import { ChatContextRail } from './ask/ChatContextRail';
@@ -31,6 +33,48 @@ export function AskPage() {
   const endRef = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<HTMLTextAreaElement>(null);
   const isFirstScroll = useRef(true);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requested = searchParams.get(CHAT_PARAM);
+  const [openFailure, setOpenFailure] = useState<{
+    id: string;
+    result: 'not_found' | 'error';
+  } | null>(null);
+  const { conversationId, openConversation } = chat;
+  /** The chat she just left with "New chat": its id lingers in the URL until navigation lands. */
+  const [leftId, setLeftId] = useState<string | null>(null);
+  if (leftId !== null && requested === null) setLeftId(null);
+  const failedHere = requested !== null && openFailure?.id === requested ? openFailure : null;
+  const opening =
+    requested !== null && requested !== conversationId && !failedHere && requested !== leftId;
+
+  // A saved chat in the URL (reload, or opened from History): load it.
+  useEffect(() => {
+    if (!requested || requested === conversationId || failedHere) return;
+    if (requested === leftId) return;
+    let cancelled = false;
+    void openConversation(requested).then((result) => {
+      if (!cancelled && result !== 'opened') setOpenFailure({ id: requested, result });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [requested, conversationId, failedHere, leftId, openConversation]);
+
+  // Once her chat is saved, put it in the URL so a reload brings it back.
+  useEffect(() => {
+    if (conversationId && !requested) {
+      setSearchParams({ [CHAT_PARAM]: conversationId }, { replace: true });
+    }
+  }, [conversationId, requested, setSearchParams]);
+
+  const startNewChat = () => {
+    setLeftId(requested);
+    chat.reset();
+    setOpenFailure(null);
+    navigate(paths.ask);
+    fieldRef.current?.focus();
+  };
 
   const isEmpty = chat.entries.length === 0;
   const lastEntry = chat.entries.at(-1);
@@ -76,11 +120,25 @@ export function AskPage() {
     fieldRef.current?.focus();
   };
 
+  // Only once there is something to leave: a blank chat is already new.
+  const newChatButton =
+    !isEmpty && !chat.pending ? (
+      <Button variant="ghost" onClick={startNewChat} className={styles.newChat}>
+        New chat
+      </Button>
+    ) : null;
+
   return (
     <div className={styles.page}>
       <div className={styles.chat}>
         <div className={styles.topBar}>
-          <TopBar title={TITLE} subtitle={SUBTITLE} backTo={paths.home} backLabel="Back to home" />
+          <TopBar
+            title={TITLE}
+            subtitle={SUBTITLE}
+            backTo={paths.home}
+            backLabel="Back to home"
+            actions={newChatButton}
+          />
         </div>
         <header className={styles.header}>
           <AssistantAvatar size="large" />
@@ -88,12 +146,28 @@ export function AskPage() {
             <h1 className={styles.title}>{TITLE}</h1>
             <p className={styles.subtitle}>{SUBTITLE}</p>
           </div>
+          {newChatButton}
           <QuickExitButton />
         </header>
 
         <div className={styles.messages}>
           <div className={styles.column}>
-            {isEmpty ? (
+            {opening ? (
+              <p className={styles.status} role="status">
+                Opening your chat…
+              </p>
+            ) : failedHere ? (
+              <div className={styles.status}>
+                <Alert tone={failedHere.result === 'not_found' ? 'info' : 'error'}>
+                  {failedHere.result === 'not_found'
+                    ? 'This chat was deleted or is not yours.'
+                    : 'We could not open this chat. Check your connection and try again.'}
+                </Alert>
+                <Button variant="secondary" onClick={startNewChat}>
+                  Start a new chat
+                </Button>
+              </div>
+            ) : isEmpty ? (
               <ChatEmptyState titleId={emptyTitleId} />
             ) : (
               <div role="log" aria-label="Conversation with your assistant" aria-live="polite">

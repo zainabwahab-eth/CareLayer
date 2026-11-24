@@ -8,28 +8,28 @@ Every type named here is exported from `@carelayer/shared` (`packages/shared/src
 
 **Renamed (`worker` → `nurse`). Hikmah: update mocks and imports.**
 
-| v0                                          | v1                                               |
-| ------------------------------------------- | ------------------------------------------------ |
-| `UserRole` `'worker'`                       | `'nurse'`                                        |
-| `AppAudience` `'workers'`                   | `'nurses'`; `AUTH_RULES.refreshTtlDays.nurses`   |
-| `WorkerRole` (`nurse \| midwife \| doctor`) | `NurseRole` (`nurse \| midwife`). No doctors.    |
-| `Regulator`, `REGULATOR_BY_ROLE`            | `NURSE_REGULATOR = 'NMCN'` (no MDCN)             |
-| `WorkerGender`                              | `Gender`                                         |
-| `WorkerProfile`                             | `NurseProfile`                                   |
-| `WorkerDocument`, `WorkerDocumentType`      | `NurseDocument`, `NurseDocumentType`             |
-| `UpdateWorkerProfileBody`                   | `UpdateNurseProfileBody`                         |
-| `UpdateWorkerPreferencesBody`               | `UpdateNursePreferencesBody`                     |
-| `WorkerQuestionView`                        | `NurseQuestionView`                              |
-| `PublicWorker`, `Answer.worker`             | `PublicNurse` (adds `id`), `Answer.nurse`        |
-| `AdminWorkerSummary`, `AdminWorkerDetail`   | `AdminNurseSummary`, `AdminNurseDetail`          |
-| `RejectWorkerBody`                          | `RejectNurseBody`                                |
-| `PAYOUT_SPLIT.workerBps`                    | `PAYOUT_SPLIT.nurseBps`                          |
-| error `WORKER_NOT_APPROVED`                 | `NURSE_NOT_APPROVED`                             |
-| `/worker/*` routes                          | `/nurse/*`                                       |
-| `/admin/workers/*` routes                   | `/admin/nurses/*`                                |
-| `PUT /worker/profile`                       | `PATCH /nurse/profile`                           |
-| `CreateQuestionBody.preferFemaleWorker`     | `femaleOnly` (hard filter on nurse gender)       |
-| `CreateQuestionBody.conversationId`         | removed (chat history is not stored server-side) |
+| v0                                          | v1                                                                               |
+| ------------------------------------------- | -------------------------------------------------------------------------------- |
+| `UserRole` `'worker'`                       | `'nurse'`                                                                        |
+| `AppAudience` `'workers'`                   | `'nurses'`; `AUTH_RULES.refreshTtlDays.nurses`                                   |
+| `WorkerRole` (`nurse \| midwife \| doctor`) | `NurseRole` (`nurse \| midwife`). No doctors.                                    |
+| `Regulator`, `REGULATOR_BY_ROLE`            | `NURSE_REGULATOR = 'NMCN'` (no MDCN)                                             |
+| `WorkerGender`                              | `Gender`                                                                         |
+| `WorkerProfile`                             | `NurseProfile`                                                                   |
+| `WorkerDocument`, `WorkerDocumentType`      | `NurseDocument`, `NurseDocumentType`                                             |
+| `UpdateWorkerProfileBody`                   | `UpdateNurseProfileBody`                                                         |
+| `UpdateWorkerPreferencesBody`               | `UpdateNursePreferencesBody`                                                     |
+| `WorkerQuestionView`                        | `NurseQuestionView`                                                              |
+| `PublicWorker`, `Answer.worker`             | `PublicNurse` (adds `id`), `Answer.nurse`                                        |
+| `AdminWorkerSummary`, `AdminWorkerDetail`   | `AdminNurseSummary`, `AdminNurseDetail`                                          |
+| `RejectWorkerBody`                          | `RejectNurseBody`                                                                |
+| `PAYOUT_SPLIT.workerBps`                    | `PAYOUT_SPLIT.nurseBps`                                                          |
+| error `WORKER_NOT_APPROVED`                 | `NURSE_NOT_APPROVED`                                                             |
+| `/worker/*` routes                          | `/nurse/*`                                                                       |
+| `/admin/workers/*` routes                   | `/admin/nurses/*`                                                                |
+| `PUT /worker/profile`                       | `PATCH /nurse/profile`                                                           |
+| `CreateQuestionBody.preferFemaleWorker`     | `femaleOnly` (hard filter on nurse gender)                                       |
+| `CreateQuestionBody.conversationId`         | removed (questions are created from a draft token; saved chats are separate, §7) |
 
 **Added:** `QuestionStatus` `expired` and `cancelled`; `CreateQuestionBody.consent`, `nurseSelection`, `chosenNurseId`; `Answer.recommendSeeSomeoneToday`; `GET /nurses` + `NursePublicProfile`; `POST /questions/:id/feedback`; `GET/PATCH /me/notifications`; `NurseQuestionView.ageRange`, `pregnancyWeeks`, `chosenForYou`, `claimsCloseAt`; nurse `bio`, `languages`, `helpful`, `avgResponseMinutes`; `/health` reports the database and returns 503 when it is down; error codes `CONSENT_REQUIRED`, `CHOSEN_NURSE_UNAVAILABLE`, `QUESTION_EXPIRED`, `CLAIMS_CLOSED`.
 
@@ -294,7 +294,7 @@ Emergency numbers must be verified (`verified: true`) before the demo.
 
 ## 7. Chat (AI assistant, free)
 
-**Built in Z6.** Stateless: chat history is **not stored on the server**. The client keeps the thread in memory and sends it with every message. Only questions sent to nurses are stored.
+**Built in Z6. Saved chats added 2026-11-24.** The client sends the thread it shows with every message (so the assistant answers what she sees), and `POST /chat` saves the outcome to her account in a **conversation**: her message plus the reply, or her message alone when it raised an emergency. Nothing is saved when the assistant fails, so a retry never duplicates. Conversations are hers only: never shown to nurses, and agent tokens (Claude) are refused. She can delete any of them. Questions sent to nurses are stored separately (§8).
 
 - **LLM:** Hikmah's `apps/api/prompts/assistant.md` (Mode A for chat, Mode B for drafts). It is called through any OpenAI-compatible API (`LLM_BASE_URL`, `LLM_API_KEY`, `LLM_MODEL`); the default is NVIDIA's free tier with `nvidia/nemotron-3-ultra-550b-a55b`, which takes about 10 s per call.
 - **Limits (`CHAT_LIMITS`):**
@@ -306,12 +306,18 @@ Emergency numbers must be verified (`verified: true`) before the demo.
   - At most 12 chat + draft requests per woman per minute.
 - **LLM down or not configured:** `503 SERVICE_UNAVAILABLE`. The message says to try again and to go to the nearest hospital if it is urgent. `details: { retryable, reason }`, with `reason` one of `rate_limited`, `timeout`, `upstream`, `bad_response`, `not_configured`, `auth`.
 
-| Method | Path          | Auth  | Request                                       | Response                                                                                                                                  | Errors                                                                         |
-| ------ | ------------- | ----- | --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| POST   | `/chat`       | woman | `ChatRequestBody` `{ messages: ChatTurn[] }`  | 200 `ChatResponse`: `{ kind: "reply", message: ChatMessage, escalationOffer: EscalationOffer \| null }` or `EmergencyResponse`            | 400 `VALIDATION_FAILED`; 401; 403; 429 `RATE_LIMITED`; 503                     |
-| POST   | `/chat/draft` | woman | `DraftRequestBody` `{ messages: ChatTurn[] }` | 200 `DraftResponse`: `{ kind: "draft", draft: QuestionDraft, draftToken, draftExpiresAt, offer: EscalationOffer }` or `EmergencyResponse` | 400 (incl. question too long, `details.field: "messages"`); 401; 403; 429; 503 |
+| Method | Path                      | Auth            | Request                                                       | Response                                                                                                                                                            | Errors                                                                                              |
+| ------ | ------------------------- | --------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| POST   | `/chat`                   | woman           | `ChatRequestBody` `{ messages: ChatTurn[], conversationId? }` | 200 `ChatResponse`: `{ kind: "reply", message: ChatMessage, escalationOffer: EscalationOffer \| null, conversationId }` or `EmergencyResponse & { conversationId }` | 400 `VALIDATION_FAILED`; 401; 403; 404 `NOT_FOUND` (conversation not hers); 429 `RATE_LIMITED`; 503 |
+| GET    | `/chat/conversations`     | woman (session) | `?cursor&limit`                                               | 200 `Page<ConversationSummary>`, most recently active first                                                                                                         | 400 (bad cursor); 401; 403                                                                          |
+| GET    | `/chat/conversations/:id` | woman (session) | none                                                          | 200 `Conversation`                                                                                                                                                  | 401; 403; 404 `NOT_FOUND`                                                                           |
+| DELETE | `/chat/conversations/:id` | woman (session) | none                                                          | 204, the conversation and its messages are deleted                                                                                                                  | 401; 403; 404 `NOT_FOUND`                                                                           |
+| POST   | `/chat/draft`             | woman           | `DraftRequestBody` `{ messages: ChatTurn[] }`                 | 200 `DraftResponse`: `{ kind: "draft", draft: QuestionDraft, draftToken, draftExpiresAt, offer: EscalationOffer }` or `EmergencyResponse`                           | 400 (incl. question too long, `details.field: "messages"`); 401; 403; 429; 503                      |
 
-- `ChatTurn = { role: "user" | "assistant", text }`. `ChatMessage = { id, role: "assistant", text, createdAt }` (the id is generated per reply; nothing is stored).
+- `ChatTurn = { role: "user" | "assistant", text }`. `ChatMessage = { id, role: "assistant", text, createdAt }`.
+- `conversationId`: omit on her first message (a conversation is created, titled with the start of her message); send it back on the next ones. Another woman's id is 404. In the response it is `null` only if saving failed (the reply or emergency is still returned; the app keeps the chat it shows).
+- `ConversationSummary = { id, title, preview, messageCount, createdAt, updatedAt }`: `title` is the start of her first message, `preview` the start of the last message.
+- `Conversation = { id, title, createdAt, updatedAt, messages: ConversationMessage[] }`, oldest first. `ConversationMessage = { id, role, text, emergency, createdAt }`; `emergency: true` marks her message that raised an emergency (no reply follows it).
 - `EscalationOffer = { price, isFree, freeAnswersRemaining, suggestedCategory, exceedsSpendingLimit }`. It is present when the assistant suggests a nurse. `exceedsSpendingLimit` is true only when she would pay and the price is above her per-answer limit.
 - `QuestionDraft = { originalText, cleanedText, assistantNotes, category, ageRange, pregnancyWeeks }`:
   - `originalText`: all of her messages in the thread, joined with a blank line, word for word (the assistant's turns are not included).

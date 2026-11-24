@@ -5,6 +5,8 @@ import type {
   ApiErrorBody,
   AuthTokensResponse,
   ChatResponse,
+  Conversation,
+  ConversationSummary,
   CreateQuestionResponse,
   CreateTopupResponse,
   DraftResponse,
@@ -212,6 +214,12 @@ export function createHttpApi(
 
     chat: {
       send: (body) => authed<ChatResponse>('POST', 'chat', { body }),
+      listConversations: (query) =>
+        authed<Page<ConversationSummary>>('GET', 'chat/conversations', { query: { ...query } }),
+      getConversation: (conversationId) =>
+        authed<Conversation>('GET', `chat/conversations/${id(conversationId)}`),
+      deleteConversation: (conversationId) =>
+        authed<void>('DELETE', `chat/conversations/${id(conversationId)}`),
       draft: (body) => authed<DraftResponse>('POST', 'chat/draft', { body }),
     },
 

@@ -74,7 +74,7 @@ These override anything older in other docs. If you change one, update this list
 - Nurse profile: full name as on licence, role (nurse or midwife), gender (optional), years of practice, short bio (280 chars), languages (fixed list: English, Pidgin, Yoruba, Hausa, Igbo), topics, available toggle, average response time, % helpful.
 - **Emergencies:** fixed red-flag list + LLM check on every message. Triggered → free emergency screen, nothing queued. Logged as `EmergencyEvent` with source + timestamp only (no user id, no text, no red-flag id).
 - **Notifications:** "Notify me when answered" by email only.
-- **Chat history:** not stored on the server. Chat lives in the client session. Only questions sent to nurses are stored.
+- **Chat history:** saved to her account (changed 2026-11-24, Zainab; previously not stored). `POST /chat` saves her message and the reply in a conversation; History → Assistant chats lists them; a reload reopens the open chat (`/ask?c=…`). Hers only: never shown to nurses, refused for agent tokens; she can delete any chat. Quick exit and logging out still open a blank new chat.
 
 **Accounts and auth**
 

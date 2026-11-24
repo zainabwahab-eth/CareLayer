@@ -2,10 +2,10 @@
   "info": {
     "_postman_id": "757e009e-9b28-4514-a7f4-6fcbc1c6380e",
     "name": "CareLayer API",
-    "description": "CareLayer backend (apps/api). Contract: docs/API_CONTRACT.md (v1). One folder per module; folders are added by the task that builds each module (Z3 Auth, Z5 Top-up, Z6 Chat + Questions, Z8 answers/collect/feedback in Questions + Nurses, Z7 Nurse cases, Z9 Nurse profile + Admin; Z10 Earnings in Nurse profile; Z12 Claude connections in Auth). Select the 'CareLayer local' environment ({{baseUrl}} = http://localhost:4000).",
+    "description": "CareLayer backend (apps/api). Contract: docs/API_CONTRACT.md (v1). One folder per module; folders are added by the task that builds each module (Z3 Auth, Z5 Top-up, Z6 Chat + Questions, Z7 Nurse cases, Z9 Nurse profile + Admin). Select the 'CareLayer local' environment ({{baseUrl}} = [http://localhost:4000](http://localhost:4000)).",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
     "createdAt": "2026-11-18T22:32:09.000Z",
-    "updatedAt": "2026-11-22T01:19:23.000Z",
+    "updatedAt": "2026-11-23T15:30:27.000Z",
     "lastUpdatedBy": "44554019",
     "uid": "44554019-757e009e-9b28-4514-a7f4-6fcbc1c6380e"
   },
@@ -677,21 +677,21 @@
         },
         {
           "name": "Create Claude connection (agent token)",
-          "id": "d9a164ee-4c45-4ab8-a5fe-fc1d9734dcec",
           "event": [
             {
               "listen": "test",
               "script": {
-                "type": "text/javascript",
                 "exec": [
                   "if (pm.response.code === 201) {",
                   "  pm.environment.set('agentToken', pm.response.json().token);",
                   "  pm.environment.set('agentTokenId', pm.response.json().id);",
                   "}"
-                ]
+                ],
+                "type": "text/javascript"
               }
             }
           ],
+          "id": "d9a164ee-4c45-4ab8-a5fe-fc1d9734dcec",
           "request": {
             "auth": {
               "type": "bearer",
@@ -724,24 +724,70 @@
               "host": ["{{baseUrl}}"],
               "path": ["auth", "agent-tokens"]
             },
-            "description": "Z12. Woman, signed in. Returns the agent token ONCE (clat_...), stored hashed; saved as {{agentToken}}. Max 5 active (409). See apps/mcp/README.md."
+            "description": "Z12. Woman, signed in (an agent token cannot create tokens). Returns the agent token ONCE (starts with clat_); it is stored hashed. The test script saves it as {{agentToken}}. At most 5 active (409). Put it in Claude's MCP config: apps/mcp/README.md."
           },
           "response": [
             {
               "id": "2e1bf478-3104-4b10-97b8-8fee911b0cca",
               "name": "201 Connection created (token shown once)",
-              "code": 201,
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"label\": \"Claude Desktop\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/agent-tokens",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["auth", "agent-tokens"]
+                },
+                "description": "Z12. Woman, signed in (an agent token cannot create tokens). Returns the agent token ONCE (starts with clat_); it is stored hashed. The test script saves it as {{agentToken}}. At most 5 active (409). Put it in Claude's MCP config: apps/mcp/README.md."
+              },
               "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
                   "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-store"
                 }
               ],
+              "cookie": [],
+              "responseTime": null,
               "body": "{\n  \"id\": \"cmwsagent0001s6l1token001\",\n  \"label\": \"Claude Desktop\",\n  \"token\": \"clat_EXAMPLE-shown-only-once-copy-it-now-xxxxxxxxxxxx\",\n  \"createdAt\": \"2026-11-22T18:00:00.000Z\"\n}",
-              "_postman_previewlanguage": "json"
+              "createdAt": "2026-11-22T17:49:41.000Z",
+              "updatedAt": "2026-11-22T17:49:41.000Z",
+              "uid": "44554019-2e1bf478-3104-4b10-97b8-8fee911b0cca"
             }
-          ]
+          ],
+          "createdAt": "2026-11-22T17:49:23.000Z",
+          "updatedAt": "2026-11-22T17:49:41.000Z",
+          "uid": "44554019-d9a164ee-4c45-4ab8-a5fe-fc1d9734dcec"
         },
         {
           "name": "List Claude connections",
@@ -764,24 +810,52 @@
               "host": ["{{baseUrl}}"],
               "path": ["auth", "agent-tokens"]
             },
-            "description": "Z12. Active connections, newest first. Never the token."
+            "description": "Z12. Her active Claude connections, newest first: id, label, createdAt, lastUsedAt (updated at most once a minute). Never the token."
           },
           "response": [
             {
               "id": "40217b15-8a02-4690-aa5a-0538e25f2720",
               "name": "200 Her connections",
-              "code": 200,
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/auth/agent-tokens",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["auth", "agent-tokens"]
+                },
+                "description": "Z12. Her active Claude connections, newest first: id, label, createdAt, lastUsedAt (updated at most once a minute). Never the token."
+              },
               "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
                   "value": "application/json; charset=utf-8"
                 }
               ],
+              "cookie": [],
+              "responseTime": null,
               "body": "[\n  {\n    \"id\": \"cmwsagent0001s6l1token001\",\n    \"label\": \"Claude Desktop\",\n    \"createdAt\": \"2026-11-22T18:00:00.000Z\",\n    \"lastUsedAt\": \"2026-11-22T18:05:12.000Z\"\n  }\n]",
-              "_postman_previewlanguage": "json"
+              "createdAt": "2026-11-22T17:49:42.000Z",
+              "updatedAt": "2026-11-22T17:49:42.000Z",
+              "uid": "44554019-40217b15-8a02-4690-aa5a-0538e25f2720"
             }
-          ]
+          ],
+          "createdAt": "2026-11-22T17:49:24.000Z",
+          "updatedAt": "2026-11-22T17:49:42.000Z",
+          "uid": "44554019-85bf3a00-1428-4480-8e11-fe717b257586"
         },
         {
           "name": "Remove Claude connection",
@@ -804,9 +878,12 @@
               "host": ["{{baseUrl}}"],
               "path": ["auth", "agent-tokens", "{{agentTokenId}}"]
             },
-            "description": "Z12. 204. Immediate: the token gets 401 afterwards."
+            "description": "Z12. 204. Immediate: Claude's next call with that token gets 401."
           },
-          "response": []
+          "response": [],
+          "createdAt": "2026-11-22T17:49:24.000Z",
+          "updatedAt": "2026-11-22T17:49:24.000Z",
+          "uid": "44554019-372ae101-2f63-4c53-be8b-106be1c909f3"
         },
         {
           "name": "As Claude: wallet (agent token)",
@@ -829,29 +906,57 @@
               "host": ["{{baseUrl}}"],
               "path": ["wallet"]
             },
-            "description": "Z12. With the agent token, as the MCP server calls it. Allowed: POST /chat/draft, POST /questions (source mcp), GET /questions/:id/status, POST /me/questions/:id/collect, GET /wallet. Anything else: 403."
+            "description": "Z12. Calls the API with the agent token, as the MCP server does. Allowed routes: POST /chat/draft, POST /questions (source \"mcp\"), GET /questions/:id/status, POST /me/questions/:id/collect (confirmPayment), GET /wallet. Try any other route with {{agentToken}}: 403 \"This is not available through Claude.\""
           },
           "response": [
             {
               "id": "6c73064a-0b92-44dd-aaf1-32ce096c8116",
               "name": "403 A route Claude may not use",
-              "code": 403,
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{agentToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/wallet",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["wallet"]
+                },
+                "description": "Z12. Calls the API with the agent token, as the MCP server does. Allowed routes: POST /chat/draft, POST /questions (source \"mcp\"), GET /questions/:id/status, POST /me/questions/:id/collect (confirmPayment), GET /wallet. Try any other route with {{agentToken}}: 403 \"This is not available through Claude.\""
+              },
               "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
                   "value": "application/json; charset=utf-8"
                 }
               ],
+              "cookie": [],
+              "responseTime": null,
               "body": "{\n  \"error\": {\n    \"code\": \"FORBIDDEN\",\n    \"message\": \"This is not available through Claude.\"\n  }\n}",
-              "_postman_previewlanguage": "json"
+              "createdAt": "2026-11-22T17:49:43.000Z",
+              "updatedAt": "2026-11-22T17:49:43.000Z",
+              "uid": "44554019-6c73064a-0b92-44dd-aaf1-32ce096c8116"
             }
-          ]
+          ],
+          "createdAt": "2026-11-22T17:49:25.000Z",
+          "updatedAt": "2026-11-22T17:49:43.000Z",
+          "uid": "44554019-8348668e-9924-42b8-a1fb-b2ac82dc0942"
         }
       ],
       "id": "d939f7a5-53b4-8da5-c4a4-05df901ef40e",
       "createdAt": "2026-11-20T03:31:35.000Z",
-      "updatedAt": "2026-11-20T03:32:12.000Z",
+      "updatedAt": "2026-11-22T17:49:25.000Z",
       "uid": "44554019-d939f7a5-53b4-8da5-c4a4-05df901ef40e"
     },
     {
@@ -1135,6 +1240,18 @@
       "item": [
         {
           "name": "Chat: send message",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.conversationId) pm.collectionVariables.set('conversationId', body.conversationId);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "id": "9902b7c6-dd1b-4eb3-abcd-dcb0e2ab82fa",
           "request": {
             "auth": {
@@ -1156,7 +1273,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"messages\": [\n    { \"role\": \"user\", \"text\": \"my feet dey swell small small, im 30 weeks pregnant is it normal\" }\n  ]\n}",
+              "raw": "{\n  \"messages\": [\n    { \"role\": \"user\", \"text\": \"my feet dey swell small small, im 30 weeks pregnant is it normal\" }\n  ],\n  \"conversationId\": \"{{conversationId}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1168,7 +1285,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["chat"]
             },
-            "description": "Woman only. Stateless: send the whole thread (oldest first, last turn = hers). Returns { kind: \"reply\", message, escalationOffer } or an EmergencyResponse. Red flags are checked before the LLM. About 6-10 s on the NVIDIA free tier. 12 requests/min per woman. Contract §7."
+            "description": "Woman only. Send the whole thread she sees (oldest first, last turn = hers). Saved to her account: her message and the reply are added to the conversation `conversationId` (omit it to start a new chat; another woman's id is 404). Nothing is saved if the assistant fails, so a retry never duplicates. Returns { kind: \"reply\", message, escalationOffer, conversationId } or an EmergencyResponse with conversationId (her message is saved, no reply follows). conversationId is null only if saving failed. Red flags are checked before the LLM. 12 requests/min per woman. Contract §7."
           },
           "response": [
             {
@@ -1194,7 +1311,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"messages\": [\n    { \"role\": \"user\", \"text\": \"my feet dey swell small small, im 30 weeks pregnant is it normal\" }\n  ]\n}",
+                  "raw": "{\n  \"messages\": [\n    { \"role\": \"user\", \"text\": \"my feet dey swell small small, im 30 weeks pregnant is it normal\" }\n  ],\n  \"conversationId\": \"{{conversationId}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1206,7 +1323,7 @@
                   "host": ["{{baseUrl}}"],
                   "path": ["chat"]
                 },
-                "description": "Woman only. Stateless: send the whole thread (oldest first, last turn = hers). Returns { kind: \"reply\", message, escalationOffer } or an EmergencyResponse. Red flags are checked before the LLM. About 6-10 s on the NVIDIA free tier. 12 requests/min per woman. Contract §7."
+                "description": "Woman only. Send the whole thread she sees (oldest first, last turn = hers). Saved to her account: her message and the reply are added to the conversation `conversationId` (omit it to start a new chat; another woman's id is 404). Nothing is saved if the assistant fails, so a retry never duplicates. Returns { kind: \"reply\", message, escalationOffer, conversationId } or an EmergencyResponse with conversationId (her message is saved, no reply follows). conversationId is null only if saving failed. Red flags are checked before the LLM. 12 requests/min per woman. Contract §7."
               },
               "status": "OK",
               "code": 200,
@@ -1226,7 +1343,7 @@
             }
           ],
           "createdAt": "2026-11-20T20:02:47.000Z",
-          "updatedAt": "2026-11-20T20:03:43.000Z",
+          "updatedAt": "2026-11-24T14:07:57.000Z",
           "uid": "44554019-9902b7c6-dd1b-4eb3-abcd-dcb0e2ab82fa"
         },
         {
@@ -1456,11 +1573,108 @@
           "createdAt": "2026-11-20T20:03:08.000Z",
           "updatedAt": "2026-11-20T20:03:08.000Z",
           "uid": "44554019-39d376f4-0d20-4e7b-97ba-f74e9d9fb74e"
+        },
+        {
+          "name": "Chat: list saved chats",
+          "id": "0ec13753-2a9c-4820-9321-5fc146fca3a7",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/chat/conversations?limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["chat", "conversations"],
+              "query": [
+                {
+                  "description": "1-100, default 20",
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "description": "nextCursor from the previous page",
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "Woman only (signed-in session; agent tokens are refused). Her saved chats, most recently active first: Page<ConversationSummary> = { items: [{ id, title, preview, messageCount, createdAt, updatedAt }], nextCursor }. title = start of her first message, preview = start of the last message. Cache-Control: no-store. Contract §7."
+          },
+          "response": [],
+          "createdAt": "2026-11-24T14:07:58.000Z",
+          "updatedAt": "2026-11-24T14:07:58.000Z",
+          "uid": "44554019-0ec13753-2a9c-4820-9321-5fc146fca3a7"
+        },
+        {
+          "name": "Chat: get a saved chat",
+          "id": "515cc59b-9812-43d8-a8fd-31c0ae2155a3",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/chat/conversations/{{conversationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["chat", "conversations", "{{conversationId}}"]
+            },
+            "description": "Woman only (signed-in session). One saved chat: Conversation = { id, title, createdAt, updatedAt, messages: [{ id, role, text, emergency, createdAt }] }, oldest first. emergency = her message raised an emergency (no reply follows it). 404 NOT_FOUND if it does not exist or is not hers. The app uses it to reopen a chat after a reload (/ask?c=id) or from History. Contract §7."
+          },
+          "response": [],
+          "createdAt": "2026-11-24T14:07:59.000Z",
+          "updatedAt": "2026-11-24T14:07:59.000Z",
+          "uid": "44554019-515cc59b-9812-43d8-a8fd-31c0ae2155a3"
+        },
+        {
+          "name": "Chat: delete a saved chat",
+          "id": "8203dbb4-2dac-434e-b494-4a17a6399f61",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{accessToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/chat/conversations/{{conversationId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["chat", "conversations", "{{conversationId}}"]
+            },
+            "description": "Woman only (signed-in session). Deletes the chat and all its messages. 204 No Content. 404 NOT_FOUND if it does not exist or is not hers. Questions she sent to nurses are separate and are not affected. Contract §7."
+          },
+          "response": [],
+          "createdAt": "2026-11-24T14:08:00.000Z",
+          "updatedAt": "2026-11-24T14:08:00.000Z",
+          "uid": "44554019-8203dbb4-2dac-434e-b494-4a17a6399f61"
         }
       ],
       "id": "a75a2f19-222f-4f4b-8098-78f63c47e6b9",
       "createdAt": "2026-11-20T20:02:10.000Z",
-      "updatedAt": "2026-11-20T20:03:08.000Z",
+      "updatedAt": "2026-11-24T14:08:00.000Z",
       "uid": "44554019-a75a2f19-222f-4f4b-8098-78f63c47e6b9"
     },
     {
@@ -1823,9 +2037,9 @@
             "method": "GET",
             "header": [
               {
+                "description": "x402 v2 payment (base64 JSON), sent on the paid retry. Leave {{paymentSignature}} empty for the first call. Agents build it from the PAYMENT-REQUIRED header (e.g. @x402/fetch). The web app uses Collect instead.",
                 "key": "PAYMENT-SIGNATURE",
-                "value": "{{paymentSignature}}",
-                "description": "x402 v2 payment (base64 JSON), sent on the paid retry. Leave empty for the first call."
+                "value": "{{paymentSignature}}"
               }
             ],
             "url": {
@@ -1833,20 +2047,48 @@
               "host": ["{{baseUrl}}"],
               "path": ["questions", "{{questionId}}", "answer"]
             },
-            "description": "Z8. x402-protected answer (contract §8.3): owner check → answered guard (409/410, no payment asked) → already collected (same answer, never charged twice) → free (treasury pays the nurse) → paid: 402 + PAYMENT-REQUIRED, then with PAYMENT-SIGNATURE verify → record attempt → settle → answer + PAYMENT-RESPONSE. Settle failed → 402 without answer text; facilitator busy → 503 retryable; settle timeout → 503 paymentPending, reconciled on chain on the next call."
+            "description": "Z8. x402-protected answer (contract §8.3). Steps, in order:\n1. Owner check: 404 if not hers.\n2. Answered guard: 410 QUESTION_EXPIRED if expired, else 409 QUESTION_NOT_ANSWERED unless answered. No payment is asked for.\n3. Already collected: the same answer and receipt again, never charged twice.\n4. Free (one of her first 3): 200 straight away, paidFromTreasury true, nothing charged. The treasury pays the nurse 80%.\n5. Paid: without PAYMENT-SIGNATURE → 402 + PAYMENT-REQUIRED (exact USDC stroops to the platform, Stellar testnet). With it: verify → record attempt → settle → answer + PAYMENT-RESPONSE (settlement tx hash). The nurse's 80% payout is sent right after.\n\nSettle failed → 402 (no answer text, nothing recorded as paid). Facilitator busy/down → 503 retryable. Settle timeout → 503 paymentPending; the next call checks the chain before asking for money again."
           },
           "response": [
             {
               "id": "9bba196b-6ce7-4f6b-a2e2-19755efd5c80",
               "name": "200 Paid answer (after x402 settlement)",
-              "code": 200,
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "description": "x402 v2 payment (base64 JSON), sent on the paid retry. Leave {{paymentSignature}} empty for the first call. Agents build it from the PAYMENT-REQUIRED header (e.g. @x402/fetch). The web app uses Collect instead.",
+                    "key": "PAYMENT-SIGNATURE",
+                    "value": "{{paymentSignature}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/questions/{{questionId}}/answer",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["questions", "{{questionId}}", "answer"]
+                },
+                "description": "Z8. x402-protected answer (contract §8.3). Steps, in order:\n1. Owner check: 404 if not hers.\n2. Answered guard: 410 QUESTION_EXPIRED if expired, else 409 QUESTION_NOT_ANSWERED unless answered. No payment is asked for.\n3. Already collected: the same answer and receipt again, never charged twice.\n4. Free (one of her first 3): 200 straight away, paidFromTreasury true, nothing charged. The treasury pays the nurse 80%.\n5. Paid: without PAYMENT-SIGNATURE → 402 + PAYMENT-REQUIRED (exact USDC stroops to the platform, Stellar testnet). With it: verify → record attempt → settle → answer + PAYMENT-RESPONSE (settlement tx hash). The nurse's 80% payout is sent right after.\n\nSettle failed → 402 (no answer text, nothing recorded as paid). Facilitator busy/down → 503 retryable. Settle timeout → 503 paymentPending; the next call checks the chain before asking for money again."
+              },
               "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
                   "value": "application/json; charset=utf-8"
                 },
                 {
+                  "description": "base64 JSON SettleResponse: { success, transaction (Stellar tx hash), network, payer }",
                   "key": "PAYMENT-RESPONSE",
                   "value": "eyJzdWNjZXNzIjp0cnVlLCJ0cmFuc2FjdGlvbiI6ImIyY2U1Njg..."
                 },
@@ -1855,56 +2097,157 @@
                   "value": "no-store"
                 }
               ],
-              "body": "{\n  \"answer\": {\n    \"questionId\": \"cmi9q2x0f0003s6l1a2b3c4d5\",\n    \"text\": \"Swelling of the feet at 30 weeks is common, especially late in the day. Rest with your feet raised and drink water. If your face or hands swell suddenly, or you have a bad headache or blurred vision, go to a clinic today.\",\n    \"nurse\": {\n      \"id\": \"cmi9pz1aa0001s6l1nurse0001\",\n      \"displayName\": \"Amaka Okafor\",\n      \"role\": \"midwife\",\n      \"verified\": true\n    },\n    \"recommendSeeSomeoneToday\": false,\n    \"answeredAt\": \"2026-11-22T13:40:12.000Z\"\n  },\n  \"payment\": {\n    \"amount\": {\n      \"kobo\": 50000,\n      \"usdc\": \"0.3125000\"\n    },\n    \"stellarTxHash\": \"b2ce568136e4372c5b5faa5ab963ebeac8ad94afaa661bb2ccbf2f6b09ef30ed\",\n    \"paidFromTreasury\": false\n  }\n}",
-              "_postman_previewlanguage": "json"
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"answer\": {\n    \"questionId\": \"cmi9q2x0f0003s6l1a2b3c4d5\",\n    \"text\": \"Swelling of the feet at 30 weeks is common, especially late in the day. Rest with your feet raised and drink water. If your face or hands swell suddenly, or you have a bad headache or blurred vision, go to a clinic today.\",\n    \"nurse\": { \"id\": \"cmi9pz1aa0001s6l1nurse0001\", \"displayName\": \"Amaka Okafor\", \"role\": \"midwife\", \"verified\": true },\n    \"recommendSeeSomeoneToday\": false,\n    \"answeredAt\": \"2026-11-22T13:40:12.000Z\"\n  },\n  \"payment\": {\n    \"amount\": { \"kobo\": 50000, \"usdc\": \"0.3125000\" },\n    \"stellarTxHash\": \"b2ce568136e4372c5b5faa5ab963ebeac8ad94afaa661bb2ccbf2f6b09ef30ed\",\n    \"paidFromTreasury\": false\n  }\n}",
+              "createdAt": "2026-11-22T14:00:30.000Z",
+              "updatedAt": "2026-11-22T14:00:30.000Z",
+              "uid": "44554019-9bba196b-6ce7-4f6b-a2e2-19755efd5c80"
             },
             {
               "id": "c7e088ed-cbf7-4279-8952-31c8e1ead820",
               "name": "402 Payment required",
-              "code": 402,
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "description": "x402 v2 payment (base64 JSON), sent on the paid retry. Leave {{paymentSignature}} empty for the first call. Agents build it from the PAYMENT-REQUIRED header (e.g. @x402/fetch). The web app uses Collect instead.",
+                    "key": "PAYMENT-SIGNATURE",
+                    "value": "{{paymentSignature}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/questions/{{questionId}}/answer",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["questions", "{{questionId}}", "answer"]
+                },
+                "description": "Z8. x402-protected answer (contract §8.3). Steps, in order:\n1. Owner check: 404 if not hers.\n2. Answered guard: 410 QUESTION_EXPIRED if expired, else 409 QUESTION_NOT_ANSWERED unless answered. No payment is asked for.\n3. Already collected: the same answer and receipt again, never charged twice.\n4. Free (one of her first 3): 200 straight away, paidFromTreasury true, nothing charged. The treasury pays the nurse 80%.\n5. Paid: without PAYMENT-SIGNATURE → 402 + PAYMENT-REQUIRED (exact USDC stroops to the platform, Stellar testnet). With it: verify → record attempt → settle → answer + PAYMENT-RESPONSE (settlement tx hash). The nurse's 80% payout is sent right after.\n\nSettle failed → 402 (no answer text, nothing recorded as paid). Facilitator busy/down → 503 retryable. Settle timeout → 503 paymentPending; the next call checks the chain before asking for money again."
+              },
               "status": "Payment Required",
+              "code": 402,
+              "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
                   "value": "application/json; charset=utf-8"
                 },
                 {
+                  "description": "base64 of the same JSON as the body",
                   "key": "PAYMENT-REQUIRED",
                   "value": "eyJ4NDAyVmVyc2lvbiI6MiwicmVzb3VyY2UiOnsidXJsIjoi..."
                 }
               ],
-              "body": "{\n  \"x402Version\": 2,\n  \"resource\": {\n    \"url\": \"http://localhost:5173/questions/cmi9q2x0f0003s6l1a2b3c4d5/answer\",\n    \"description\": \"CareLayer: one answer from a verified nurse or midwife\",\n    \"mimeType\": \"application/json\"\n  },\n  \"accepts\": [\n    {\n      \"scheme\": \"exact\",\n      \"network\": \"stellar:testnet\",\n      \"asset\": \"CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA\",\n      \"amount\": \"3125000\",\n      \"payTo\": \"GTREASURYPUBLICKEYXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\",\n      \"maxTimeoutSeconds\": 120,\n      \"extra\": {\n        \"areFeesSponsored\": true\n      }\n    }\n  ]\n}",
-              "_postman_previewlanguage": "json"
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"x402Version\": 2,\n  \"resource\": {\n    \"url\": \"http://localhost:5173/questions/cmi9q2x0f0003s6l1a2b3c4d5/answer\",\n    \"description\": \"CareLayer: one answer from a verified nurse or midwife\",\n    \"mimeType\": \"application/json\"\n  },\n  \"accepts\": [\n    {\n      \"scheme\": \"exact\",\n      \"network\": \"stellar:testnet\",\n      \"asset\": \"CBIELTK6YBZJU5UP2WWQEUCYKLPU6AUNZ2BQ4WWFEIE3USCIHMXQDAMA\",\n      \"amount\": \"3125000\",\n      \"payTo\": \"GTREASURYPUBLICKEYXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\",\n      \"maxTimeoutSeconds\": 120,\n      \"extra\": { \"areFeesSponsored\": true }\n    }\n  ]\n}",
+              "createdAt": "2026-11-22T14:00:31.000Z",
+              "updatedAt": "2026-11-22T14:00:31.000Z",
+              "uid": "44554019-c7e088ed-cbf7-4279-8952-31c8e1ead820"
             },
             {
               "id": "a00f3958-38a5-4876-9239-7e0f4924364f",
               "name": "409 Not answered yet (guard, no payment asked)",
-              "code": 409,
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "description": "x402 v2 payment (base64 JSON), sent on the paid retry. Leave {{paymentSignature}} empty for the first call. Agents build it from the PAYMENT-REQUIRED header (e.g. @x402/fetch). The web app uses Collect instead.",
+                    "key": "PAYMENT-SIGNATURE",
+                    "value": "{{paymentSignature}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/questions/{{questionId}}/answer",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["questions", "{{questionId}}", "answer"]
+                },
+                "description": "Z8. x402-protected answer (contract §8.3). Steps, in order:\n1. Owner check: 404 if not hers.\n2. Answered guard: 410 QUESTION_EXPIRED if expired, else 409 QUESTION_NOT_ANSWERED unless answered. No payment is asked for.\n3. Already collected: the same answer and receipt again, never charged twice.\n4. Free (one of her first 3): 200 straight away, paidFromTreasury true, nothing charged. The treasury pays the nurse 80%.\n5. Paid: without PAYMENT-SIGNATURE → 402 + PAYMENT-REQUIRED (exact USDC stroops to the platform, Stellar testnet). With it: verify → record attempt → settle → answer + PAYMENT-RESPONSE (settlement tx hash). The nurse's 80% payout is sent right after.\n\nSettle failed → 402 (no answer text, nothing recorded as paid). Facilitator busy/down → 503 retryable. Settle timeout → 503 paymentPending; the next call checks the chain before asking for money again."
+              },
               "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
                   "value": "application/json; charset=utf-8"
                 }
               ],
+              "cookie": [],
+              "responseTime": null,
               "body": "{\n  \"error\": {\n    \"code\": \"QUESTION_NOT_ANSWERED\",\n    \"message\": \"There is no answer yet. Nothing has been charged.\"\n  }\n}",
-              "_postman_previewlanguage": "json"
+              "createdAt": "2026-11-22T14:00:32.000Z",
+              "updatedAt": "2026-11-22T14:00:32.000Z",
+              "uid": "44554019-a00f3958-38a5-4876-9239-7e0f4924364f"
             },
             {
               "id": "2dda3471-6ee5-46f8-abfe-86ae805d2683",
               "name": "503 Payment still being confirmed",
-              "code": 503,
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [
+                  {
+                    "description": "x402 v2 payment (base64 JSON), sent on the paid retry. Leave {{paymentSignature}} empty for the first call. Agents build it from the PAYMENT-REQUIRED header (e.g. @x402/fetch). The web app uses Collect instead.",
+                    "key": "PAYMENT-SIGNATURE",
+                    "value": "{{paymentSignature}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/questions/{{questionId}}/answer",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["questions", "{{questionId}}", "answer"]
+                },
+                "description": "Z8. x402-protected answer (contract §8.3). Steps, in order:\n1. Owner check: 404 if not hers.\n2. Answered guard: 410 QUESTION_EXPIRED if expired, else 409 QUESTION_NOT_ANSWERED unless answered. No payment is asked for.\n3. Already collected: the same answer and receipt again, never charged twice.\n4. Free (one of her first 3): 200 straight away, paidFromTreasury true, nothing charged. The treasury pays the nurse 80%.\n5. Paid: without PAYMENT-SIGNATURE → 402 + PAYMENT-REQUIRED (exact USDC stroops to the platform, Stellar testnet). With it: verify → record attempt → settle → answer + PAYMENT-RESPONSE (settlement tx hash). The nurse's 80% payout is sent right after.\n\nSettle failed → 402 (no answer text, nothing recorded as paid). Facilitator busy/down → 503 retryable. Settle timeout → 503 paymentPending; the next call checks the chain before asking for money again."
+              },
               "status": "Service Unavailable",
+              "code": 503,
+              "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
                   "value": "application/json; charset=utf-8"
                 }
               ],
-              "body": "{\n  \"error\": {\n    \"code\": \"SERVICE_UNAVAILABLE\",\n    \"message\": \"Your payment is being confirmed. Try again in a moment.\",\n    \"details\": {\n      \"retryable\": true,\n      \"paymentPending\": true,\n      \"retryAfterSeconds\": 30\n    }\n  }\n}",
-              "_postman_previewlanguage": "json"
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"error\": {\n    \"code\": \"SERVICE_UNAVAILABLE\",\n    \"message\": \"Your payment is being confirmed. Try again in a moment.\",\n    \"details\": { \"retryable\": true, \"paymentPending\": true, \"retryAfterSeconds\": 30 }\n  }\n}",
+              "createdAt": "2026-11-22T14:00:33.000Z",
+              "updatedAt": "2026-11-22T14:00:33.000Z",
+              "uid": "44554019-2dda3471-6ee5-46f8-abfe-86ae805d2683"
             }
-          ]
+          ],
+          "createdAt": "2026-11-22T13:58:26.000Z",
+          "updatedAt": "2026-11-22T14:00:33.000Z",
+          "uid": "44554019-af69517c-47c0-439c-847a-b2bf5a6874a8"
         },
         {
           "name": "Collect answer (API agent pays)",
@@ -1941,66 +2284,225 @@
               "host": ["{{baseUrl}}"],
               "path": ["me", "questions", "{{questionId}}", "collect"]
             },
-            "description": "Z8. The web app's way to get an answer (W11). Free if she has one of her first 3 left; otherwise checks her spending limit (409 unless approvedAboveLimit), her live balance (409 INSUFFICIENT_BALANCE), then pays over x402 from her custodial wallet. Calling again returns the same answer without paying again. Z12: with an agent token, Claude's own limit applies (approvedAboveLimit ignored) and \"ask before each payment\" needs confirmPayment: true (else 409 PAYMENT_CONFIRMATION_REQUIRED)."
+            "description": "Z8/Z12. The web app's way to get an answer (W11); Claude uses it too with an agent token. Free if she has one of her first 3 left (nothing signed). Otherwise it checks her spending limit (409 SPENDING_LIMIT_EXCEEDED unless approvedAboveLimit: true; with an agent token Claude's own limit applies and approvedAboveLimit is ignored), then her live balance (409 INSUFFICIENT_BALANCE), then pays over x402 from her custodial wallet. With an agent token and \"ask before each payment\" on: 409 PAYMENT_CONFIRMATION_REQUIRED until confirmPayment: true. Calling again returns the same answer without paying again."
           },
           "response": [
             {
               "id": "102eb535-407b-4385-8120-222d71cad4d7",
               "name": "200 Free answer (treasury pays the nurse)",
-              "code": 200,
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"approvedAboveLimit\": false,\n  \"confirmPayment\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/me/questions/{{questionId}}/collect",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["me", "questions", "{{questionId}}", "collect"]
+                },
+                "description": "Z8/Z12. The web app's way to get an answer (W11); Claude uses it too with an agent token. Free if she has one of her first 3 left (nothing signed). Otherwise it checks her spending limit (409 SPENDING_LIMIT_EXCEEDED unless approvedAboveLimit: true; with an agent token Claude's own limit applies and approvedAboveLimit is ignored), then her live balance (409 INSUFFICIENT_BALANCE), then pays over x402 from her custodial wallet. With an agent token and \"ask before each payment\" on: 409 PAYMENT_CONFIRMATION_REQUIRED until confirmPayment: true. Calling again returns the same answer without paying again."
+              },
               "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
                   "value": "application/json; charset=utf-8"
                 }
               ],
-              "body": "{\n  \"answer\": {\n    \"questionId\": \"cmi9q2x0f0003s6l1a2b3c4d5\",\n    \"text\": \"Spotting in the first three months on the pill is common and usually settles. Keep taking it at the same time every day. If it lasts beyond three months or you have pain, see a health worker.\",\n    \"nurse\": {\n      \"id\": \"cmi9pz1aa0002s6l1nurse0002\",\n      \"displayName\": \"Funmilayo Bello\",\n      \"role\": \"midwife\",\n      \"verified\": true\n    },\n    \"recommendSeeSomeoneToday\": false,\n    \"answeredAt\": \"2026-11-22T13:40:12.000Z\"\n  },\n  \"payment\": {\n    \"amount\": {\n      \"kobo\": 0,\n      \"usdc\": \"0.0000000\"\n    },\n    \"stellarTxHash\": null,\n    \"paidFromTreasury\": true\n  }\n}",
-              "_postman_previewlanguage": "json"
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"answer\": {\n    \"questionId\": \"cmi9q2x0f0003s6l1a2b3c4d5\",\n    \"text\": \"Spotting in the first three months on the pill is common and usually settles. Keep taking it at the same time every day. If it lasts beyond three months or you have pain, see a health worker.\",\n    \"nurse\": { \"id\": \"cmi9pz1aa0002s6l1nurse0002\", \"displayName\": \"Funmilayo Bello\", \"role\": \"midwife\", \"verified\": true },\n    \"recommendSeeSomeoneToday\": false,\n    \"answeredAt\": \"2026-11-22T13:40:12.000Z\"\n  },\n  \"payment\": {\n    \"amount\": { \"kobo\": 0, \"usdc\": \"0.0000000\" },\n    \"stellarTxHash\": null,\n    \"paidFromTreasury\": true\n  }\n}",
+              "createdAt": "2026-11-22T14:00:34.000Z",
+              "updatedAt": "2026-11-22T14:00:34.000Z",
+              "uid": "44554019-102eb535-407b-4385-8120-222d71cad4d7"
             },
             {
               "id": "62030f3b-63a7-48e4-987b-a0b3eeec6a99",
               "name": "409 Above spending limit",
-              "code": 409,
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"approvedAboveLimit\": false,\n  \"confirmPayment\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/me/questions/{{questionId}}/collect",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["me", "questions", "{{questionId}}", "collect"]
+                },
+                "description": "Z8/Z12. The web app's way to get an answer (W11); Claude uses it too with an agent token. Free if she has one of her first 3 left (nothing signed). Otherwise it checks her spending limit (409 SPENDING_LIMIT_EXCEEDED unless approvedAboveLimit: true; with an agent token Claude's own limit applies and approvedAboveLimit is ignored), then her live balance (409 INSUFFICIENT_BALANCE), then pays over x402 from her custodial wallet. With an agent token and \"ask before each payment\" on: 409 PAYMENT_CONFIRMATION_REQUIRED until confirmPayment: true. Calling again returns the same answer without paying again."
+              },
               "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
                   "value": "application/json; charset=utf-8"
                 }
               ],
-              "body": "{\n  \"error\": {\n    \"code\": \"SPENDING_LIMIT_EXCEEDED\",\n    \"message\": \"This answer costs more than your limit per answer. Approve it to continue.\",\n    \"details\": {\n      \"priceKobo\": 50000,\n      \"spendingLimitKobo\": 20000\n    }\n  }\n}",
-              "_postman_previewlanguage": "json"
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"error\": {\n    \"code\": \"SPENDING_LIMIT_EXCEEDED\",\n    \"message\": \"This answer costs more than your limit per answer. Approve it to continue.\",\n    \"details\": { \"priceKobo\": 50000, \"spendingLimitKobo\": 20000 }\n  }\n}",
+              "createdAt": "2026-11-22T14:00:35.000Z",
+              "updatedAt": "2026-11-22T14:00:35.000Z",
+              "uid": "44554019-62030f3b-63a7-48e4-987b-a0b3eeec6a99"
             },
             {
               "id": "2ccdcc1b-cff7-44e2-985d-55378cc138d8",
               "name": "409 Insufficient balance",
-              "code": 409,
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"approvedAboveLimit\": false,\n  \"confirmPayment\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/me/questions/{{questionId}}/collect",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["me", "questions", "{{questionId}}", "collect"]
+                },
+                "description": "Z8/Z12. The web app's way to get an answer (W11); Claude uses it too with an agent token. Free if she has one of her first 3 left (nothing signed). Otherwise it checks her spending limit (409 SPENDING_LIMIT_EXCEEDED unless approvedAboveLimit: true; with an agent token Claude's own limit applies and approvedAboveLimit is ignored), then her live balance (409 INSUFFICIENT_BALANCE), then pays over x402 from her custodial wallet. With an agent token and \"ask before each payment\" on: 409 PAYMENT_CONFIRMATION_REQUIRED until confirmPayment: true. Calling again returns the same answer without paying again."
+              },
               "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
                   "value": "application/json; charset=utf-8"
                 }
               ],
-              "body": "{\n  \"error\": {\n    \"code\": \"INSUFFICIENT_BALANCE\",\n    \"message\": \"Not enough in your wallet for this answer. Top up to continue.\",\n    \"details\": {\n      \"price\": {\n        \"kobo\": 50000,\n        \"usdc\": \"0.3125000\"\n      },\n      \"balance\": {\n        \"kobo\": 16000,\n        \"usdc\": \"0.1000000\"\n      }\n    }\n  }\n}",
-              "_postman_previewlanguage": "json"
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"error\": {\n    \"code\": \"INSUFFICIENT_BALANCE\",\n    \"message\": \"Not enough in your wallet for this answer. Top up to continue.\",\n    \"details\": {\n      \"price\": { \"kobo\": 50000, \"usdc\": \"0.3125000\" },\n      \"balance\": { \"kobo\": 16000, \"usdc\": \"0.1000000\" }\n    }\n  }\n}",
+              "createdAt": "2026-11-22T14:00:38.000Z",
+              "updatedAt": "2026-11-22T14:00:38.000Z",
+              "uid": "44554019-2ccdcc1b-cff7-44e2-985d-55378cc138d8"
             },
             {
               "id": "b8f3dc04-dc2b-4cd8-9db3-da99c87ff6d3",
               "name": "409 Claude must ask her first (agent token)",
-              "code": 409,
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"approvedAboveLimit\": false,\n  \"confirmPayment\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/me/questions/{{questionId}}/collect",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["me", "questions", "{{questionId}}", "collect"]
+                },
+                "description": "Z8/Z12. The web app's way to get an answer (W11); Claude uses it too with an agent token. Free if she has one of her first 3 left (nothing signed). Otherwise it checks her spending limit (409 SPENDING_LIMIT_EXCEEDED unless approvedAboveLimit: true; with an agent token Claude's own limit applies and approvedAboveLimit is ignored), then her live balance (409 INSUFFICIENT_BALANCE), then pays over x402 from her custodial wallet. With an agent token and \"ask before each payment\" on: 409 PAYMENT_CONFIRMATION_REQUIRED until confirmPayment: true. Calling again returns the same answer without paying again."
+              },
               "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
                   "value": "application/json; charset=utf-8"
                 }
               ],
-              "body": "{\n  \"error\": {\n    \"code\": \"PAYMENT_CONFIRMATION_REQUIRED\",\n    \"message\": \"Your answer is ready. Confirm the payment first.\",\n    \"details\": {\n      \"price\": {\n        \"kobo\": 50000,\n        \"usdc\": \"0.3125000\"\n      }\n    }\n  }\n}",
-              "_postman_previewlanguage": "json"
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"error\": {\n    \"code\": \"PAYMENT_CONFIRMATION_REQUIRED\",\n    \"message\": \"Your answer is ready. Confirm the payment first.\",\n    \"details\": { \"price\": { \"kobo\": 50000, \"usdc\": \"0.3125000\" } }\n  }\n}",
+              "createdAt": "2026-11-22T17:49:44.000Z",
+              "updatedAt": "2026-11-22T17:49:44.000Z",
+              "uid": "44554019-b8f3dc04-dc2b-4cd8-9db3-da99c87ff6d3"
             }
-          ]
+          ],
+          "createdAt": "2026-11-22T13:58:36.000Z",
+          "updatedAt": "2026-11-22T17:49:44.000Z",
+          "uid": "44554019-2e9da205-3e8c-4f0c-85ce-5d9938415049"
         },
         {
           "name": "Feedback on answer",
@@ -2037,43 +2539,124 @@
               "host": ["{{baseUrl}}"],
               "path": ["questions", "{{questionId}}", "feedback"]
             },
-            "description": "Z8. Helpful / not helpful on a collected answer. One per answer; sending again changes it. Recomputes the nurse's % helpful."
+            "description": "Z8. Helpful / not helpful on a collected answer. One per answer; sending again changes it. Recomputes the nurse's \"% helpful (count)\". 409 QUESTION_NOT_ANSWERED until she has collected the answer."
           },
           "response": [
             {
               "id": "c48c9dd3-7d46-4ede-8818-0b2f02440785",
               "name": "200 Feedback saved",
-              "code": 200,
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"helpful\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/questions/{{questionId}}/feedback",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["questions", "{{questionId}}", "feedback"]
+                },
+                "description": "Z8. Helpful / not helpful on a collected answer. One per answer; sending again changes it. Recomputes the nurse's \"% helpful (count)\". 409 QUESTION_NOT_ANSWERED until she has collected the answer."
+              },
               "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
                   "value": "application/json; charset=utf-8"
                 }
               ],
+              "cookie": [],
+              "responseTime": null,
               "body": "{\n  \"questionId\": \"cmi9q2x0f0003s6l1a2b3c4d5\",\n  \"helpful\": true,\n  \"updatedAt\": \"2026-11-22T13:45:02.000Z\"\n}",
-              "_postman_previewlanguage": "json"
+              "createdAt": "2026-11-22T14:00:38.000Z",
+              "updatedAt": "2026-11-22T14:00:38.000Z",
+              "uid": "44554019-c48c9dd3-7d46-4ede-8818-0b2f02440785"
             },
             {
               "id": "41175f46-c281-40fa-840a-4cdd5e81563a",
               "name": "409 Not collected yet",
-              "code": 409,
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"helpful\": true\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/questions/{{questionId}}/feedback",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["questions", "{{questionId}}", "feedback"]
+                },
+                "description": "Z8. Helpful / not helpful on a collected answer. One per answer; sending again changes it. Recomputes the nurse's \"% helpful (count)\". 409 QUESTION_NOT_ANSWERED until she has collected the answer."
+              },
               "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
                   "value": "application/json; charset=utf-8"
                 }
               ],
+              "cookie": [],
+              "responseTime": null,
               "body": "{\n  \"error\": {\n    \"code\": \"QUESTION_NOT_ANSWERED\",\n    \"message\": \"You can rate an answer once you have it.\"\n  }\n}",
-              "_postman_previewlanguage": "json"
+              "createdAt": "2026-11-22T14:00:40.000Z",
+              "updatedAt": "2026-11-22T14:00:40.000Z",
+              "uid": "44554019-41175f46-c281-40fa-840a-4cdd5e81563a"
             }
-          ]
+          ],
+          "createdAt": "2026-11-22T13:58:37.000Z",
+          "updatedAt": "2026-11-22T14:00:40.000Z",
+          "uid": "44554019-49a4381c-25d7-4a7a-a259-4fc66078c62e"
         }
       ],
       "id": "81c7eaf2-6deb-4efd-b3e4-f616bc31224a",
       "createdAt": "2026-11-20T20:02:22.000Z",
-      "updatedAt": "2026-11-20T20:03:31.000Z",
+      "updatedAt": "2026-11-22T13:58:37.000Z",
       "uid": "44554019-81c7eaf2-6deb-4efd-b3e4-f616bc31224a"
     },
     {
@@ -2813,24 +3396,56 @@
               "host": ["{{baseUrl}}"],
               "path": ["nurse", "earnings"]
             },
-            "description": "Z10. N09 Earnings: available (chain balance minus withdrawals in progress), Mon–Sun chart (Lagos), this week, this month, all time, recent earnings and withdrawals."
+            "description": "Z10. N09 Earnings for the signed-in nurse (any verification status).\n- available = USDC in her CareLayer wallet (read from Stellar) minus withdrawals in progress.\n- thisWeek.days: always Mon–Sun (Lagos time) for the chart; isToday marks today.\n- thisMonth, totalEarned, answersCount: her 80% of every collected answer, free ones included.\n- recent: latest 10 earnings and withdrawals (kind: earning | withdrawal), newest first. \"See all\": GET /wallet/transactions.\n- payoutAddress: set if she chose her own payout wallet (payouts then go there)."
           },
           "response": [
             {
               "id": "373975a6-c930-4b34-863f-305bb0b3f987",
               "name": "200 Earnings (N09)",
-              "code": 200,
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/nurse/earnings",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["nurse", "earnings"]
+                },
+                "description": "Z10. N09 Earnings for the signed-in nurse (any verification status).\n- available = USDC in her CareLayer wallet (read from Stellar) minus withdrawals in progress.\n- thisWeek.days: always Mon–Sun (Lagos time) for the chart; isToday marks today.\n- thisMonth, totalEarned, answersCount: her 80% of every collected answer, free ones included.\n- recent: latest 10 earnings and withdrawals (kind: earning | withdrawal), newest first. \"See all\": GET /wallet/transactions.\n- payoutAddress: set if she chose her own payout wallet (payouts then go there)."
+              },
               "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
                   "value": "application/json; charset=utf-8"
+                },
+                {
+                  "key": "Cache-Control",
+                  "value": "no-store"
                 }
               ],
-              "body": "{\n  \"available\": {\n    \"kobo\": 4520000,\n    \"usdc\": \"28.2500000\"\n  },\n  \"balance\": {\n    \"kobo\": 4520000,\n    \"usdc\": \"28.2500000\"\n  },\n  \"balanceSyncedAt\": \"2026-11-21T13:05:10.000Z\",\n  \"stellarAddress\": \"GBNURSECUSTODIALWALLETXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\",\n  \"payoutAddress\": null,\n  \"totalEarned\": {\n    \"kobo\": 6520000,\n    \"usdc\": \"40.7500000\"\n  },\n  \"answersCount\": 163,\n  \"thisWeek\": {\n    \"from\": \"2026-11-16\",\n    \"total\": {\n      \"kobo\": 1240000,\n      \"usdc\": \"7.7500000\"\n    },\n    \"answersCount\": 31,\n    \"days\": [\n      {\n        \"date\": \"2026-11-16\",\n        \"weekday\": \"mon\",\n        \"total\": {\n          \"kobo\": 160000,\n          \"usdc\": \"1.0000000\"\n        },\n        \"answersCount\": 4,\n        \"isToday\": false\n      },\n      {\n        \"date\": \"2026-11-17\",\n        \"weekday\": \"tue\",\n        \"total\": {\n          \"kobo\": 240000,\n          \"usdc\": \"1.5000000\"\n        },\n        \"answersCount\": 6,\n        \"isToday\": false\n      },\n      {\n        \"date\": \"2026-11-18\",\n        \"weekday\": \"wed\",\n        \"total\": {\n          \"kobo\": 80000,\n          \"usdc\": \"0.5000000\"\n        },\n        \"answersCount\": 2,\n        \"isToday\": false\n      },\n      {\n        \"date\": \"2026-11-19\",\n        \"weekday\": \"thu\",\n        \"total\": {\n          \"kobo\": 200000,\n          \"usdc\": \"1.2500000\"\n        },\n        \"answersCount\": 5,\n        \"isToday\": false\n      },\n      {\n        \"date\": \"2026-11-20\",\n        \"weekday\": \"fri\",\n        \"total\": {\n          \"kobo\": 240000,\n          \"usdc\": \"1.5000000\"\n        },\n        \"answersCount\": 6,\n        \"isToday\": false\n      },\n      {\n        \"date\": \"2026-11-21\",\n        \"weekday\": \"sat\",\n        \"total\": {\n          \"kobo\": 320000,\n          \"usdc\": \"2.0000000\"\n        },\n        \"answersCount\": 8,\n        \"isToday\": true\n      },\n      {\n        \"date\": \"2026-11-22\",\n        \"weekday\": \"sun\",\n        \"total\": {\n          \"kobo\": 0,\n          \"usdc\": \"0.0000000\"\n        },\n        \"answersCount\": 0,\n        \"isToday\": false\n      }\n    ]\n  },\n  \"thisMonth\": {\n    \"from\": \"2026-11-01\",\n    \"total\": {\n      \"kobo\": 3600000,\n      \"usdc\": \"22.5000000\"\n    },\n    \"answersCount\": 90\n  },\n  \"recent\": [\n    {\n      \"kind\": \"earning\",\n      \"id\": \"cmiab12cd0001s6l1payout001\",\n      \"questionId\": \"cmi9q2x0f0003s6l1a2b3c4d5\",\n      \"category\": \"pregnancy\",\n      \"title\": \"Swollen feet at 24 weeks\",\n      \"amount\": {\n        \"kobo\": 40000,\n        \"usdc\": \"0.2500000\"\n      },\n      \"paidFromTreasury\": false,\n      \"status\": \"confirmed\",\n      \"stellarTxHash\": \"4e0d8988a6a94eddcb7fcb06f1cc9340ea27787abed83ebbd8b52da0819a39b9\",\n      \"earnedAt\": \"2026-11-21T21:50:00.000Z\"\n    },\n    {\n      \"kind\": \"withdrawal\",\n      \"id\": \"cmiab12cd0003s6l1withdr01\",\n      \"amount\": {\n        \"kobo\": -2000000,\n        \"usdc\": \"-12.5000000\"\n      },\n      \"destinationAddress\": \"GAMR6SLMHBSOBKZVBMAN2OIKN2J5XOIB65VPZMIWACOJXRSJ42A4GCAI\",\n      \"status\": \"confirmed\",\n      \"stellarTxHash\": \"0e6497925afd3313b464ea446ca97f45cca3e536603f2f12760d4976c6f8eba6\",\n      \"createdAt\": \"2026-11-05T10:00:00.000Z\",\n      \"destinationMemo\": null\n    }\n  ]\n}",
-              "_postman_previewlanguage": "json"
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"available\": { \"kobo\": 4520000, \"usdc\": \"28.2500000\" },\n  \"balance\": { \"kobo\": 4520000, \"usdc\": \"28.2500000\" },\n  \"balanceSyncedAt\": \"2026-11-21T13:05:10.000Z\",\n  \"stellarAddress\": \"GBNURSECUSTODIALWALLETXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX\",\n  \"payoutAddress\": null,\n  \"totalEarned\": { \"kobo\": 6520000, \"usdc\": \"40.7500000\" },\n  \"answersCount\": 163,\n  \"thisWeek\": {\n    \"from\": \"2026-11-16\",\n    \"total\": { \"kobo\": 1240000, \"usdc\": \"7.7500000\" },\n    \"answersCount\": 31,\n    \"days\": [\n      { \"date\": \"2026-11-16\", \"weekday\": \"mon\", \"total\": { \"kobo\": 160000, \"usdc\": \"1.0000000\" }, \"answersCount\": 4, \"isToday\": false },\n      { \"date\": \"2026-11-17\", \"weekday\": \"tue\", \"total\": { \"kobo\": 240000, \"usdc\": \"1.5000000\" }, \"answersCount\": 6, \"isToday\": false },\n      { \"date\": \"2026-11-18\", \"weekday\": \"wed\", \"total\": { \"kobo\": 80000, \"usdc\": \"0.5000000\" }, \"answersCount\": 2, \"isToday\": false },\n      { \"date\": \"2026-11-19\", \"weekday\": \"thu\", \"total\": { \"kobo\": 200000, \"usdc\": \"1.2500000\" }, \"answersCount\": 5, \"isToday\": false },\n      { \"date\": \"2026-11-20\", \"weekday\": \"fri\", \"total\": { \"kobo\": 240000, \"usdc\": \"1.5000000\" }, \"answersCount\": 6, \"isToday\": false },\n      { \"date\": \"2026-11-21\", \"weekday\": \"sat\", \"total\": { \"kobo\": 320000, \"usdc\": \"2.0000000\" }, \"answersCount\": 8, \"isToday\": true },\n      { \"date\": \"2026-11-22\", \"weekday\": \"sun\", \"total\": { \"kobo\": 0, \"usdc\": \"0.0000000\" }, \"answersCount\": 0, \"isToday\": false }\n    ]\n  },\n  \"thisMonth\": { \"from\": \"2026-11-01\", \"total\": { \"kobo\": 3600000, \"usdc\": \"22.5000000\" }, \"answersCount\": 90 },\n  \"recent\": [\n    {\n      \"kind\": \"earning\",\n      \"id\": \"cmiab12cd0001s6l1payout001\",\n      \"questionId\": \"cmi9q2x0f0003s6l1a2b3c4d5\",\n      \"category\": \"pregnancy\",\n      \"title\": \"Swollen feet at 24 weeks\",\n      \"amount\": { \"kobo\": 40000, \"usdc\": \"0.2500000\" },\n      \"paidFromTreasury\": false,\n      \"status\": \"confirmed\",\n      \"stellarTxHash\": \"4e0d8988a6a94eddcb7fcb06f1cc9340ea27787abed83ebbd8b52da0819a39b9\",\n      \"earnedAt\": \"2026-11-21T21:50:00.000Z\"\n    },\n    {\n      \"kind\": \"earning\",\n      \"id\": \"cmiab12cd0002s6l1payout002\",\n      \"questionId\": \"cmi9q2x0f0004s6l1a2b3c4d6\",\n      \"category\": \"contraception\",\n      \"title\": \"Missed two pills\",\n      \"amount\": { \"kobo\": 40000, \"usdc\": \"0.2500000\" },\n      \"paidFromTreasury\": true,\n      \"status\": \"pending\",\n      \"stellarTxHash\": null,\n      \"earnedAt\": \"2026-11-21T20:15:00.000Z\"\n    },\n    {\n      \"kind\": \"withdrawal\",\n      \"id\": \"cmiab12cd0003s6l1withdr01\",\n      \"amount\": { \"kobo\": -2000000, \"usdc\": \"-12.5000000\" },\n      \"destinationAddress\": \"GAMR6SLMHBSOBKZVBMAN2OIKN2J5XOIB65VPZMIWACOJXRSJ42A4GCAI\",\n      \"status\": \"confirmed\",\n      \"stellarTxHash\": \"0e6497925afd3313b464ea446ca97f45cca3e536603f2f12760d4976c6f8eba6\",\n      \"createdAt\": \"2026-11-05T10:00:00.000Z\"\n    }\n  ]\n}",
+              "createdAt": "2026-11-22T15:06:27.000Z",
+              "updatedAt": "2026-11-22T15:06:27.000Z",
+              "uid": "44554019-373975a6-c930-4b34-863f-305bb0b3f987"
             }
-          ]
+          ],
+          "createdAt": "2026-11-22T15:05:46.000Z",
+          "updatedAt": "2026-11-22T15:06:27.000Z",
+          "uid": "44554019-1ac55d49-5fc8-46e7-ac5c-8ce9e8a0ddce"
         },
         {
           "name": "Earnings: withdraw to Stellar (fresh code)",
@@ -2867,108 +3482,384 @@
               "host": ["{{baseUrl}}"],
               "path": ["nurse", "withdrawals"]
             },
-            "description": "Z10. Needs POST /auth/step-up first (5 minutes). Stellar only, ≥ ₦100, ≤ available, one at a time; destination must exist and trust USDC. Her wallet signs, the platform pays the fee. 201 confirmed or submitted; 502 = Stellar refused, nothing moved. memo (optional): only when the receiving wallet asks for one (exchanges); type \"id\" (digits) or \"text\" (≤ 28 bytes). Remove it for a personal wallet."
+            "description": "Z10. Real testnet payment from her CareLayer wallet; the platform pays the Stellar fee (fee bump).\nFirst: Auth → request a code with purpose \"step_up\", then POST /auth/step-up { code } (valid 5 minutes on this session).\nRules: Stellar address only (bank is \"Coming soon\"), minimum ₦100, at most `available`, one withdrawal at a time. The destination must exist and trust testnet USDC, and must not be her own CareLayer wallet.\nmemo (optional): only when the receiving wallet asks for one; exchanges credit deposits by memo. type \"id\" (digits, up to 2^64-1; most exchanges) or \"text\" (up to 28 bytes). Remove it for a personal wallet.\n201 status \"confirmed\" (hash recorded) or \"submitted\" (Stellar was slow: it becomes confirmed or failed within about 3 minutes; check GET /nurse/withdrawals). 502 STELLAR_SUBMIT_FAILED = Stellar refused it, nothing left her wallet."
           },
           "response": [
             {
               "id": "b273886c-d090-488c-a4ce-639a612cca05",
               "name": "201 Withdrawal confirmed",
-              "code": 201,
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amountKobo\": 20000,\n  \"destination\": {\n    \"kind\": \"stellar\",\n    \"address\": \"{{withdrawalAddress}}\",\n    \"memo\": { \"type\": \"id\", \"value\": \"1234567890\" }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/nurse/withdrawals",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["nurse", "withdrawals"]
+                },
+                "description": "Z10. Real testnet payment from her CareLayer wallet; the platform pays the Stellar fee (fee bump).\nFirst: Auth → request a code with purpose \"step_up\", then POST /auth/step-up { code } (valid 5 minutes on this session).\nRules: Stellar address only (bank is \"Coming soon\"), minimum ₦100, at most `available`, one withdrawal at a time. The destination must exist and trust testnet USDC, and must not be her own CareLayer wallet.\nmemo (optional): only when the receiving wallet asks for one; exchanges credit deposits by memo. type \"id\" (digits, up to 2^64-1; most exchanges) or \"text\" (up to 28 bytes). Remove it for a personal wallet.\n201 status \"confirmed\" (hash recorded) or \"submitted\" (Stellar was slow: it becomes confirmed or failed within about 3 minutes; check GET /nurse/withdrawals). 502 STELLAR_SUBMIT_FAILED = Stellar refused it, nothing left her wallet."
+              },
               "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
                   "value": "application/json; charset=utf-8"
                 }
               ],
-              "body": "{\n  \"id\": \"cmiab12cd0003s6l1withdr01\",\n  \"status\": \"confirmed\",\n  \"amount\": {\n    \"kobo\": 10000,\n    \"usdc\": \"0.0625000\"\n  },\n  \"destinationAddress\": \"GAMR6SLMHBSOBKZVBMAN2OIKN2J5XOIB65VPZMIWACOJXRSJ42A4GCAI\",\n  \"destinationMemo\": null,\n  \"stellarTxHash\": \"0e6497925afd3313b464ea446ca97f45cca3e536603f2f12760d4976c6f8eba6\",\n  \"failureReason\": null,\n  \"createdAt\": \"2026-11-22T15:02:11.000Z\",\n  \"confirmedAt\": \"2026-11-22T15:02:16.000Z\"\n}",
-              "_postman_previewlanguage": "json"
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"id\": \"cmiab12cd0003s6l1withdr01\",\n  \"status\": \"confirmed\",\n  \"amount\": { \"kobo\": 10000, \"usdc\": \"0.0625000\" },\n  \"destinationAddress\": \"GAMR6SLMHBSOBKZVBMAN2OIKN2J5XOIB65VPZMIWACOJXRSJ42A4GCAI\",\n  \"stellarTxHash\": \"0e6497925afd3313b464ea446ca97f45cca3e536603f2f12760d4976c6f8eba6\",\n  \"failureReason\": null,\n  \"createdAt\": \"2026-11-22T15:02:11.000Z\",\n  \"confirmedAt\": \"2026-11-22T15:02:16.000Z\"\n}",
+              "createdAt": "2026-11-22T15:06:28.000Z",
+              "updatedAt": "2026-11-22T15:06:28.000Z",
+              "uid": "44554019-b273886c-d090-488c-a4ce-639a612cca05"
             },
             {
               "id": "bd054168-7cc4-4f6a-8225-e1ae9bad634c",
               "name": "403 Fresh code required",
-              "code": 403,
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amountKobo\": 20000,\n  \"destination\": {\n    \"kind\": \"stellar\",\n    \"address\": \"{{withdrawalAddress}}\",\n    \"memo\": { \"type\": \"id\", \"value\": \"1234567890\" }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/nurse/withdrawals",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["nurse", "withdrawals"]
+                },
+                "description": "Z10. Real testnet payment from her CareLayer wallet; the platform pays the Stellar fee (fee bump).\nFirst: Auth → request a code with purpose \"step_up\", then POST /auth/step-up { code } (valid 5 minutes on this session).\nRules: Stellar address only (bank is \"Coming soon\"), minimum ₦100, at most `available`, one withdrawal at a time. The destination must exist and trust testnet USDC, and must not be her own CareLayer wallet.\nmemo (optional): only when the receiving wallet asks for one; exchanges credit deposits by memo. type \"id\" (digits, up to 2^64-1; most exchanges) or \"text\" (up to 28 bytes). Remove it for a personal wallet.\n201 status \"confirmed\" (hash recorded) or \"submitted\" (Stellar was slow: it becomes confirmed or failed within about 3 minutes; check GET /nurse/withdrawals). 502 STELLAR_SUBMIT_FAILED = Stellar refused it, nothing left her wallet."
+              },
               "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
                   "value": "application/json; charset=utf-8"
                 }
               ],
-              "body": "{\n  \"error\": {\n    \"code\": \"STEP_UP_REQUIRED\",\n    \"message\": \"Confirm it is you with a new code first.\",\n    \"details\": {\n      \"stepUpTtlMinutes\": 5\n    }\n  }\n}",
-              "_postman_previewlanguage": "json"
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"error\": {\n    \"code\": \"STEP_UP_REQUIRED\",\n    \"message\": \"Confirm it is you with a new code first.\",\n    \"details\": { \"stepUpTtlMinutes\": 5 }\n  }\n}",
+              "createdAt": "2026-11-22T15:06:29.000Z",
+              "updatedAt": "2026-11-22T15:06:29.000Z",
+              "uid": "44554019-bd054168-7cc4-4f6a-8225-e1ae9bad634c"
             },
             {
               "id": "6d4f69cd-d377-40be-8408-87f82b3b89f2",
               "name": "409 Insufficient balance",
-              "code": 409,
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amountKobo\": 20000,\n  \"destination\": {\n    \"kind\": \"stellar\",\n    \"address\": \"{{withdrawalAddress}}\",\n    \"memo\": { \"type\": \"id\", \"value\": \"1234567890\" }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/nurse/withdrawals",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["nurse", "withdrawals"]
+                },
+                "description": "Z10. Real testnet payment from her CareLayer wallet; the platform pays the Stellar fee (fee bump).\nFirst: Auth → request a code with purpose \"step_up\", then POST /auth/step-up { code } (valid 5 minutes on this session).\nRules: Stellar address only (bank is \"Coming soon\"), minimum ₦100, at most `available`, one withdrawal at a time. The destination must exist and trust testnet USDC, and must not be her own CareLayer wallet.\nmemo (optional): only when the receiving wallet asks for one; exchanges credit deposits by memo. type \"id\" (digits, up to 2^64-1; most exchanges) or \"text\" (up to 28 bytes). Remove it for a personal wallet.\n201 status \"confirmed\" (hash recorded) or \"submitted\" (Stellar was slow: it becomes confirmed or failed within about 3 minutes; check GET /nurse/withdrawals). 502 STELLAR_SUBMIT_FAILED = Stellar refused it, nothing left her wallet."
+              },
               "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
                   "value": "application/json; charset=utf-8"
                 }
               ],
-              "body": "{\n  \"error\": {\n    \"code\": \"INSUFFICIENT_BALANCE\",\n    \"message\": \"You cannot withdraw more than you have.\",\n    \"details\": {\n      \"available\": {\n        \"kobo\": 160000,\n        \"usdc\": \"1.0000000\"\n      },\n      \"requested\": {\n        \"kobo\": 200000,\n        \"usdc\": \"1.2500000\"\n      }\n    }\n  }\n}",
-              "_postman_previewlanguage": "json"
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"error\": {\n    \"code\": \"INSUFFICIENT_BALANCE\",\n    \"message\": \"You cannot withdraw more than you have.\",\n    \"details\": {\n      \"available\": { \"kobo\": 160000, \"usdc\": \"1.0000000\" },\n      \"requested\": { \"kobo\": 200000, \"usdc\": \"1.2500000\" }\n    }\n  }\n}",
+              "createdAt": "2026-11-22T15:06:30.000Z",
+              "updatedAt": "2026-11-22T15:06:30.000Z",
+              "uid": "44554019-6d4f69cd-d377-40be-8408-87f82b3b89f2"
             },
             {
               "id": "b037d72f-7330-4b5d-9712-e8b8e4d9047f",
               "name": "400 Wallet cannot receive USDC",
-              "code": 400,
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amountKobo\": 20000,\n  \"destination\": {\n    \"kind\": \"stellar\",\n    \"address\": \"{{withdrawalAddress}}\",\n    \"memo\": { \"type\": \"id\", \"value\": \"1234567890\" }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/nurse/withdrawals",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["nurse", "withdrawals"]
+                },
+                "description": "Z10. Real testnet payment from her CareLayer wallet; the platform pays the Stellar fee (fee bump).\nFirst: Auth → request a code with purpose \"step_up\", then POST /auth/step-up { code } (valid 5 minutes on this session).\nRules: Stellar address only (bank is \"Coming soon\"), minimum ₦100, at most `available`, one withdrawal at a time. The destination must exist and trust testnet USDC, and must not be her own CareLayer wallet.\nmemo (optional): only when the receiving wallet asks for one; exchanges credit deposits by memo. type \"id\" (digits, up to 2^64-1; most exchanges) or \"text\" (up to 28 bytes). Remove it for a personal wallet.\n201 status \"confirmed\" (hash recorded) or \"submitted\" (Stellar was slow: it becomes confirmed or failed within about 3 minutes; check GET /nurse/withdrawals). 502 STELLAR_SUBMIT_FAILED = Stellar refused it, nothing left her wallet."
+              },
               "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
                   "value": "application/json; charset=utf-8"
                 }
               ],
-              "body": "{\n  \"error\": {\n    \"code\": \"STELLAR_ADDRESS_INVALID\",\n    \"message\": \"That wallet cannot receive USDC yet. Add a USDC trustline to it first.\",\n    \"details\": {\n      \"field\": \"destination.address\"\n    }\n  }\n}",
-              "_postman_previewlanguage": "json"
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"error\": {\n    \"code\": \"STELLAR_ADDRESS_INVALID\",\n    \"message\": \"That wallet cannot receive USDC yet. Add a USDC trustline to it first.\",\n    \"details\": { \"field\": \"destination.address\" }\n  }\n}",
+              "createdAt": "2026-11-22T15:06:30.000Z",
+              "updatedAt": "2026-11-22T15:06:30.000Z",
+              "uid": "44554019-b037d72f-7330-4b5d-9712-e8b8e4d9047f"
             },
             {
               "id": "c9c0cfd2-214c-43df-96da-21713d8a8640",
               "name": "502 Stellar refused (nothing moved)",
-              "code": 502,
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amountKobo\": 20000,\n  \"destination\": {\n    \"kind\": \"stellar\",\n    \"address\": \"{{withdrawalAddress}}\",\n    \"memo\": { \"type\": \"id\", \"value\": \"1234567890\" }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/nurse/withdrawals",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["nurse", "withdrawals"]
+                },
+                "description": "Z10. Real testnet payment from her CareLayer wallet; the platform pays the Stellar fee (fee bump).\nFirst: Auth → request a code with purpose \"step_up\", then POST /auth/step-up { code } (valid 5 minutes on this session).\nRules: Stellar address only (bank is \"Coming soon\"), minimum ₦100, at most `available`, one withdrawal at a time. The destination must exist and trust testnet USDC, and must not be her own CareLayer wallet.\nmemo (optional): only when the receiving wallet asks for one; exchanges credit deposits by memo. type \"id\" (digits, up to 2^64-1; most exchanges) or \"text\" (up to 28 bytes). Remove it for a personal wallet.\n201 status \"confirmed\" (hash recorded) or \"submitted\" (Stellar was slow: it becomes confirmed or failed within about 3 minutes; check GET /nurse/withdrawals). 502 STELLAR_SUBMIT_FAILED = Stellar refused it, nothing left her wallet."
+              },
               "status": "Bad Gateway",
+              "code": 502,
+              "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
                   "value": "application/json; charset=utf-8"
                 }
               ],
+              "cookie": [],
+              "responseTime": null,
               "body": "{\n  \"error\": {\n    \"code\": \"STELLAR_SUBMIT_FAILED\",\n    \"message\": \"Stellar did not accept the payment. Nothing left your wallet.\",\n    \"details\": {\n      \"withdrawalId\": \"cmiab12cd0004s6l1withdr02\",\n      \"reason\": \"stellar: tx_failed [op_underfunded]\"\n    }\n  }\n}",
-              "_postman_previewlanguage": "json"
+              "createdAt": "2026-11-22T15:06:31.000Z",
+              "updatedAt": "2026-11-22T15:06:31.000Z",
+              "uid": "44554019-c9c0cfd2-214c-43df-96da-21713d8a8640"
             },
             {
               "id": "b033505a-22e1-401a-aba2-cd521ba12a75",
               "name": "201 Withdrawal to an exchange (memo ID)",
-              "code": 201,
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amountKobo\": 20000,\n  \"destination\": {\n    \"kind\": \"stellar\",\n    \"address\": \"{{withdrawalAddress}}\",\n    \"memo\": { \"type\": \"id\", \"value\": \"1234567890\" }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/nurse/withdrawals",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["nurse", "withdrawals"]
+                },
+                "description": "Z10. Real testnet payment from her CareLayer wallet; the platform pays the Stellar fee (fee bump).\nFirst: Auth → request a code with purpose \"step_up\", then POST /auth/step-up { code } (valid 5 minutes on this session).\nRules: Stellar address only (bank is \"Coming soon\"), minimum ₦100, at most `available`, one withdrawal at a time. The destination must exist and trust testnet USDC, and must not be her own CareLayer wallet.\nmemo (optional): only when the receiving wallet asks for one; exchanges credit deposits by memo. type \"id\" (digits, up to 2^64-1; most exchanges) or \"text\" (up to 28 bytes). Remove it for a personal wallet.\n201 status \"confirmed\" (hash recorded) or \"submitted\" (Stellar was slow: it becomes confirmed or failed within about 3 minutes; check GET /nurse/withdrawals). 502 STELLAR_SUBMIT_FAILED = Stellar refused it, nothing left her wallet."
+              },
               "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
                   "value": "application/json; charset=utf-8"
                 }
               ],
-              "body": "{\n  \"id\": \"cmiab12cd0005s6l1withdr03\",\n  \"status\": \"confirmed\",\n  \"amount\": {\n    \"kobo\": 10000,\n    \"usdc\": \"0.0625000\"\n  },\n  \"destinationAddress\": \"GAMR6SLMHBSOBKZVBMAN2OIKN2J5XOIB65VPZMIWACOJXRSJ42A4GCAI\",\n  \"destinationMemo\": {\n    \"type\": \"id\",\n    \"value\": \"20261122\"\n  },\n  \"stellarTxHash\": \"04f8bfa8959bc0476747b1a9be13aaed2ce79309f279e8ee07c737b8817f23e4\",\n  \"failureReason\": null,\n  \"createdAt\": \"2026-11-22T15:30:02.000Z\",\n  \"confirmedAt\": \"2026-11-22T15:30:07.000Z\"\n}",
-              "_postman_previewlanguage": "json"
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"id\": \"cmiab12cd0005s6l1withdr03\",\n  \"status\": \"confirmed\",\n  \"amount\": { \"kobo\": 10000, \"usdc\": \"0.0625000\" },\n  \"destinationAddress\": \"GAMR6SLMHBSOBKZVBMAN2OIKN2J5XOIB65VPZMIWACOJXRSJ42A4GCAI\",\n  \"destinationMemo\": { \"type\": \"id\", \"value\": \"20261122\" },\n  \"stellarTxHash\": \"04f8bfa8959bc0476747b1a9be13aaed2ce79309f279e8ee07c737b8817f23e4\",\n  \"failureReason\": null,\n  \"createdAt\": \"2026-11-22T15:30:02.000Z\",\n  \"confirmedAt\": \"2026-11-22T15:30:07.000Z\"\n}",
+              "createdAt": "2026-11-22T15:23:21.000Z",
+              "updatedAt": "2026-11-22T15:23:21.000Z",
+              "uid": "44554019-b033505a-22e1-401a-aba2-cd521ba12a75"
             },
             {
               "id": "0d6a2c43-7a8c-48e0-857f-50046db6fc19",
               "name": "400 Invalid memo",
-              "code": 400,
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"amountKobo\": 20000,\n  \"destination\": {\n    \"kind\": \"stellar\",\n    \"address\": \"{{withdrawalAddress}}\",\n    \"memo\": { \"type\": \"id\", \"value\": \"1234567890\" }\n  }\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/nurse/withdrawals",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["nurse", "withdrawals"]
+                },
+                "description": "Z10. Real testnet payment from her CareLayer wallet; the platform pays the Stellar fee (fee bump).\nFirst: Auth → request a code with purpose \"step_up\", then POST /auth/step-up { code } (valid 5 minutes on this session).\nRules: Stellar address only (bank is \"Coming soon\"), minimum ₦100, at most `available`, one withdrawal at a time. The destination must exist and trust testnet USDC, and must not be her own CareLayer wallet.\nmemo (optional): only when the receiving wallet asks for one; exchanges credit deposits by memo. type \"id\" (digits, up to 2^64-1; most exchanges) or \"text\" (up to 28 bytes). Remove it for a personal wallet.\n201 status \"confirmed\" (hash recorded) or \"submitted\" (Stellar was slow: it becomes confirmed or failed within about 3 minutes; check GET /nurse/withdrawals). 502 STELLAR_SUBMIT_FAILED = Stellar refused it, nothing left her wallet."
+              },
               "status": "Bad Request",
+              "code": 400,
+              "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
                   "value": "application/json; charset=utf-8"
                 }
               ],
-              "body": "{\n  \"error\": {\n    \"code\": \"VALIDATION_FAILED\",\n    \"message\": \"A memo ID is a number, digits only.\",\n    \"details\": {\n      \"field\": \"destination.memo\"\n    }\n  }\n}",
-              "_postman_previewlanguage": "json"
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"error\": {\n    \"code\": \"VALIDATION_FAILED\",\n    \"message\": \"A memo ID is a number, digits only.\",\n    \"details\": { \"field\": \"destination.memo\" }\n  }\n}",
+              "createdAt": "2026-11-22T15:23:21.000Z",
+              "updatedAt": "2026-11-22T15:23:21.000Z",
+              "uid": "44554019-0d6a2c43-7a8c-48e0-857f-50046db6fc19"
             }
-          ]
+          ],
+          "createdAt": "2026-11-22T15:05:47.000Z",
+          "updatedAt": "2026-11-22T15:23:21.000Z",
+          "uid": "44554019-6e1f9337-dd91-4615-9ad4-1347896bc442"
         },
         {
           "name": "Earnings: list withdrawals",
@@ -2992,39 +3883,82 @@
               "path": ["nurse", "withdrawals"],
               "query": [
                 {
+                  "description": "1-100",
                   "key": "limit",
                   "value": "20"
                 },
                 {
+                  "description": "nextCursor from the previous page",
                   "key": "cursor",
                   "value": "",
                   "disabled": true
                 }
               ]
             },
-            "description": "Z10. Her withdrawals, newest first (all statuses). Reading this also settles a 'submitted' withdrawal whose outcome is now known."
+            "description": "Z10. Her withdrawals, newest first (all statuses, with failureReason). Reading this also settles any \"submitted\" withdrawal whose outcome is now known."
           },
           "response": [
             {
               "id": "2acf5b72-2486-4b3c-975e-2f072361176e",
               "name": "200 Withdrawals page",
-              "code": 200,
+              "originalRequest": {
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{accessToken}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/nurse/withdrawals?limit=20",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["nurse", "withdrawals"],
+                  "query": [
+                    {
+                      "description": "1-100",
+                      "key": "limit",
+                      "value": "20"
+                    },
+                    {
+                      "description": "nextCursor from the previous page",
+                      "key": "cursor",
+                      "value": "",
+                      "disabled": true
+                    }
+                  ]
+                },
+                "description": "Z10. Her withdrawals, newest first (all statuses, with failureReason). Reading this also settles any \"submitted\" withdrawal whose outcome is now known."
+              },
               "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
               "header": [
                 {
                   "key": "Content-Type",
                   "value": "application/json; charset=utf-8"
                 }
               ],
-              "body": "{\n  \"items\": [\n    {\n      \"id\": \"cmiab12cd0003s6l1withdr01\",\n      \"status\": \"confirmed\",\n      \"amount\": {\n        \"kobo\": 10000,\n        \"usdc\": \"0.0625000\"\n      },\n      \"destinationAddress\": \"GAMR6SLMHBSOBKZVBMAN2OIKN2J5XOIB65VPZMIWACOJXRSJ42A4GCAI\",\n      \"stellarTxHash\": \"0e6497925afd3313b464ea446ca97f45cca3e536603f2f12760d4976c6f8eba6\",\n      \"failureReason\": null,\n      \"createdAt\": \"2026-11-22T15:02:11.000Z\",\n      \"confirmedAt\": \"2026-11-22T15:02:16.000Z\",\n      \"destinationMemo\": null\n    }\n  ],\n  \"nextCursor\": null\n}",
-              "_postman_previewlanguage": "json"
+              "cookie": [],
+              "responseTime": null,
+              "body": "{\n  \"items\": [\n    {\n      \"id\": \"cmiab12cd0003s6l1withdr01\",\n      \"status\": \"confirmed\",\n      \"amount\": { \"kobo\": 10000, \"usdc\": \"0.0625000\" },\n      \"destinationAddress\": \"GAMR6SLMHBSOBKZVBMAN2OIKN2J5XOIB65VPZMIWACOJXRSJ42A4GCAI\",\n      \"stellarTxHash\": \"0e6497925afd3313b464ea446ca97f45cca3e536603f2f12760d4976c6f8eba6\",\n      \"failureReason\": null,\n      \"createdAt\": \"2026-11-22T15:02:11.000Z\",\n      \"confirmedAt\": \"2026-11-22T15:02:16.000Z\"\n    },\n    {\n      \"id\": \"cmiab12cd0004s6l1withdr02\",\n      \"status\": \"failed\",\n      \"amount\": { \"kobo\": 500000, \"usdc\": \"3.1250000\" },\n      \"destinationAddress\": \"GAMR6SLMHBSOBKZVBMAN2OIKN2J5XOIB65VPZMIWACOJXRSJ42A4GCAI\",\n      \"stellarTxHash\": null,\n      \"failureReason\": \"stellar: tx_failed [op_underfunded]\",\n      \"createdAt\": \"2026-11-20T09:12:00.000Z\",\n      \"confirmedAt\": null\n    }\n  ],\n  \"nextCursor\": null\n}",
+              "createdAt": "2026-11-22T15:06:32.000Z",
+              "updatedAt": "2026-11-22T15:06:32.000Z",
+              "uid": "44554019-2acf5b72-2486-4b3c-975e-2f072361176e"
             }
-          ]
+          ],
+          "createdAt": "2026-11-22T15:05:48.000Z",
+          "updatedAt": "2026-11-22T15:06:32.000Z",
+          "uid": "44554019-5643dc28-b3f4-4d22-b541-6f478bdde002"
         }
       ],
       "id": "1babd808-14b8-4241-83e7-57de86b10f41",
       "createdAt": "2026-11-21T23:45:55.000Z",
-      "updatedAt": "2026-11-21T23:51:52.000Z",
+      "updatedAt": "2026-11-22T15:05:48.000Z",
       "uid": "44554019-1babd808-14b8-4241-83e7-57de86b10f41"
     },
     {
