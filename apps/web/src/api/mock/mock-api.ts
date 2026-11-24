@@ -24,10 +24,13 @@ import {
   AUTH_RULES,
   CHAT_LIMITS,
   CHOSEN_NURSE_WINDOW_MINUTES,
+  AGENT_TOKEN_PREFIX,
   FREE_ANSWERS_PER_WOMAN,
+  MAX_AGENT_TOKENS,
   QUESTION_CLAIMS_CLOSE_MINUTES,
   SHARED_FIELDS,
   TOPUP_LIMITS_KOBO,
+  type AgentTokenSummary,
   type AnswerResponse,
   type ApiErrorCode,
   type AuthTokensResponse,
@@ -111,6 +114,8 @@ interface UserData {
   questions: MockQuestionRecord[];
   transactions: WalletTransaction[];
   topups: MockTopup[];
+  /** Claude connections (agent tokens). Revoked ones are removed. */
+  agentTokens: AgentTokenSummary[];
 }
 
 interface MockTopup {
@@ -271,6 +276,7 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
         questions: seedQuestions(),
         transactions: seedTransactions(),
         topups: readStoredTopups()[MOCK_USER.id] ?? [],
+        agentTokens: [],
       },
     ],
   ]);
@@ -333,6 +339,7 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
       questions: [],
       transactions: [],
       topups: [],
+      agentTokens: [],
     });
     return user;
   }
@@ -901,7 +908,7 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
 
       getMine: (id) => respond(() => toMyQuestion(findQuestion(id))),
 
-      collectAnswer: (id) =>
+      collectAnswer: (id, body = {}) =>
         respond(() => {
           const data = currentData();
           const q = findQuestion(id);
@@ -918,6 +925,13 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
           if (q.isFree) {
             data.wallet.freeAnswersRemaining = Math.max(0, data.wallet.freeAnswersRemaining - 1);
           } else {
+            const limitKobo = data.settings.spendingLimitPerAnswerKobo;
+            if (MOCK_ANSWER_PRICE_KOBO > limitKobo && !body.approvedAboveLimit) {
+              fail(409, 'SPENDING_LIMIT_EXCEEDED', 'This answer costs more than your limit.', {
+                priceKobo: MOCK_ANSWER_PRICE_KOBO,
+                spendingLimitKobo: limitKobo,
+              });
+            }
             if (data.wallet.balanceKobo < MOCK_ANSWER_PRICE_KOBO) {
               fail(409, 'INSUFFICIENT_BALANCE', 'Top up your balance to see this answer.', {
                 priceKobo: MOCK_ANSWER_PRICE_KOBO,
@@ -951,6 +965,43 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
           }
           q.feedback = { helpful: body.helpful, updatedAt: iso() };
           return { questionId: q.id, helpful: q.feedback.helpful, updatedAt: q.feedback.updatedAt };
+        }),
+    },
+
+    agentTokens: {
+      list: () =>
+        respond(() =>
+          [...currentData().agentTokens].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+        ),
+
+      create: (body) =>
+        respond(() => {
+          const data = currentData();
+          const label = typeof body.label === 'string' ? body.label.trim() : '';
+          if (!label || label.length > 60) {
+            fail(400, 'VALIDATION_FAILED', 'Give this connection a name (up to 60 characters).', {
+              field: 'label',
+            });
+          }
+          if (data.agentTokens.length >= MAX_AGENT_TOKENS) {
+            fail(409, 'CONFLICT', `You can have up to ${MAX_AGENT_TOKENS} Claude connections.`);
+          }
+          const summary: AgentTokenSummary = {
+            id: nextId('agent'),
+            label,
+            createdAt: iso(),
+            lastUsedAt: null,
+          };
+          data.agentTokens.push(summary);
+          return { ...summary, token: `${AGENT_TOKEN_PREFIX}${nextId('secret')}` };
+        }),
+
+      revoke: (id) =>
+        respond(() => {
+          const data = currentData();
+          const index = data.agentTokens.findIndex((t) => t.id === id);
+          if (index === -1) fail(404, 'NOT_FOUND', 'That connection was not found.');
+          data.agentTokens.splice(index, 1);
         }),
     },
 

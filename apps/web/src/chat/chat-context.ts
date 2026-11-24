@@ -7,6 +7,7 @@ import {
   type IsoDateTime,
 } from '@carelayer/shared';
 import { createContext } from 'react';
+import type { AskRequest } from './ask-request';
 
 /*
  * W06 assistant chat state.
@@ -49,6 +50,11 @@ export interface ChatState {
    * (emergencies never go through payment or the nurse queue).
    */
   offer: EscalationOffer | null;
+  /**
+   * The W07-W09 send flow (draft, consent, who answers). Cleared when she sends
+   * another message (the draft no longer matches her chat) or starts a new chat.
+   */
+  request: AskRequest | null;
 }
 
 export type SendResult =
@@ -71,6 +77,10 @@ export interface ChatContextValue extends ChatState {
   /** Re-send a message that failed. */
   retry(entryId: Id): Promise<SendResult>;
   dismissOffer(): void;
+  /** The turns the API has seen, oldest first (sent with POST /chat/draft). */
+  thread(): ChatTurn[];
+  /** Start, update or clear the send flow. */
+  setRequest(update: AskRequest | null | ((current: AskRequest | null) => AskRequest | null)): void;
   /** Start a blank new chat. */
   reset(): void;
 }

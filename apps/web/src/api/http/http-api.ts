@@ -1,5 +1,7 @@
 import type {
+  AgentTokenSummary,
   AnswerResponse,
+  CreateAgentTokenResponse,
   ApiErrorBody,
   AuthTokensResponse,
   ChatResponse,
@@ -223,10 +225,18 @@ export function createHttpApi(
         authed<QuestionStatusResponse>('GET', `questions/${id(questionId)}/status`),
       listMine: (query) => authed<Page<MyQuestion>>('GET', 'me/questions', { query: { ...query } }),
       getMine: (questionId) => authed<MyQuestion>('GET', `me/questions/${id(questionId)}`),
-      collectAnswer: (questionId) =>
-        authed<AnswerResponse>('POST', `me/questions/${id(questionId)}/collect`),
+      collectAnswer: (questionId, body) =>
+        authed<AnswerResponse>('POST', `me/questions/${id(questionId)}/collect`, {
+          body: body ?? {},
+        }),
       submitFeedback: (questionId, body) =>
         authed<FeedbackResponse>('POST', `questions/${id(questionId)}/feedback`, { body }),
+    },
+
+    agentTokens: {
+      list: () => authed<AgentTokenSummary[]>('GET', 'auth/agent-tokens'),
+      create: (body) => authed<CreateAgentTokenResponse>('POST', 'auth/agent-tokens', { body }),
+      revoke: (tokenId) => authed<void>('DELETE', `auth/agent-tokens/${id(tokenId)}`),
     },
 
     emergency: {

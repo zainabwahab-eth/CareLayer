@@ -120,3 +120,45 @@ describe('threadFor', () => {
     expect(thread[0]).toEqual(delivered[6]);
   });
 });
+
+describe('ChatProvider send flow (W07-W09)', () => {
+  it('exposes the delivered thread and clears the draft when she sends again', async () => {
+    const { chat } = setup(async ({ messages }) => reply(`re:${messages.at(-1)!.text}`));
+    await screen.findByText('authenticated');
+    await act(() => chat.current!.send('first'));
+    expect(chat.current!.thread()).toEqual([
+      { role: 'user', text: 'first' },
+      { role: 'assistant', text: 're:first' },
+    ]);
+
+    act(() =>
+      chat.current!.setRequest({
+        draft: {
+          originalText: 'first',
+          cleanedText: 'First.',
+          assistantNotes: null,
+          category: 'general',
+          ageRange: null,
+          pregnancyWeeks: null,
+        },
+        draftToken: 'draft',
+        draftExpiresAt: '2099-01-01T00:00:00Z',
+        offer: {
+          price: { kobo: 50_000, usdc: '0.31' },
+          isFree: false,
+          freeAnswersRemaining: 0,
+          suggestedCategory: 'general',
+          exceedsSpendingLimit: false,
+        },
+        consented: true,
+        nurseSelection: 'first_available',
+        chosenNurse: null,
+        femaleOnly: false,
+      }),
+    );
+    expect(chat.current!.request?.draftToken).toBe('draft');
+
+    await act(() => chat.current!.send('second'));
+    expect(chat.current!.request).toBeNull();
+  });
+});

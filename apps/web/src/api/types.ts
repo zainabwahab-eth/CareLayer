@@ -1,6 +1,10 @@
 import type {
+  AgentTokenSummary,
   AnswerResponse,
   AuthTokensResponse,
+  CollectAnswerBody,
+  CreateAgentTokenBody,
+  CreateAgentTokenResponse,
   ChatRequestBody,
   ChatResponse,
   CreateQuestionBody,
@@ -51,7 +55,7 @@ export type MyQuestionsQuery = PageQuery & { status?: QuestionStatus };
  * Every method rejects with `ApiError` (see errors.ts) on failure.
  *
  * Not covered yet (no women's screen needs them in this milestone):
- * sessions list, step-up, agent tokens.
+ * sessions list, step-up.
  */
 export interface CareLayerApi {
   /** Which implementation is active. Use only for diagnostics, never for UI logic. */
@@ -129,10 +133,26 @@ export interface CareLayerApi {
     listMine(query?: MyQuestionsQuery): Promise<Page<MyQuestion>>;
     /** GET /me/questions/:id */
     getMine(id: Id): Promise<MyQuestion>;
-    /** POST /me/questions/:id/collect. Pays (or uses a free answer) and returns the nurse's answer. */
-    collectAnswer(id: Id): Promise<AnswerResponse>;
+    /**
+     * POST /me/questions/:id/collect. Pays (or uses a free answer) and returns the nurse's answer.
+     * `approvedAboveLimit` once she approved paying above her per-answer limit (409 otherwise).
+     */
+    collectAnswer(id: Id, body?: CollectAnswerBody): Promise<AnswerResponse>;
     /** POST /questions/:id/feedback. Helpful / not helpful; sending again changes it. */
     submitFeedback(id: Id, body: FeedbackBody): Promise<FeedbackResponse>;
+  };
+
+  /**
+   * Claude connections (contract §2, Z12): agent tokens Claude uses through apps/mcp.
+   * Signed-in session only; the token is shown once, at creation.
+   */
+  agentTokens: {
+    /** GET /auth/agent-tokens. Active connections, newest first. Never the token. */
+    list(): Promise<AgentTokenSummary[]>;
+    /** POST /auth/agent-tokens. 409 CONFLICT when she already has MAX_AGENT_TOKENS. */
+    create(body: CreateAgentTokenBody): Promise<CreateAgentTokenResponse>;
+    /** DELETE /auth/agent-tokens/:id. Immediate: Claude's next call is refused. */
+    revoke(id: Id): Promise<void>;
   };
 
   emergency: {

@@ -15,7 +15,7 @@ import {
   threadFor,
 } from './chat-context';
 
-const EMPTY: ChatState = { entries: [], pending: false, offer: null };
+const EMPTY: ChatState = { entries: [], pending: false, offer: null, request: null };
 
 /**
  * Holds the current W06 chat above the router, so it survives moving to the
@@ -63,8 +63,9 @@ function ChatStore({ children }: { children: ReactNode }) {
       const startedIn = generation.current;
       const isCurrent = () => generation.current === startedIn;
       pendingRef.current = true;
-      // A new message replaces any earlier offer; the reply decides whether to offer again.
-      setChat((current) => ({ ...current, pending: true, offer: null }));
+      // A new message replaces any earlier offer (and any draft made before it); the reply
+      // decides whether to offer again.
+      setChat((current) => ({ ...current, pending: true, offer: null, request: null }));
 
       try {
         const messages = threadFor(delivered.current, text);
@@ -167,6 +168,17 @@ function ChatStore({ children }: { children: ReactNode }) {
 
   const dismissOffer = useCallback(() => setChat((current) => ({ ...current, offer: null })), []);
 
+  const thread = useCallback(() => [...delivered.current], []);
+
+  const setRequest = useCallback<ChatContextValue['setRequest']>(
+    (update) =>
+      setChat((current) => ({
+        ...current,
+        request: typeof update === 'function' ? update(current.request) : update,
+      })),
+    [],
+  );
+
   const reset = useCallback(() => {
     generation.current += 1;
     delivered.current = [];
@@ -181,9 +193,11 @@ function ChatStore({ children }: { children: ReactNode }) {
       send,
       retry,
       dismissOffer,
+      thread,
+      setRequest,
       reset,
     }),
-    [chat, send, retry, dismissOffer, reset],
+    [chat, send, retry, dismissOffer, thread, setRequest, reset],
   );
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;
