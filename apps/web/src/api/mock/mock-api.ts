@@ -262,6 +262,7 @@ function seedConversations(): Conversation[] {
     title: turns[0]![0],
     createdAt: at(minutesAgo + 5),
     updatedAt: at(minutesAgo),
+    questions: [],
     messages: turns.flatMap(([q, a], i) => [
       {
         id: `${id}_u${i}`,
@@ -775,6 +776,7 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
               createdAt: at,
               updatedAt: at,
               messages: rows,
+              questions: [],
             };
             data.conversations.push(conversation);
             return conversation.id;
@@ -986,6 +988,11 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
             feedback: null,
           };
           data.questions.unshift(record);
+          // Shown in the chat she asked from (ignored if it is not hers), as on the API.
+          const fromChat = body.conversationId
+            ? data.conversations.find((c) => c.id === body.conversationId)
+            : undefined;
+          fromChat?.questions.push({ questionId: record.id, createdAt: record.createdAt });
 
           const created: CreatedQuestion = {
             kind: 'question',

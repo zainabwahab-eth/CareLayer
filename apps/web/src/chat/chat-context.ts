@@ -40,7 +40,9 @@ export type ChatEntry =
    * Red-flag check matched (contract §6). Shown in the thread after her
    * message so she can reopen the emergency screen. Free, nothing queued.
    */
-  | { kind: 'emergency'; id: Id; response: EmergencyResponse; createdAt: IsoDateTime };
+  | { kind: 'emergency'; id: Id; response: EmergencyResponse; createdAt: IsoDateTime }
+  /** A question she sent to a nurse from this chat: shown with its status and answer. */
+  | { kind: 'question'; id: Id; questionId: Id; createdAt: IsoDateTime };
 
 export interface ChatState {
   entries: ChatEntry[];
@@ -65,6 +67,11 @@ export interface ChatState {
   request: AskRequest | null;
   /** The saved conversation this chat belongs to. Null until her first message is saved. */
   conversationId: Id | null;
+  /**
+   * True while the chat behind a send flow is reopened after a reload. The flow (request)
+   * is already back; the thread arrives with it. Flow screens wait instead of redirecting.
+   */
+  restoring: boolean;
 }
 
 /** Result of reopening a saved chat. */
@@ -96,6 +103,8 @@ export interface ChatContextValue extends ChatState {
   setRequest(update: AskRequest | null | ((current: AskRequest | null) => AskRequest | null)): void;
   /** Start a blank new chat. */
   reset(): void;
+  /** She sent a question from this chat (W09): show it in the chat. */
+  noteQuestionSent(questionId: Id): void;
   /** Load a saved chat (GET /chat/conversations/:id) and continue it. */
   openConversation(id: Id): Promise<OpenResult>;
 }
@@ -160,6 +169,18 @@ export function fromConversation(
         createdAt: m.createdAt,
       });
     }
+  }
+  // Questions sent from this chat sit where she sent them (after the messages before them).
+  for (const q of conversation.questions ?? []) {
+    const entry: ChatEntry = {
+      kind: 'question',
+      id: `question_${q.questionId}`,
+      questionId: q.questionId,
+      createdAt: q.createdAt,
+    };
+    const at = entries.findIndex((e) => e.createdAt > q.createdAt);
+    if (at === -1) entries.push(entry);
+    else entries.splice(at, 0, entry);
   }
   return { turns, entries };
 }

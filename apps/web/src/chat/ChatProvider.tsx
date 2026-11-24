@@ -1,9 +1,10 @@
 import type { ChatTurn, Id } from '@carelayer/shared';
 import { hasErrorCode } from '../api/errors';
-import { useCallback, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useApi } from '../api/useApi';
 import { isSessionError } from '../auth/auth-flow';
 import { useAuth } from '../auth/useAuth';
+import { clearAllAsks, loadAsk, saveAsk } from './ask-persist';
 import { chatErrorMessage } from './chat-errors';
 import {
   CHAT_MESSAGE_MAX_LENGTH,
@@ -26,6 +27,7 @@ const EMPTY: ChatState = {
   request: null,
   conversationId: null,
   offeredFor: null,
+  restoring: false,
 };
 
 /**
@@ -38,7 +40,29 @@ const EMPTY: ChatState = {
  */
 export function ChatProvider({ children }: { children: ReactNode }) {
   const { state } = useAuth();
-  return <ChatStore key={state.user?.id ?? 'signed-out'}>{children}</ChatStore>;
+  const userId = state.user?.id ?? null;
+  // Signed out (not just loading): no send flow is kept for the next person in this tab.
+  useEffect(() => {
+    if (state.status === 'unauthenticated') clearAllAsks();
+  }, [state.status]);
+  return (
+    <ChatStore key={userId ?? 'signed-out'} userId={userId}>
+      {children}
+    </ChatStore>
+  );
+}
+
+/** Her W07-W09 send flow from before a reload, with the chat it came from. */
+function restoredState(userId: Id | null): ChatState {
+  const saved = userId ? loadAsk(userId) : null;
+  if (!saved) return EMPTY;
+  return {
+    ...EMPTY,
+    request: saved.request,
+    offeredFor: saved.offeredFor,
+    conversationId: saved.conversationId,
+    restoring: true,
+  };
 }
 
 let localIdCounter = 0;
@@ -48,10 +72,10 @@ function localId(prefix: string): Id {
   return `local_${prefix}_${Date.now().toString(36)}_${localIdCounter}`;
 }
 
-function ChatStore({ children }: { children: ReactNode }) {
+function ChatStore({ children, userId }: { children: ReactNode; userId: Id | null }) {
   const api = useApi();
   const { sessionExpired } = useAuth();
-  const [chat, setChat] = useState<ChatState>(EMPTY);
+  const [chat, setChat] = useState<ChatState>(() => restoredState(userId));
   /**
    * Turns the API has seen, oldest first: her delivered messages (including one
    * that raised an emergency) and the assistant's replies. Failed sends are left out.
@@ -194,6 +218,23 @@ function ChatStore({ children }: { children: ReactNode }) {
 
   const dismissOffer = useCallback(() => setChat((current) => ({ ...current, offer: null })), []);
 
+  const noteQuestionSent = useCallback(
+    (questionId: Id) =>
+      setChat((current) => ({
+        ...current,
+        entries: [
+          ...current.entries,
+          {
+            kind: 'question',
+            id: `question_${questionId}`,
+            questionId,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      })),
+    [],
+  );
+
   const thread = useCallback(() => [...delivered.current], []);
 
   const setRequest = useCallback<ChatContextValue['setRequest']>(
@@ -213,9 +254,12 @@ function ChatStore({ children }: { children: ReactNode }) {
     setChat(EMPTY);
   }, []);
 
-  const openConversation = useCallback(
-    async (id: Id): Promise<OpenResult> => {
-      if (conversationRef.current === id) return 'opened';
+  /**
+   * Load a saved chat. `keep` is the send flow restored after a reload: it stays on top
+   * of the reopened chat instead of being cleared.
+   */
+  const load = useCallback(
+    async (id: Id, keep?: Pick<ChatState, 'request' | 'offeredFor'>): Promise<OpenResult> => {
       // Like reset(): replies to the chat she is leaving are dropped.
       generation.current += 1;
       const openedIn = generation.current;
@@ -230,15 +274,54 @@ function ChatStore({ children }: { children: ReactNode }) {
         const { turns, entries } = fromConversation(conversation, emergency);
         delivered.current = turns;
         conversationRef.current = conversation.id;
-        setChat({ ...EMPTY, entries, conversationId: conversation.id });
+        setChat({ ...EMPTY, ...keep, entries, conversationId: conversation.id });
         return 'opened';
       } catch (error) {
         if (isSessionError(error)) sessionExpired();
+        if (keep && generation.current === openedIn) {
+          // The chat could not be reopened: without it the flow can't go on (W07 needs it).
+          setChat(EMPTY);
+        }
         return hasErrorCode(error, 'NOT_FOUND') ? 'not_found' : 'error';
       }
     },
     [api, sessionExpired],
   );
+
+  const openConversation = useCallback(
+    async (id: Id): Promise<OpenResult> => {
+      if (conversationRef.current === id) return 'opened';
+      return load(id);
+    },
+    [load],
+  );
+
+  // After a reload in the send flow: reopen the chat it came from, keeping the flow.
+  const restoreRef = useRef(chat.restoring ? chat : null);
+  useEffect(() => {
+    const restore = restoreRef.current;
+    if (!restore?.conversationId) return;
+    restoreRef.current = null;
+    void load(restore.conversationId, {
+      request: restore.request,
+      offeredFor: restore.offeredFor,
+    });
+  }, [load]);
+
+  // Keep the send flow in this tab while it is open, so a reload does not lose it.
+  useEffect(() => {
+    if (!userId || chat.restoring) return;
+    saveAsk(
+      userId,
+      chat.request && chat.conversationId
+        ? {
+            conversationId: chat.conversationId,
+            offeredFor: chat.offeredFor,
+            request: chat.request,
+          }
+        : null,
+    );
+  }, [userId, chat.request, chat.conversationId, chat.offeredFor, chat.restoring]);
 
   const value = useMemo<ChatContextValue>(
     () => ({
@@ -251,8 +334,19 @@ function ChatStore({ children }: { children: ReactNode }) {
       setRequest,
       reset,
       openConversation,
+      noteQuestionSent,
     }),
-    [chat, send, retry, dismissOffer, thread, setRequest, reset, openConversation],
+    [
+      chat,
+      send,
+      retry,
+      dismissOffer,
+      thread,
+      setRequest,
+      reset,
+      openConversation,
+      noteQuestionSent,
+    ],
   );
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

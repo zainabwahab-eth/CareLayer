@@ -97,6 +97,17 @@ export interface Conversation {
   updatedAt: IsoDateTime;
   /** Oldest first. */
   messages: ConversationMessage[];
+  /**
+   * Questions she sent to a nurse from this chat, oldest first. The app shows each one in the
+   * chat (where it was sent) with its status, and the answer once it is in.
+   */
+  questions: ConversationQuestionLink[];
+}
+
+export interface ConversationQuestionLink {
+  questionId: Id;
+  /** When she sent it (orders it among the messages). */
+  createdAt: IsoDateTime;
 }
 
 /**

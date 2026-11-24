@@ -32,7 +32,7 @@ type Failure = { message: string; action?: 'choose' | 'review' };
 export function ConfirmPayPage() {
   const api = useApi();
   const navigate = useNavigate();
-  const { request, setRequest } = useChat();
+  const { request, setRequest, conversationId, noteQuestionSent } = useChat();
   const isDesktop = useMediaQuery(DESKTOP_QUERY);
   const wallet = useApiQuery((client) => client.wallet.get());
   const settings = useApiQuery((client) => client.me.getSettings());
@@ -95,6 +95,8 @@ export function ConfirmPayPage() {
         femaleOnly: request.femaleOnly,
         approvedAboveLimit: needsApproval ? approved : undefined,
         draftToken: request.draftToken,
+        // Shows the question (and later its answer) in the chat she asked from.
+        conversationId: conversationId ?? undefined,
       });
       if (created.kind === 'emergency') {
         const state: EmergencyLocationState = { emergency: created };
@@ -102,6 +104,7 @@ export function ConfirmPayPage() {
         return;
       }
       setSent(true);
+      if (conversationId) noteQuestionSent(created.id);
       navigate(consultationWaitingPath(created.id), { replace: true });
       // Sent: the draft is used up, so going back never sends it twice.
       setRequest(null);

@@ -241,8 +241,9 @@ describe('schema invariants', () => {
     const cols = await columns();
     const chatLinks = cols.filter(
       (c) =>
-        !['conversation', 'conversationmessage'].includes(c.table_name.toLowerCase()) &&
-        /conversation|chat/i.test(c.column_name),
+        !['conversation', 'conversationmessage', 'conversationquestion'].includes(
+          c.table_name.toLowerCase(),
+        ) && /conversation|chat/i.test(c.column_name),
     );
     expect(chatLinks).toEqual([]);
   });

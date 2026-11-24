@@ -181,3 +181,48 @@ describe('"Ask a question" starts a new chat', () => {
     expect(screen.queryByText('Old question')).toBeNull();
   });
 });
+
+describe('Questions sent from a chat', () => {
+  async function sendFromChat(api: ReturnType<typeof createMockApi>) {
+    const sent = await api.chat.send({
+      messages: [{ role: 'user', text: 'Which contraceptive is best for me?' }],
+    });
+    const draft = await api.chat.draft({
+      messages: [{ role: 'user', text: 'Which contraceptive is best for me?' }],
+    });
+    if (draft.kind !== 'draft') throw new Error('expected a draft');
+    const created = await api.questions.create({
+      originalText: draft.draft.originalText,
+      source: 'web',
+      consent: { sharedFields: ['cleaned_text', 'category'], consentVersion: 'w07-v1' },
+      draftToken: draft.draftToken,
+      conversationId: sent.conversationId!,
+    });
+    if (created.kind !== 'question') throw new Error('expected a question');
+    return { conversationId: sent.conversationId!, questionId: created.id };
+  }
+
+  it('shows the question in its chat with its status', async () => {
+    const api = createMockApi({ latencyMs: 0, startSignedIn: true, seedChats: false });
+    const { conversationId } = await sendFromChat(api);
+    await renderApp(api, chatPath(conversationId));
+    expect(await screen.findByText('Sent to a nurse')).toBeTruthy();
+    expect(await screen.findByText('In review')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'See its status' })).toBeTruthy();
+  });
+
+  it('shows the nurse’s answer in the chat once she has opened it', async () => {
+    const api = createMockApi({
+      latencyMs: 0,
+      startSignedIn: true,
+      seedChats: false,
+      claimAfterMs: 0,
+      answerAfterMs: 0,
+    });
+    const { conversationId, questionId } = await sendFromChat(api);
+    const opened = await api.questions.collectAnswer(questionId);
+    await renderApp(api, chatPath(conversationId));
+    expect(await screen.findByText('Answered')).toBeTruthy();
+    expect(await screen.findByText(opened.answer.text.slice(0, 40), { exact: false })).toBeTruthy();
+  });
+});

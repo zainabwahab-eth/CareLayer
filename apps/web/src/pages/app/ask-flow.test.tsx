@@ -186,7 +186,7 @@ describe('Nurse response (W11)', () => {
     const collect = vi.spyOn(api.questions, 'collectAnswer');
 
     const { refreshWallet } = renderApp(api, `/consultations/${created.id}`);
-    expect(await screen.findByText('Licence verified')).toBeTruthy();
+    expect(await screen.findByText('Licence verified, NMCN')).toBeTruthy();
     expect(collect).toHaveBeenCalledTimes(1);
     expect(refreshWallet).toHaveBeenCalled();
 
@@ -226,7 +226,7 @@ describe('Nurse response (W11)', () => {
 
     renderApp(api, `/consultations/${created.id}`);
     fireEvent.click(await screen.findByRole('button', { name: /Pay ₦500 and open it/ }));
-    expect(await screen.findByText('Licence verified')).toBeTruthy();
+    expect(await screen.findByText('Licence verified, NMCN')).toBeTruthy();
     expect(screen.getByText(/View receipt on Stellar/)).toBeTruthy();
   });
 });

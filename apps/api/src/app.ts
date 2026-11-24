@@ -257,7 +257,9 @@ export function createApp(deps: AppDeps, services: AppServices = buildServices(d
   app.use(createWalletsRouter(deps, services.wallets));
   app.use(createTopupsRouter(deps, services.topups));
   app.use(createChatRouter(deps, services.chat, services.conversations));
-  app.use(createQuestionsRouter(deps, services.questions, services.answers));
+  app.use(
+    createQuestionsRouter(deps, services.questions, services.answers, services.conversations),
+  );
   app.use(createNursesRouter(deps, services.nurseProfiles, services.cases, services.earnings));
   app.use(createPaymentsRouter(deps));
   app.use(createAdminRouter(deps, services.admin));

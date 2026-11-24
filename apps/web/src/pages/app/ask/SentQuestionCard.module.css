@@ -1,0 +1,93 @@
+/* A question sent from this chat (no Figma frame: from the W06 offer card + W12 badges). */
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-16) var(--space-20);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  list-style: none;
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+}
+
+.icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-full);
+  background: var(--color-verified-bg-soft);
+  color: var(--color-verified);
+}
+
+.heading {
+  flex: 1;
+  color: var(--color-text);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+}
+
+.question {
+  color: var(--color-text);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+  overflow-wrap: anywhere;
+}
+
+.muted {
+  color: var(--color-text-muted);
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+}
+
+.answer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  padding: var(--space-12) var(--space-16);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-surface-soft);
+}
+
+.nurse {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  color: var(--color-text-muted);
+  font-family: var(--text-label-s-family);
+  font-size: var(--text-label-s-size);
+  line-height: var(--text-label-s-leading);
+  font-weight: var(--text-label-s-weight);
+}
+
+.answerText {
+  color: var(--color-text);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.link {
+  align-self: flex-start;
+  color: var(--color-primary-text);
+  font-family: var(--text-label-s-family);
+  font-size: var(--text-label-s-size);
+  line-height: var(--text-label-s-leading);
+  font-weight: var(--text-label-s-weight);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

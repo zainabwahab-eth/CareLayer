@@ -75,6 +75,11 @@ export interface CreateQuestionBody {
   /** Must be true if price exceeds her spending limit. */
   approvedAboveLimit?: boolean;
   /**
+   * The chat she is asking from (web): the question then shows in that chat with its status and
+   * answer. Not hers, or missing: ignored (the question is still sent).
+   */
+  conversationId?: Id;
+  /**
    * From POST /chat/draft. The question is stored exactly as that draft (what she saw on W07);
    * `originalText` must match the draft's. Without it the server prepares the question itself.
    */
