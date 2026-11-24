@@ -15,6 +15,7 @@ import {
   type SendResult,
   fromConversation,
   hasAnsweredQuestion,
+  historyText,
   threadFor,
 } from './chat-context';
 
@@ -121,7 +122,11 @@ function ChatStore({ children }: { children: ReactNode }) {
           return { kind: 'emergency', response };
         }
 
-        delivered.current = [...messages, { role: 'assistant', text: response.message.text }];
+        const turns: ChatTurn[] = [
+          ...messages,
+          { role: 'assistant', text: historyText(response.message.text) },
+        ];
+        delivered.current = turns;
         setChat((current) => ({
           ...current,
           pending: false,

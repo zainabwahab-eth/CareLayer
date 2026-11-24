@@ -45,8 +45,9 @@ export const MAX_HISTORY_TURNS = 20;
 const MODE_A_INSTRUCTIONS = `
 ---
 ## Call instructions (added by the API)
-This call is **Mode A — Conversational reply**. The messages that follow are the conversation so far, oldest first; the last one is her new message. Respond with only the Mode A JSON object, with no text, markdown or code fence around it:
-{"replyText": string, "redFlagSuspected": boolean, "offerEscalation": boolean, "suggestedCategory": "pregnancy" | "periods" | "contraception" | "sexual_health" | "general" | null}`;
+This call is **Mode A — Conversational reply**. The messages that follow are the conversation so far, oldest first; the last one is her new message. Her messages are plain text. Your earlier replies are shown as the Mode A JSON objects you returned. Respond with only the Mode A JSON object, with no text, markdown or code fence around it:
+{"replyText": string, "redFlagSuspected": boolean, "offerEscalation": boolean, "suggestedCategory": "pregnancy" | "periods" | "contraception" | "sexual_health" | "general" | null}
+Every reply must be this JSON object, however short or casual her message is (for example "okay", "thanks" or a follow-up question), and also after you have declined a request.`;
 
 const MODE_B_INSTRUCTIONS = `
 ---

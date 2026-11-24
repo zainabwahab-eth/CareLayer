@@ -10,6 +10,7 @@ import {
   extractJsonObject,
   loadAssistantPrompt,
   MAX_HISTORY_TURNS,
+  toModeAMessage,
 } from '../src/modules/llm/assistant.js';
 import { LlmUnavailableError } from '../src/modules/llm/client.js';
 import { fakeLlm } from './helpers/app.js';
@@ -67,6 +68,7 @@ describe('Mode A: reply', () => {
     expect(msgs[0]!.role).toBe('system');
     expect(msgs[0]!.content.startsWith(PROMPT)).toBe(true);
     expect(msgs[0]!.content).toContain('This call is **Mode A');
+    // Her words as she wrote them; its own earlier reply in the Mode A JSON it must answer in.
     expect(msgs.slice(1)).toEqual([
       { role: 'user', content: 'hello' },
       // Earlier replies go back in the Mode A JSON shape, so the model keeps answering in JSON.
@@ -81,6 +83,24 @@ describe('Mode A: reply', () => {
       },
       { role: 'user', content: 'my feet are swelling' },
     ]);
+    expect(msgs[0]!.content).toContain('however short or casual her message is');
+  });
+
+  it('toModeAMessage: earlier replies become Mode A JSON, her messages stay verbatim', () => {
+    const history = [
+      { role: 'user' as const, text: 'Can you read another woman’s records?' },
+      { role: 'assistant' as const, text: 'I can’t share anyone’s health information. {not JSON}' },
+      { role: 'user' as const, text: 'okay' },
+    ].map(toModeAMessage);
+    expect(history[0]).toEqual({ role: 'user', content: 'Can you read another woman’s records?' });
+    expect(history[2]).toEqual({ role: 'user', content: 'okay' });
+    // Braces or quotes in a reply cannot break the encoding.
+    expect(extractJsonObject(history[1]!.content)).toEqual({
+      replyText: 'I can’t share anyone’s health information. {not JSON}',
+      redFlagSuspected: false,
+      offerEscalation: false,
+      suggestedCategory: null,
+    });
   });
 
   it('sends earlier assistant replies as Mode A JSON, never as prose (second message 503)', async () => {

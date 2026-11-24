@@ -1051,10 +1051,15 @@ export function createMockApi(options: MockApiOptions = {}): CareLayerApi {
               });
             }
             if (data.wallet.balanceKobo < MOCK_ANSWER_PRICE_KOBO) {
-              fail(409, 'INSUFFICIENT_BALANCE', 'Top up your balance to see this answer.', {
-                priceKobo: MOCK_ANSWER_PRICE_KOBO,
-                balanceKobo: data.wallet.balanceKobo,
-              });
+              fail(
+                409,
+                'INSUFFICIENT_BALANCE',
+                'Not enough in your wallet for this answer. Top up to continue.',
+                {
+                  price: mockMoney(MOCK_ANSWER_PRICE_KOBO),
+                  balance: mockMoney(data.wallet.balanceKobo),
+                },
+              );
             }
             data.wallet.balanceKobo -= MOCK_ANSWER_PRICE_KOBO;
             q.stellarTxHash = mockStellar('tx', nextId('pay').replace(/^mock_/, ''));

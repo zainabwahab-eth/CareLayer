@@ -100,6 +100,21 @@ export function hasAnsweredQuestion(entries: readonly ChatEntry[]): boolean {
 }
 
 /**
+ * An assistant reply as it is sent back in the thread. POST /chat accepts at most
+ * CHAT_LIMITS.maxTextLength characters per turn, assistant turns included, but a reply
+ * itself may be longer: sent whole, one long reply would make every later message fail
+ * with 400. She still sees the full reply; only the context sent back is clipped.
+ */
+export function historyText(text: string): string {
+  const max = CHAT_LIMITS.maxTextLength;
+  if (text.length <= max) return text;
+  let clipped = text.slice(0, max - 1);
+  // Never leave half of a surrogate pair (emoji) at the end.
+  if (/[\uD800-\uDBFF]$/.test(clipped)) clipped = clipped.slice(0, -1);
+  return `${clipped}…`;
+}
+
+/**
  * The turns to send with her new message: everything delivered so far plus the
  * new one, trimmed to the API's limit (it uses the most recent turns anyway).
  */
@@ -117,7 +132,8 @@ export function fromConversation(
   const turns: ChatTurn[] = [];
   const entries: ChatEntry[] = [];
   for (const m of conversation.messages) {
-    turns.push({ role: m.role, text: m.text });
+    // A long reply is shortened in the thread sent back (historyText), as after a live reply.
+    turns.push({ role: m.role, text: m.role === 'assistant' ? historyText(m.text) : m.text });
     if (m.role === 'assistant') {
       entries.push({ kind: 'assistant', id: m.id, text: m.text, createdAt: m.createdAt });
       continue;

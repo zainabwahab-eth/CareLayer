@@ -272,6 +272,8 @@ Also in H10: a 60 s request timeout, a non-JSON `200` treated as an error (not d
 
 W05 Home and W07–W11 (consent, choose who answers, confirm and pay, waiting, nurse response) are still `ScreenPlaceholder`s from H6. The client methods exist and match the API: `chat.draft`, `questions.create` (with `draftToken`), `nurses.list`, `questions.getStatus`, `questions.collectAnswer`, `questions.submitFeedback`. **The end-to-end ask flow cannot run on the real API until these screens exist.** No backend change is needed.
 
+> **W07–W11: done in H12** (Q8). W05 Home is still a placeholder.
+
 > **Nurse app: done in H11** (Q6).
 
 The same goes for the nurse app after approval (N05–N09 and the profile): the backend serves `GET /nurse/dashboard`, `/nurse/questions`, `/nurse/claim`, claim, release, answer, `/nurse/earnings`, `/nurse/withdrawals`, `PUT /nurse/payout-address` and `POST /auth/step-up`, but `NurseApi` and the screens don't cover them yet.
@@ -391,7 +393,7 @@ Also worth fixing in the docs:
 
 1. **Women's chat: resolved.** Before H10, `main` called the removed `POST /chat/conversations` and `POST /chat/conversations/:id/messages` (plus an unused `GET` pair), so every chat message got a 404 from the real API. H10 (now merged) switched to `POST /chat` and `POST /chat/draft`. The temporary `KNOWN_MISMATCHES_FIXED_IN_H10` list has been deleted from `apps/web/src/api/http/contract.test.ts`, so any route that is neither documented nor a listed exception now fails that test.
 2. **Documented, but no screen uses them yet:**
-   - `POST /chat/draft` and `POST /questions` are in the client, but W07–W11 are still placeholders (Q5a).
+   - ~~`POST /chat/draft` and `POST /questions` are in the client, but W07–W11 are still placeholders (Q5a).~~ Built in H12: W07–W11 call `POST /chat/draft`, `GET /nurses`, `POST /questions`, `GET /questions/:id/status`, `POST /me/questions/:id/collect` and `POST /questions/:id/feedback` (Q8).
    - `POST`/`GET`/`DELETE /auth/agent-tokens` ("Use CareLayer in Claude") has no screen, and the connection steps are undecided (Q3e, Q5c.4). These three are the only entries left in `NOT_YET_CALLED` in `apps/workers/src/api/contract.test.ts`.
 3. **Features with no documented route** (decide whether one is needed; details in Q6):
    - a nurse notification feed and read state (6a)
@@ -399,3 +401,96 @@ Also worth fixing in the docs:
    - a per-question nurse reward on `NurseQuestionView` (6c)
    - the nurse's own answer on completed questions (6e)
    - a profile photo (6f)
+
+---
+
+## Q8. H12 Ask a nurse flow (W07–W11): API and design gaps
+
+**Raised by:** Hikmah (H12), 24 November 2026. **For:** Zainab (contract) and the designer. **Blocks:** nothing. Each gap below has a working default in the app, and nothing is faked: where the API has no data, the app leaves it out.
+
+**What is connected.** Every call is an existing route, checked against `apps/api/src/modules/questions/router.ts` and the zod schemas, and covered by `apps/web/src/pages/app/send/ask-nurse-flow.test.tsx` (against the mock API):
+
+| Screen                 | Calls                                                                  | Notes                                                                                                                                                                                                                                                                  |
+| ---------------------- | ---------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| W07 Consent            | `POST /chat/draft`                                                     | The thread from the chat, in memory. An `EmergencyResponse` opens W13 and nothing is queued. Shared fields = exactly what W07 shows: `cleaned_text`, `category`, plus `assistant_notes` / `age_range` / `pregnancy_weeks` when present. `original_text` is not shared. |
+| W08 Choose who answers | `GET /nurses?topic=&femaleOnly=`                                       | Rating as "% helpful (count)", response time only once known, no stars                                                                                                                                                                                                 |
+| W09 Confirm and send   | `GET /wallet`, `GET /me/settings`, `POST /questions` with `draftToken` | `approvedAboveLimit` only after she ticks the approval. A timed-out send asks her to check History first, so it is never sent twice by a blind retry.                                                                                                                  |
+| W10 Waiting            | `GET /me/questions/:id`, `GET /questions/:id/status` every 5 s         | Paused while the tab is hidden                                                                                                                                                                                                                                         |
+| W11 Nurse response     | `POST /me/questions/:id/collect`, `POST /questions/:id/feedback`       | Handles `SPENDING_LIMIT_EXCEEDED` (approve, then `approvedAboveLimit`), `INSUFFICIENT_BALANCE` (top up), 503 with `paymentPending` (checks again by itself), 409 `CONFLICT`                                                                                            |
+
+`questions.collectAnswer` now passes the optional `CollectAnswerBody` (already in the contract). The mock's collect gained the same spending-limit check as the API, and its `INSUFFICIENT_BALANCE` details now use the contract's `{ price, balance }`.
+
+### 8a. Opening a paid answer waits for her tap (Hikmah + Zainab, product)
+
+Collecting moves money, so W11 shows "Your answer is ready" with the cost and a **Pay ₦500 and open** (or **Open my answer**) button, instead of collecting on page load. Her W09 confirmation may be 40 minutes earlier, and opening an old link should not charge without a tap. An answer she has already opened is fetched again automatically for its receipt (contract §8.3 step 3; checked in `answers.ts`: `collect` returns early for a collected answer, before the limit and balance checks).
+
+- **A. Keep the tap** (what the app does). One extra tap, money moves only on an action at that moment.
+- **B. Collect on load**, as the Figma frame implies ("₦500 paid on delivery").
+
+**Recommendation:** A.
+
+### 8b. W10 can't say who is reviewing, or since when (Zainab)
+
+The frame shows "Amaka is reviewing your question" and "Amaka Okafor, Registered midwife. Started 10:44 PM". `QuestionStatusResponse` and `MyQuestion` have neither the claiming nurse nor the claim time. The app shows "A nurse or midwife is reviewing your question" with no name or time. **Ask:** add `claim: { nurse: PublicNurse; claimedAt: IsoDateTime } | null` to `GET /questions/:id/status` (owner only), or confirm it should stay anonymous until the answer.
+
+### 8c. W11 nurse card: years of practice (Zainab)
+
+The frame shows "Registered midwife, 9 years". `Answer.nurse` is `PublicNurse { id, displayName, role, verified }`, with no years. The app shows the role only. "Licence verified, NMCN" uses `NURSE_REGULATOR` from `@carelayer/shared`. **Option A:** add `yearsOfPractice` to `PublicNurse`. **Option B:** the designer drops it from W11.
+
+### 8d. W11 "Go to a clinic today if you notice" list (designer + Zainab)
+
+The frame has a bullet list of warning signs. The API has only `recommendSeeSomeoneToday: boolean`, and the nurse writes everything else in the answer text. When the flag is true the app shows "Your nurse recommends you see someone today", with a link to the free emergency screen. **Recommendation:** the designer updates W11 to this box. A structured `warningSigns: string[]` would need a new nurse input in N07 and a contract change.
+
+### 8e. "Ask Amaka a follow-up" has no endpoint (Zainab + Hikmah, product)
+
+There is no follow-up route or question threading. The app's main action is **Back to history** instead. Options:
+
+- **A.** Follow-up = a new question to the same nurse (`nurseSelection: "chosen_nurse"`, `chosenNurseId` = `answer.nurse.id`). Needs confirmation that `PublicNurse.id` is the same id `GET /nurses` returns. The nurse gets no context from the first question.
+- **B.** `POST /me/questions/:id/follow-ups { text }`, linked to the first question, with its own price and claim rules.
+
+**Recommendation:** decide after the demo; neither is needed for the end-to-end check.
+
+### 8f. W08 copy without data (designer)
+
+- "Usually answered in under 10 minutes" (first available) has no API source, so the app says "The first verified nurse or midwife who is free answers it." A platform-wide median would need a new field.
+- The frame's stars ("4.9") conflict with the decisions log ("% helpful + count, no stars"). The app shows "96% helpful (212)", or "New" before any feedback, with a heart icon.
+- **Designer:** please update W08 to match.
+
+### 8g. Smaller points
+
+1. **Receipt in History (Zainab, optional).** `MyQuestion` has no payment, so W11 calls collect again to show the Stellar link. A `payment: { amount, stellarTxHash, paidFromTreasury } | null` on `MyQuestion` would let History show receipts without a POST.
+2. **No cancel route (Zainab).** `QuestionStatus` includes `cancelled`, but there is no route for her to withdraw a question. Is cancelling wanted? W10 handles the state if it ever appears.
+3. **"We'll notify you" (designer).** Email only goes out when "Notify me when answered" is on, so W10 says "You can close the app. Your answer will be waiting in History."
+4. **W07 "Edit"** goes back to the chat: there is no route to edit a draft. A new message there makes a new draft (one more LLM call, about 10 s), and the consent starts again.
+5. **Desktop frames** were not read (TASKS §3: mobile is the source of truth). On desktop, W07–W11 use the page header and one 640px column.
+
+---
+
+## Q9. Assistant fails on the second message of a conversation (fixed in H12; Zainab to review)
+
+**Raised by:** Hikmah, 24 November 2026, from the deployed site. **For:** Zainab (review the change in `apps/api/src/modules/llm/assistant.ts`, check the live logs, redeploy). **Blocks:** the end-to-end check (§9 of TASKS): any chat longer than one message can fail.
+
+**What she saw.** "Can you tell me what another woman's health records say?" got a correct refusal. Then "okay" showed _"The assistant is not available right now. Please try again in a moment. If this is urgent, go to the nearest hospital or clinic."_
+
+**Where it fails.** That text is the API's own 503 from `llmToAppError` (`modules/llm/errors.ts`). The frontend passes it through unchanged: the second request reached the API and failed at the LLM step. The web app sent the right thread (her messages plus the assistant's reply text, in order), and free answers, wallet and session are not involved in `POST /chat`.
+
+**Root cause (in the code).** Mode A tells the model to answer with **only** a JSON object (`{"replyText", "redFlagSuspected", "offerEscalation", "suggestedCategory"}`). But `assistant.reply()` sent the earlier assistant turns back as **bare prose** (`{ role: "assistant", content: text }`). On the first message the model has no earlier turns of its own, so it follows the JSON instruction. From the second message on, the conversation shows it answering in prose, and hosted chat models copy the format of their own earlier turns, especially for short messages like "okay". A prose reply has no JSON, so it counts as invalid. The one retry sends the same messages, gets prose again, and the result is `bad_response` → 503.
+
+- **Not confirmed against the live provider** (no LLM key or deployment log access in this session). To confirm, the deployed API's logs for the failing request should show two `llm_call` lines with `mode: "A"` and `outcome: "invalid_output"`, and the response body's `error.details.reason` should be `"bad_response"` (visible in the browser's Network tab).
+- `apps/api/test/chat.test.ts` ("a conversation of many turns") reproduces the mechanism with a scripted model that copies its earlier format: before the fix the second message got 503, as on the site; after it, all six messages succeed.
+
+**The fix.**
+
+1. `assistant.ts` (`modeAHistory`): earlier assistant turns are re-encoded as the Mode A JSON object the model must return, with `redFlagSuspected: false`, `offerEscalation: false`, `suggestedCategory: null` (the client keeps only the text, and the model judges each new message on its own). Her turns are sent as she wrote them. The Mode A call instructions now say her messages are plain text, its earlier replies are shown as JSON, and every reply must be the JSON object however short her message is, including after a refusal.
+2. `prompts/assistant.md` (Hikmah's): the Mode A output section says the same; a new privacy rule says never to share, look up or guess another person's health information or records, that it has no access to anyone's records, and that a declined request does not end the chat; endpoint names updated to `POST /chat` and `POST /chat/draft` (as TASKS H2 asked).
+
+No safety rule was loosened: the fixed red-flag list still runs first on every message, the model's own red-flag judgement still wins over an offer, and an invalid reply still fails safely as a 503 (the API never guesses a reply from unparseable output).
+
+**Zainab:**
+
+- **Review** the `assistant.ts` change (it is in your module; done here because the bug blocked the demo) and redeploy.
+- **Re-run** `npm run eval:assistant -w @carelayer/api`. The prompt changed, and the eval needs `LLM_API_KEY`, which this session did not have. The eval is single-turn; consider adding a multi-turn case such as "refuse, then 'okay'".
+- **Limits disagree (second, separate bug).** Mode A accepts a `replyText` up to 8,000 characters (`ModeASchema`), but `POST /chat` rejects any turn over `CHAT_LIMITS.maxTextLength` (4,000), assistant turns included. After one reply over 4,000 characters, every later message got 400. The web app now clips assistant turns to 4,000 characters in the history it sends back (she still sees the full reply). **Ask:** either cap `replyText` at 4,000, or accept longer assistant turns in the request schema.
+- **Optional:** the 503's `details.reason` is not shown or logged by the web app, which made this harder to diagnose from the browser. If you'd like it surfaced (for example in a support code), say so.
+
+**Also found and fixed during H12 verification (frontend):** after "Confirm and send", W09 could redirect her back to W07 while W10 loaded (the flow state was cleared before the route change landed, because React applies router updates as a transition). The flow now records where she was sent (`finish()`), and W08/W09 send her there, so Back from W10 can never reach a screen that would send the question again.

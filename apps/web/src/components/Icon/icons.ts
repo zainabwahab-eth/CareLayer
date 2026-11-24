@@ -11,6 +11,7 @@ import check16 from '../../assets/icons/check-16.svg';
 import chevron18 from '../../assets/icons/chevron-18.svg';
 import chat from '../../assets/icons/chat.svg';
 import clock from '../../assets/icons/clock.svg';
+import edit14 from '../../assets/icons/edit-14.svg';
 import eyeOff22 from '../../assets/icons/eye-off-22.svg';
 import heart22 from '../../assets/icons/heart-22.svg';
 import eyeOff from '../../assets/icons/eye-off.svg';
@@ -21,6 +22,7 @@ import lock from '../../assets/icons/lock.svg';
 import phone18 from '../../assets/icons/phone-18.svg';
 import more20 from '../../assets/icons/more-20.svg';
 import mail30 from '../../assets/icons/mail-30.svg';
+import receipt20 from '../../assets/icons/receipt-20.svg';
 import search18 from '../../assets/icons/search-18.svg';
 import send20 from '../../assets/icons/send-20.svg';
 import shield18 from '../../assets/icons/shield-18.svg';
@@ -36,6 +38,7 @@ import sparkle20 from '../../assets/icons/sparkle-20.svg';
 import upload20 from '../../assets/icons/upload-20.svg';
 import user from '../../assets/icons/user.svg';
 import wallet22 from '../../assets/icons/wallet-22.svg';
+import zap20 from '../../assets/icons/zap-20.svg';
 
 /*
  * Icons exported from the Figma design system (icon/* layers).
@@ -78,6 +81,10 @@ export const icons = {
   camera: { src: camera20, frame: 20, x: 2.042, y: 2.875, w: 15.917, h: 13.833 },
   // Landing page (theme toggle, emergency call line).
   theme: { src: theme20, frame: 20, x: 0, y: 0, w: 20, h: 20 },
+  // Ask a nurse flow (W07 "Edit", W08 "First available", W11 receipt).
+  edit: { src: edit14, frame: 14, x: 2.041, y: 2.334, w: 9.625, h: 9.625 },
+  zap: { src: zap20, frame: 20, x: 3.709, y: 2.041, w: 12.583, h: 15.917 },
+  receipt: { src: receipt20, frame: 20, x: 4.125, y: 2.041, w: 11.75, h: 15.917 },
   // Overflow menu ("⋯"). Not in the Figma icon set: three dots in the same 20px frame.
   more: { src: more20, frame: 20, x: 0, y: 0, w: 20, h: 20 },
   phone: { src: phone18, frame: 18, x: 2.5, y: 2.125, w: 13.375, h: 13.375 },
