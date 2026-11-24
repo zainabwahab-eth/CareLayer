@@ -33,6 +33,12 @@ Everything runs on **test money**:
 
 ## Built on x402 and Stellar
 
+CareLayer is built for **EmpowerHer: Building the Agent Economy**, and it uses agentic payments on Stellar with x402 to solve a real problem for women.
+
+- **The problem:** many Nigerian women have pregnancy, period, contraception and sexual-health questions they are too embarrassed to ask in person. An AI can explain a lot, but it can't take responsibility for advice.
+- **What we built:** AI agents that pay a verified nurse or midwife for a real answer, per question, in USDC on Stellar, with x402. The woman never touches crypto. Nurses are paid on chain as soon as the answer is opened.
+- **The network is open:** it isn't tied to our app. Our web app and Claude (through MCP) already use it, and any other agent can join.
+
 ### x402: agents pay per answer
 
 The nurse's answer is a paid resource behind **x402**. `GET /questions/:id/answer` returns `402 Payment Required` with the price in USDC. The agent signs a Stellar payment, retries with `PAYMENT-SIGNATURE`, and gets the answer with a `PAYMENT-RESPONSE` receipt.
