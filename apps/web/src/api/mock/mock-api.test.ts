@@ -107,3 +107,35 @@ describe('mock chat.draft (POST /chat/draft) + questions.create with draftToken'
     ).resolves.toMatchObject({ kind: 'question' });
   });
 });
+
+describe('mock agentTokens (Claude connections)', () => {
+  it('creates a clat_ token once, lists it without the token, and revokes it', async () => {
+    const api = signedIn();
+    const created = await api.agentTokens.create({ label: 'Claude on my laptop' });
+    expect(created.token.startsWith('clat_')).toBe(true);
+    const list = await api.agentTokens.list();
+    expect(list).toEqual([
+      {
+        id: created.id,
+        label: 'Claude on my laptop',
+        createdAt: created.createdAt,
+        lastUsedAt: null,
+      },
+    ]);
+    await api.agentTokens.revoke(created.id);
+    expect(await api.agentTokens.list()).toEqual([]);
+    await expect(api.agentTokens.revoke(created.id)).rejects.toMatchObject({ status: 404 });
+  });
+
+  it('refuses an empty name and more than MAX_AGENT_TOKENS', async () => {
+    const api = signedIn();
+    await expect(api.agentTokens.create({ label: '  ' })).rejects.toMatchObject({
+      code: 'VALIDATION_FAILED',
+    });
+    for (let i = 0; i < 5; i += 1) await api.agentTokens.create({ label: `c${i}` });
+    await expect(api.agentTokens.create({ label: 'one more' })).rejects.toMatchObject({
+      status: 409,
+      code: 'CONFLICT',
+    });
+  });
+});

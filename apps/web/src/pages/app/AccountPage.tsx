@@ -18,6 +18,7 @@ import { ThemeSwitcher } from '../../components/ThemeSwitcher/ThemeSwitcher';
 import { Toggle } from '../../components/Toggle/Toggle';
 import { paths } from '../../routes/paths';
 import { formatNaira } from '../../utils/money';
+import { ClaudeConnections } from './account/ClaudeConnections';
 import { ProfileCard } from './account/ProfileCard';
 import { useSavedResource, type SaveState } from './account/useSavedResource';
 import styles from './AccountPage.module.css';
@@ -38,7 +39,7 @@ const limitLabel = (kobo: number) => (kobo === 0 ? 'Always ask me' : formatNaira
  * wallet, Appearance, Quick exit opens, spending limit per answer, notify me
  * when answered, Use CareLayer in Claude, Add to Home Screen, Log out, Log out
  * of all devices. Data: GET/PATCH /me, /me/settings, /me/notifications,
- * POST /auth/logout, /auth/logout-all (contract §2-3).
+ * GET/POST/DELETE /auth/agent-tokens, POST /auth/logout, /auth/logout-all (contract §2-3).
  */
 export function AccountPage() {
   const { state } = useAuth();
@@ -206,10 +207,7 @@ export function AccountPage() {
         title="Use CareLayer in Claude"
         description="Ask a nurse from a chat with Claude. Claude pays from this wallet, within its own limit."
       >
-        <Alert tone="info">
-          Connecting to Claude is not available yet. The connection steps and link will appear here
-          when it is ready. You can set its limits now.
-        </Alert>
+        <ClaudeConnections />
         {settingsLoading}
         {settingsUnavailable}
         {settings.current && (
