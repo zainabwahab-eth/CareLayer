@@ -67,6 +67,11 @@ export interface ChatState {
   request: AskRequest | null;
   /** The saved conversation this chat belongs to. Null until her first message is saved. */
   conversationId: Id | null;
+  /**
+   * True while the chat behind a send flow is reopened after a reload. The flow (request)
+   * is already back; the thread arrives with it. Flow screens wait instead of redirecting.
+   */
+  restoring: boolean;
 }
 
 /** Result of reopening a saved chat. */

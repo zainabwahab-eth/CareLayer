@@ -1,3 +1,4 @@
+import { clearAllAsks } from '../../chat/ask-persist';
 import { quickExit } from './quick-exit';
 
 /*
@@ -34,6 +35,8 @@ function stepsBackToFirstEntry(): number {
 }
 
 export function markQuickExit() {
+  // Her unsent question must not come back if this tab is reloaded.
+  clearAllAsks();
   try {
     window.sessionStorage.setItem(QUICK_EXIT_FLAG_KEY, String(Date.now()));
   } catch {

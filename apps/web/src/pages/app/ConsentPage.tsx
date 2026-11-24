@@ -102,6 +102,14 @@ export function ConsentPage() {
 
   // Nothing to consent to without her question (e.g. opened directly, or after a reload
   // without a saved chat). Send her back to the chat to ask it first.
+  // After a reload her chat is reopened first (the flow itself is already back).
+  if (chat.restoring) {
+    return (
+      <p className={styles.message} role="status">
+        Loading your question…
+      </p>
+    );
+  }
   if (!canAskNurse) return <Navigate to={paths.ask} replace />;
 
   const draft = needsDraft ? null : request?.draft;

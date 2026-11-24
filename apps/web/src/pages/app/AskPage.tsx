@@ -51,7 +51,8 @@ export function AskPage() {
   if (leftId !== null && requested === null) setLeftId(null);
   const failedHere = requested !== null && openFailure?.id === requested ? openFailure : null;
   const opening =
-    requested !== null && requested !== conversationId && !failedHere && requested !== leftId;
+    chat.restoring ||
+    (requested !== null && requested !== conversationId && !failedHere && requested !== leftId);
 
   // A saved chat in the URL (reload, or opened from History): load it.
   useEffect(() => {

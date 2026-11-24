@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useEffect } from 'react';
 import {
   MemoryRouter,
@@ -17,6 +17,7 @@ import { useAuth } from '../../auth/useAuth';
 import { ChatProvider } from '../../chat/ChatProvider';
 import type { ChatContextValue } from '../../chat/chat-context';
 import { useChat } from '../../chat/useChat';
+import { markQuickExit } from '../../components/QuickExit/leave-now';
 import { consultationWaitingPath, paths } from '../../routes/paths';
 import { ChooseAnswererPage } from './ChooseAnswererPage';
 import { ConfirmPayPage } from './ConfirmPayPage';
@@ -180,5 +181,54 @@ describe('W10 Waiting', () => {
     expect(await screen.findByRole('heading', { name: 'Consultation' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: 'Waiting for a verified nurse' })).toBeTruthy();
     expect(screen.queryByRole('switch', { name: 'Notify me when answered' })).toBeNull();
+  });
+});
+
+describe('Reload during the send flow', () => {
+  it('a reload on W08 keeps her step, her choices and the chat behind it', async () => {
+    desktop = true;
+    const api = mockApi();
+    await toChoose(api);
+    fireEvent.click(screen.getByRole('switch', { name: 'Only female health workers' }));
+    cleanup(); // the reload: memory is gone, this tab's storage is not
+    chat.current = null;
+
+    await renderAt(api, paths.askChoose);
+    expect(await screen.findByRole('heading', { name: 'Who should answer?' })).toBeTruthy();
+    const toggle = screen.getByRole('switch', { name: 'Only female health workers' });
+    expect(
+      (toggle as HTMLInputElement).checked || toggle.getAttribute('aria-checked') === 'true',
+    ).toBe(true);
+    // The chat is reopened too, so Back to W07 and back to the chat still work.
+    await waitFor(() => expect(chat.current!.canAskNurse).toBe(true));
+    expect(chat.current!.restoring).toBe(false);
+  });
+
+  it('a reload on W07 shows the same question, not the chat', async () => {
+    const api = mockApi();
+    await toChoose(api);
+    const question = chat.current!.request!.draft.cleanedText;
+    cleanup();
+
+    await renderAt(api, paths.askConsent);
+    await screen.findByText(/exactly what the nurse will see/i, {}, { timeout: 5000 });
+    expect(screen.getAllByText(question).length).toBeGreaterThan(0);
+  });
+
+  it('is forgotten on Quick exit', async () => {
+    const api = mockApi();
+    await toChoose(api);
+    expect(Object.keys(window.sessionStorage).some((k) => k.startsWith('carelayer.ask.'))).toBe(
+      true,
+    );
+    markQuickExit();
+    expect(Object.keys(window.sessionStorage).some((k) => k.startsWith('carelayer.ask.'))).toBe(
+      false,
+    );
+    cleanup();
+
+    await renderAt(api, paths.askChoose);
+    // Nothing to restore: W08 sends her back, and W07 back to the chat.
+    expect(await screen.findByText('Chat')).toBeTruthy();
   });
 });
