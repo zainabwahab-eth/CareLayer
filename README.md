@@ -16,7 +16,7 @@ Built for the EmpowerHer: Building the Agent Economy hackathon.
 | Women's app and landing page | [www.carelayer.health](https://www.carelayer.health)                                                             |
 | Health worker app            | [practice.carelayer.health](https://practice.carelayer.health)                                                   |
 | API                          | [api.carelayer.health](https://api.carelayer.health/health) (`/health` returns `{ "status": "ok" }`)             |
-| Admin console (licences)     | [api.carelayer.health/admin-console](https://api.carelayer.health/admin-console) (admins only, see below)        |
+| Admin console (licences)     | [api.carelayer.health/admin-console](https://api.carelayer.health/admin-console) (admins only)                   |
 | MCP server for Claude        | `https://mcp.carelayer.health/mcp` (setup: [`apps/mcp/README.md`](apps/mcp/README.md))                           |
 | API docs (Postman)           | [documenter.getpostman.com/view/44554019/2sBYPv3YMs](https://documenter.getpostman.com/view/44554019/2sBYPv3YMs) |
 
@@ -24,12 +24,6 @@ Everything runs on **test money**:
 
 - Top-ups use Paystack test mode. Use a Paystack test card, not a real one.
 - USDC payments are on the Stellar **testnet**. Every transaction can be checked on [stellar.expert (testnet)](https://stellar.expert/explorer/testnet).
-
-**Admin console:** only existing admin accounts can sign in. Anyone can open the page, but:
-
-- Sign-in uses a code emailed to an admin address.
-- Admin accounts can't be created by signing up (the API refuses with 403). They are only created by the server's seed step.
-- Every `/admin/*` request checks for the admin role, so a woman's or nurse's account gets 403.
 
 ## Built on x402 and Stellar
 
