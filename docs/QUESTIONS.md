@@ -358,3 +358,44 @@ These were built from the tokens and the nearest frame, so please draw them or a
 **N07 checklist:** "Explains when to seek care in person" and "No diagnosis or prescription" must **both be ticked to send**, as a safety gate. The guidance banner wording needs sign-off from the reviewing nurse or midwife (as for H2).
 
 **Desktop:** only the Nurse **mobile** frames were read (TASKS §3: mobile is the source of truth). The desktop sidebar lists every section, with "Health worker workspace" under the logo so it reads as separate from the women's app.
+
+---
+
+## Q7. Platform API audit against the published Postman docs
+
+**Raised by:** Hikmah, 23 November 2026; re-checked on `main` after H10 and H11 merged (`ebc1a64`), 24 November 2026. **For:** Zainab (docs), Hikmah (frontend). **Full matrix:** `docs/API_AUDIT.md`. **Guard:** the contract tests `apps/web/src/api/http/contract.test.ts` (women's app) and `apps/workers/src/api/contract.test.ts` (nurse app and platform coverage), with the shared helpers in `apps/web/src/test/postman-contract.ts` and the exception lists in `apps/web/src/test/route-exceptions.ts`.
+
+**Result on `main`:** 0 mismatches. Of the 50 documented routes, 39 are called, 8 are not meant for a browser, and 3 (Claude connections) are not built yet. 7 routes are called that apps/api serves but the docs do not list.
+
+### For Zainab: routes apps/api serves that the Postman docs do not list
+
+The frontends call these and apps/api serves them; each was checked in its router. Please add them to the collection, then remove them from `apps/web/src/test/route-exceptions.ts`.
+
+| Route                                                                                     | Router             | Used by                                          |
+| ----------------------------------------------------------------------------------------- | ------------------ | ------------------------------------------------ |
+| `POST /auth/google`                                                                       | `auth/router.ts`   | both apps (hidden until Google sign-in is wired) |
+| `POST /auth/logout-all`                                                                   | `auth/router.ts`   | women's Account; nurse Settings                  |
+| `PATCH /me` `{ displayName }`                                                             | `users/router.ts`  | women's Account                                  |
+| `DELETE /nurse/documents/:id`                                                             | `nurses/router.ts` | N03 Documents                                    |
+| `POST /auth/step-up` `{ code }` (and `POST /auth/code/request` with `purpose: "step_up"`) | `auth/router.ts`   | withdrawals and payout wallet                    |
+| `DELETE /auth/sessions/:id`                                                               | `auth/router.ts`   | nurse Settings                                   |
+| `GET /nurse/questions/:id`                                                                | `nurses/router.ts` | N07                                              |
+
+Also worth fixing in the docs:
+
+- The "Withdrawal confirmed" and "Withdrawals page" examples leave out `destinationMemo`, which the API always returns (`null` without a memo).
+- The `PATCH /nurse/profile` example leaves out `fullName`, which the API accepts until submit.
+- There is no example for `409 ACTIVE_CLAIM_EXISTS` with `details.questionId`.
+
+### For the frontend team
+
+1. **Women's chat: resolved.** Before H10, `main` called the removed `POST /chat/conversations` and `POST /chat/conversations/:id/messages` (plus an unused `GET` pair), so every chat message got a 404 from the real API. H10 (now merged) switched to `POST /chat` and `POST /chat/draft`. The temporary `KNOWN_MISMATCHES_FIXED_IN_H10` list has been deleted from `apps/web/src/api/http/contract.test.ts`, so any route that is neither documented nor a listed exception now fails that test.
+2. **Documented, but no screen uses them yet:**
+   - `POST /chat/draft` and `POST /questions` are in the client, but W07–W11 are still placeholders (Q5a).
+   - `POST`/`GET`/`DELETE /auth/agent-tokens` ("Use CareLayer in Claude") has no screen, and the connection steps are undecided (Q3e, Q5c.4). These three are the only entries left in `NOT_YET_CALLED` in `apps/workers/src/api/contract.test.ts`.
+3. **Features with no documented route** (decide whether one is needed; details in Q6):
+   - a nurse notification feed and read state (6a)
+   - nurse email-alert preferences (6b)
+   - a per-question nurse reward on `NurseQuestionView` (6c)
+   - the nurse's own answer on completed questions (6e)
+   - a profile photo (6f)
