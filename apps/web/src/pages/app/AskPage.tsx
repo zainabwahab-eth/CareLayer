@@ -14,6 +14,7 @@ import { ChatContextRail } from './ask/ChatContextRail';
 import { ChatEmptyState } from './ask/ChatEmptyState';
 import { EmergencyNotice } from './ask/EmergencyNotice';
 import { EscalationOfferCard } from './ask/EscalationOfferCard';
+import { SentQuestionCard } from './ask/SentQuestionCard';
 import styles from './AskPage.module.css';
 
 const TITLE = 'CareLayer assistant';
@@ -191,6 +192,8 @@ export function AskPage() {
                   {chat.entries.map((entry) =>
                     entry.kind === 'emergency' ? (
                       <EmergencyNotice key={entry.id} response={entry.response} />
+                    ) : entry.kind === 'question' ? (
+                      <SentQuestionCard key={entry.id} questionId={entry.questionId} />
                     ) : (
                       <ChatMessage
                         key={entry.id}

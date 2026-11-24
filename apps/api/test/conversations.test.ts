@@ -171,3 +171,55 @@ describe('excerpt', () => {
     expect(excerpt('one two three four five six', 15)).toBe('one two three…');
   });
 });
+
+describe('questions sent from a chat', () => {
+  const modeB = {
+    questionMessages: [1],
+    cleanedText: 'Which contraceptive is best for me?',
+    assistantNotes: null,
+    category: 'contraception',
+    redFlagSuspected: false,
+    statedAge: null,
+    pregnancyWeeks: null,
+  };
+  const CONSENT = { sharedFields: ['cleaned_text', 'category'], consentVersion: 'w07-v1' };
+
+  async function ask(app: Parameters<typeof request>[0], token: string, conversationId?: string) {
+    const draft = await request(app)
+      .post('/chat/draft')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ messages: [user('Which contraceptive is best for me?')] });
+    return request(app).post('/questions').set('Authorization', `Bearer ${token}`).send({
+      originalText: draft.body.draft.originalText,
+      source: 'web',
+      consent: CONSENT,
+      draftToken: draft.body.draftToken,
+      conversationId,
+    });
+  }
+
+  it('shows in the chat it was sent from', async () => {
+    const { app, w, her } = await setup(modeA('A nurse could help.'), modeB);
+    const chat = await her.chat({ messages: [user('Which contraceptive is best for me?')] });
+    const id = chat.body.conversationId as string;
+    clock.advance(1_000);
+    const sent = await ask(app, w.token, id);
+    expect(sent.status).toBe(201);
+
+    const saved = await her.get(id);
+    expect(saved.body.questions).toEqual([
+      { questionId: sent.body.id, createdAt: expect.any(String) },
+    ]);
+  });
+
+  it("is still sent, but not linked, with another woman's chat", async () => {
+    const { app, as } = await setup(modeA('mine'), modeB);
+    const mine = await as((await signUpWoman(app, mail, 'Ada')).token).chat({
+      messages: [user('my chat')],
+    });
+    const other = await signUpWoman(app, mail, 'Bisi');
+    const sent = await ask(app, other.token, mine.body.conversationId);
+    expect(sent.status).toBe(201);
+    expect(await db.conversationQuestion.count({ where: { questionId: sent.body.id } })).toBe(0);
+  });
+});

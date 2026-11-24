@@ -1636,11 +1636,11 @@
               "host": ["{{baseUrl}}"],
               "path": ["chat", "conversations", "{{conversationId}}"]
             },
-            "description": "Woman only (signed-in session). One saved chat: Conversation = { id, title, createdAt, updatedAt, messages: [{ id, role, text, emergency, createdAt }] }, oldest first. emergency = her message raised an emergency (no reply follows it). 404 NOT_FOUND if it does not exist or is not hers. The app uses it to reopen a chat after a reload (/ask?c=id) or from History. Contract §7."
+            "description": "Woman only (signed-in session). One saved chat: Conversation = { id, title, createdAt, updatedAt, messages: [{ id, role, text, emergency, createdAt }], questions: [{ questionId, createdAt }] }, oldest first. emergency = her message raised an emergency (no reply follows it). questions = questions she sent to a nurse from this chat (POST /questions with conversationId); the app shows each in the chat with its status and answer (GET /me/questions/:id). 404 NOT_FOUND if it does not exist or is not hers. The app uses it to reopen a chat after a reload (/ask?c=id) or from History. Contract §7."
           },
           "response": [],
           "createdAt": "2026-11-24T14:07:59.000Z",
-          "updatedAt": "2026-11-24T14:07:59.000Z",
+          "updatedAt": "2026-11-24T18:53:03.000Z",
           "uid": "44554019-515cc59b-9812-43d8-a8fd-31c0ae2155a3"
         },
         {
@@ -1812,7 +1812,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"originalText\": {{draftOriginalTextJson}},\n  \"source\": \"web\",\n  \"consent\": {\n    \"sharedFields\": [\"cleaned_text\", \"original_text\", \"assistant_notes\", \"category\", \"age_range\", \"pregnancy_weeks\"],\n    \"consentVersion\": \"consent-v1\"\n  },\n  \"nurseSelection\": \"first_available\",\n  \"femaleOnly\": false,\n  \"draftToken\": \"{{draftToken}}\"\n}",
+              "raw": "{\n  \"originalText\": {{draftOriginalTextJson}},\n  \"source\": \"web\",\n  \"consent\": {\n    \"sharedFields\": [\"cleaned_text\", \"original_text\", \"assistant_notes\", \"category\", \"age_range\", \"pregnancy_weeks\"],\n    \"consentVersion\": \"consent-v1\"\n  },\n  \"nurseSelection\": \"first_available\",\n  \"femaleOnly\": false,\n  \"draftToken\": \"{{draftToken}}\",\n  \"conversationId\": \"{{conversationId}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -1824,7 +1824,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["questions"]
             },
-            "description": "Run \"Chat: draft question for a nurse\" first. Stores exactly that draft (no second LLM call). cleaned_text and category must be shared. Saves questionId. 409 SPENDING_LIMIT_EXCEEDED: add \"approvedAboveLimit\": true."
+            "description": "Run \"Chat: draft question for a nurse\" first. Stores exactly that draft (no second LLM call). cleaned_text and category must be shared. Saves questionId. 409 SPENDING_LIMIT_EXCEEDED: add \"approvedAboveLimit\": true. Optional conversationId: the chat she asked from (from \"Chat: send message\"); the question then appears in that chat's `questions` (GET /chat/conversations/:id) with its status and answer. A chat that is not hers is ignored, and the question is still sent."
           },
           "response": [
             {
@@ -1850,7 +1850,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"originalText\": {{draftOriginalTextJson}},\n  \"source\": \"web\",\n  \"consent\": {\n    \"sharedFields\": [\"cleaned_text\", \"original_text\", \"assistant_notes\", \"category\", \"age_range\", \"pregnancy_weeks\"],\n    \"consentVersion\": \"consent-v1\"\n  },\n  \"nurseSelection\": \"first_available\",\n  \"femaleOnly\": false,\n  \"draftToken\": \"{{draftToken}}\"\n}",
+                  "raw": "{\n  \"originalText\": {{draftOriginalTextJson}},\n  \"source\": \"web\",\n  \"consent\": {\n    \"sharedFields\": [\"cleaned_text\", \"original_text\", \"assistant_notes\", \"category\", \"age_range\", \"pregnancy_weeks\"],\n    \"consentVersion\": \"consent-v1\"\n  },\n  \"nurseSelection\": \"first_available\",\n  \"femaleOnly\": false,\n  \"draftToken\": \"{{draftToken}}\",\n  \"conversationId\": \"{{conversationId}}\"\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -1862,7 +1862,7 @@
                   "host": ["{{baseUrl}}"],
                   "path": ["questions"]
                 },
-                "description": "Run \"Chat: draft question for a nurse\" first. Stores exactly that draft (no second LLM call). cleaned_text and category must be shared. Saves questionId. 409 SPENDING_LIMIT_EXCEEDED: add \"approvedAboveLimit\": true."
+                "description": "Run \"Chat: draft question for a nurse\" first. Stores exactly that draft (no second LLM call). cleaned_text and category must be shared. Saves questionId. 409 SPENDING_LIMIT_EXCEEDED: add \"approvedAboveLimit\": true. Optional conversationId: the chat she asked from (from \"Chat: send message\"); the question then appears in that chat's `questions` (GET /chat/conversations/:id) with its status and answer. A chat that is not hers is ignored, and the question is still sent."
               },
               "status": "Created",
               "code": 201,
@@ -1882,7 +1882,7 @@
             }
           ],
           "createdAt": "2026-11-20T20:03:16.000Z",
-          "updatedAt": "2026-11-20T20:03:54.000Z",
+          "updatedAt": "2026-11-24T18:53:02.000Z",
           "uid": "44554019-e72bd01a-2e98-431e-99e9-bcfdf2d78427"
         },
         {

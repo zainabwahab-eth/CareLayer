@@ -17,6 +17,7 @@ import type { AppDeps } from '../../deps.js';
 import { AppError } from '../../lib/errors.js';
 import { getAuth, requireAuth, requireRole } from '../auth/middleware.js';
 import type { AnswerService } from './answers.js';
+import type { ConversationStore } from '../chat/conversations.js';
 import type { QuestionService } from './service.js';
 
 const CreateQuestionSchema = z
@@ -41,6 +42,7 @@ const CreateQuestionSchema = z
     femaleOnly: z.boolean().optional(),
     approvedAboveLimit: z.boolean().optional(),
     draftToken: z.string().min(1).max(30_000).optional(),
+    conversationId: z.string().trim().min(1).max(64).optional(),
   })
   .superRefine((b, ctx) => {
     if (b.nurseSelection === 'chosen_nurse' && !b.chosenNurseId) {
@@ -77,6 +79,8 @@ export function createQuestionsRouter(
   deps: AppDeps,
   questions: QuestionService,
   answers: AnswerService,
+  /** Links a question to the chat it was sent from (optional in tests). */
+  conversations?: ConversationStore,
 ): Router {
   const router = Router();
   const guard = {
@@ -117,6 +121,14 @@ export function createQuestionsRouter(
       );
     }
     const result = await questions.create(userId, body, expected);
+    // Show it in the chat she asked from. Best effort: never fails the question.
+    if (result.status === 201 && body.conversationId && conversations) {
+      await conversations
+        .linkQuestion(userId, body.conversationId, result.body.id)
+        .catch((err: unknown) =>
+          deps.logger.warn('conversation_link_failed', { error: (err as Error).message }),
+        );
+    }
     res.status(result.status).json(result.body);
   });
 

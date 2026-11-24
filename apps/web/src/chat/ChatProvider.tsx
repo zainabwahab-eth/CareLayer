@@ -194,6 +194,23 @@ function ChatStore({ children }: { children: ReactNode }) {
 
   const dismissOffer = useCallback(() => setChat((current) => ({ ...current, offer: null })), []);
 
+  const noteQuestionSent = useCallback(
+    (questionId: Id) =>
+      setChat((current) => ({
+        ...current,
+        entries: [
+          ...current.entries,
+          {
+            kind: 'question',
+            id: `question_${questionId}`,
+            questionId,
+            createdAt: new Date().toISOString(),
+          },
+        ],
+      })),
+    [],
+  );
+
   const thread = useCallback(() => [...delivered.current], []);
 
   const setRequest = useCallback<ChatContextValue['setRequest']>(
@@ -251,8 +268,19 @@ function ChatStore({ children }: { children: ReactNode }) {
       setRequest,
       reset,
       openConversation,
+      noteQuestionSent,
     }),
-    [chat, send, retry, dismissOffer, thread, setRequest, reset, openConversation],
+    [
+      chat,
+      send,
+      retry,
+      dismissOffer,
+      thread,
+      setRequest,
+      reset,
+      openConversation,
+      noteQuestionSent,
+    ],
   );
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

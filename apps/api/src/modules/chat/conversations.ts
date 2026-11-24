@@ -139,10 +139,30 @@ export function createConversationStore(d: { db: Db; now: () => Date }) {
       };
     },
 
+    /**
+     * Records that she sent `questionId` from her chat `conversationId`. Silently ignored if the
+     * chat is not hers (the question itself is already sent).
+     */
+    async linkQuestion(womanId: string, conversationId: string, questionId: string): Promise<void> {
+      const owned = await d.db.conversation.findFirst({
+        where: { id: conversationId, womanId },
+        select: { id: true },
+      });
+      if (!owned) return;
+      await d.db.conversationQuestion.upsert({
+        where: { questionId },
+        create: { conversationId, questionId, createdAt: d.now() },
+        update: {},
+      });
+    },
+
     async get(womanId: string, id: string): Promise<Conversation> {
       const c = await d.db.conversation.findFirst({
         where: { id, womanId },
-        include: { messages: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] } },
+        include: {
+          messages: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
+          questions: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
+        },
       });
       if (!c) throw notFound();
       return {
@@ -156,6 +176,10 @@ export function createConversationStore(d: { db: Db; now: () => Date }) {
           text: m.text,
           emergency: m.emergency,
           createdAt: m.createdAt.toISOString(),
+        })),
+        questions: c.questions.map((q) => ({
+          questionId: q.questionId,
+          createdAt: q.createdAt.toISOString(),
         })),
       };
     },

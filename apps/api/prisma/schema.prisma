@@ -456,13 +456,15 @@ model Question {
   /// She (or her agent) fetched and paid for the answer.
   collectedAt     DateTime?
 
-  woman       User?         @relation(fields: [womanId], references: [id], onDelete: Restrict)
-  topic       Topic         @relation(fields: [topicSlug], references: [slug], onDelete: Restrict)
-  chosenNurse NurseProfile? @relation("ChosenNurse", fields: [chosenNurseId], references: [userId], onDelete: SetNull)
-  consent     Consent?
-  claims      Claim[]
-  answer      Answer?
-  payment     Payment?
+  woman            User?                 @relation(fields: [womanId], references: [id], onDelete: Restrict)
+  topic            Topic                 @relation(fields: [topicSlug], references: [slug], onDelete: Restrict)
+  chosenNurse      NurseProfile?         @relation("ChosenNurse", fields: [chosenNurseId], references: [userId], onDelete: SetNull)
+  consent          Consent?
+  claims           Claim[]
+  answer           Answer?
+  payment          Payment?
+  /// The chat she sent it from, if any (the link lives on the chat side).
+  conversationLink ConversationQuestion?
 
   /// Open questions by topic (nurse "Waiting" tab, alerts).
   @@index([status, topicSlug, createdAt])
@@ -691,15 +693,17 @@ model EmergencyEvent {
 /// A woman's chat with the assistant (POST /chat). Hers only: never shown to nurses or agents.
 /// Deleting it (or her account) deletes its messages.
 model Conversation {
-  id        String                @id @default(cuid())
+  id        String                 @id @default(cuid())
   womanId   String
-  woman     User                  @relation(fields: [womanId], references: [id], onDelete: Cascade)
+  woman     User                   @relation(fields: [womanId], references: [id], onDelete: Cascade)
   /// The start of her first message (History list).
   title     String
-  createdAt DateTime              @default(now())
+  createdAt DateTime               @default(now())
   /// When the last message was added (History sorts by it).
-  updatedAt DateTime              @updatedAt
+  updatedAt DateTime               @updatedAt
   messages  ConversationMessage[]
+  /// Questions she sent to a nurse from this chat (shown in the chat with their status).
+  questions ConversationQuestion[]
 
   @@index([womanId, updatedAt])
 }
@@ -712,6 +716,19 @@ model ConversationMessage {
   text           String
   /// Her message raised an emergency: no assistant reply follows it.
   emergency      Boolean      @default(false)
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+/// Links a question to the chat it was sent from. Hers only, like the chat: nothing a nurse can
+/// read refers to a conversation.
+model ConversationQuestion {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  questionId     String       @unique
+  question       Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
   createdAt      DateTime     @default(now())
 
   @@index([conversationId, createdAt])
