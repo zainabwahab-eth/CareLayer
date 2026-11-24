@@ -69,9 +69,36 @@ describe('Mode A: reply', () => {
     expect(msgs[0]!.content).toContain('This call is **Mode A');
     expect(msgs.slice(1)).toEqual([
       { role: 'user', content: 'hello' },
-      { role: 'assistant', content: 'Hi, how can I help?' },
+      // Earlier replies go back in the Mode A JSON shape, so the model keeps answering in JSON.
+      {
+        role: 'assistant',
+        content: JSON.stringify({
+          replyText: 'Hi, how can I help?',
+          redFlagSuspected: false,
+          offerEscalation: false,
+          suggestedCategory: null,
+        }),
+      },
       { role: 'user', content: 'my feet are swelling' },
     ]);
+  });
+
+  it('sends earlier assistant replies as Mode A JSON, never as prose (second message 503)', async () => {
+    const llm = fakeLlm(modeA());
+    await assistantWith(llm).reply([
+      { role: 'user', text: 'I got a mosquito bite' },
+      { role: 'assistant', text: 'Wash it with soap and water.' },
+      { role: 'user', text: 'Are there ointments I can use?' },
+    ]);
+    const previous = llm.calls[0]!.messages[2]!;
+    expect(previous.role).toBe('assistant');
+    expect(JSON.parse(previous.content)).toMatchObject({
+      replyText: 'Wash it with soap and water.',
+    });
+    expect(llm.calls[0]!.messages[3]).toEqual({
+      role: 'user',
+      content: 'Are there ointments I can use?',
+    });
   });
 
   it('only sends the last 20 turns', async () => {
