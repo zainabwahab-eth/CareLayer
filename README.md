@@ -189,4 +189,3 @@ docs/           Brief, API contract, task guide, Postman collection
 - [API contract (v1)](docs/API_CONTRACT.md)
 - [API docs on Postman](https://documenter.getpostman.com/view/44554019/2sBYPv3YMs) (collection and environments also in [`docs/postman/`](docs/postman/))
 - [Task guide](docs/TASKS.md)
-- [CLAUDE.md](CLAUDE.md): rules for AI coding agents working in this repo
