@@ -1,0 +1,316 @@
+/*
+ * W08 Choose who answers (Figma "W08 Choose who answers", "D-W08 Choose who answers").
+ * Mobile: one column, nurse rows, the female-only toggle and Continue at the bottom.
+ * Desktop: the toggle beside the title, nurse cards three across, a footer note with Back
+ * and Continue.
+ */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  min-height: calc(100dvh - 2.5rem - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+}
+
+/* Display/S */
+.title {
+  flex: 1;
+  color: var(--color-text);
+  font-family: var(--text-display-s-family);
+  font-size: var(--text-display-s-size);
+  line-height: var(--text-display-s-leading);
+  font-weight: var(--text-display-s-weight);
+  letter-spacing: -0.005em;
+}
+
+.lead,
+.muted,
+.note {
+  color: var(--color-text-muted);
+}
+
+.lead {
+  margin-top: calc(-1 * var(--space-8));
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+.muted,
+.note {
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+}
+
+.toggle {
+  gap: var(--space-12);
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+.errorBlock {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-12);
+}
+
+/* ---- Radio (22px, primary when on) ---- */
+.radio {
+  flex: none;
+  width: 1.375rem;
+  height: 1.375rem;
+  margin: 0;
+  accent-color: var(--color-primary-bg);
+  cursor: pointer;
+}
+
+/* ---- Any option card, selected: 2px primary border on primary-soft ---- */
+.first,
+.nurse,
+.nurseCard {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg-surface);
+  cursor: pointer;
+}
+
+.first:has(.radio:focus-visible),
+.nurse:has(.radio:focus-visible),
+.nurseCard:has(.radio:focus-visible) {
+  outline: 2px solid var(--color-primary-text);
+  outline-offset: 2px;
+}
+
+.selected {
+  border: 2px solid var(--color-primary-bg);
+  background: var(--color-primary-bg-soft);
+}
+
+/* ---- First available ---- */
+.first {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+  padding: var(--space-16);
+}
+
+.zap {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-surface);
+  color: var(--color-primary-text);
+}
+
+.firstText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.firstName {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.625rem;
+  color: var(--color-text);
+  font-family: var(--text-title-m-family);
+  font-size: var(--text-title-m-size);
+  line-height: var(--text-title-m-leading);
+  font-weight: var(--text-title-m-weight);
+}
+
+.firstPrice {
+  flex: none;
+  color: var(--color-text);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+}
+
+.subhead {
+  margin-top: var(--space-4);
+  color: var(--color-text-muted);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+}
+
+/* ---- Nurses ---- */
+.grid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+}
+
+/* Mobile row */
+.nurse {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  padding: var(--space-16);
+}
+
+.nurseText {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.nurseName {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-8);
+  color: var(--color-text);
+  font-family: var(--text-title-m-family);
+  font-size: var(--text-title-m-size);
+  line-height: var(--text-title-m-leading);
+  font-weight: var(--text-title-m-weight);
+}
+
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-12);
+  margin-top: var(--space-4);
+}
+
+.metaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--color-text-muted);
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+}
+
+/* Desktop card */
+.nurseCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-12);
+  padding: var(--space-20);
+}
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  align-self: stretch;
+}
+
+.bio {
+  color: var(--color-text);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+.priceRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  align-self: stretch;
+  margin-top: auto;
+  padding-top: var(--space-12);
+  border-top: 1px solid var(--color-border);
+}
+
+.priceValue {
+  color: var(--color-text);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+}
+
+/* ---- Footers ---- */
+.mobileFooter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  margin-top: auto;
+  padding-top: var(--space-8);
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  margin-top: auto;
+}
+
+.note {
+  flex: 1;
+}
+
+@media (min-width: 60rem) {
+  .page {
+    gap: var(--space-24);
+    min-height: calc(100dvh - 5.25rem);
+  }
+
+  .options {
+    gap: var(--space-16);
+  }
+
+  .first {
+    padding: var(--space-20) var(--space-24);
+  }
+
+  .zap {
+    width: 3rem;
+    height: 3rem;
+  }
+
+  .firstName {
+    font-family: var(--text-title-l-family);
+    font-size: var(--text-title-l-size);
+    line-height: var(--text-title-l-leading);
+    font-weight: var(--text-title-l-weight);
+    letter-spacing: var(--text-title-l-tracking);
+  }
+
+  .firstText .muted {
+    font-family: var(--text-body-m-family);
+    font-size: var(--text-body-m-size);
+    line-height: var(--text-body-m-leading);
+  }
+
+  .firstPrice {
+    font-family: var(--text-title-l-family);
+    font-size: var(--text-title-l-size);
+    line-height: var(--text-title-l-leading);
+    font-weight: var(--text-title-l-weight);
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+    gap: var(--space-20);
+  }
+}

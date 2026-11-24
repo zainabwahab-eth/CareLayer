@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { Link } from 'react-router';
 import { Icon } from '../../../components/Icon/Icon';
 import { PageHeader } from '../../../components/PageHeader/PageHeader';
@@ -17,12 +18,15 @@ export function FlowHeader({
   desktopSubtitle,
   backTo,
   backLabel = 'Back',
+  actions,
 }: {
   title: string;
   subtitle?: string;
   desktopSubtitle?: string;
   backTo: string;
   backLabel?: string;
+  /** Desktop only: shown before Quick exit (e.g. W10's "In review" badge). */
+  actions?: ReactNode;
 }) {
   const isDesktop = useMediaQuery(DESKTOP_QUERY);
   if (!isDesktop) {
@@ -33,7 +37,12 @@ export function FlowHeader({
       <Link to={backTo} className={styles.back} aria-label={backLabel}>
         <Icon name="back" size={24} />
       </Link>
-      <PageHeader title={title} subtitle={desktopSubtitle ?? subtitle} className={styles.header} />
+      <PageHeader
+        title={title}
+        subtitle={desktopSubtitle ?? subtitle}
+        actions={actions}
+        className={styles.header}
+      />
     </div>
   );
 }

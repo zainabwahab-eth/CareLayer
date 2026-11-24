@@ -1,4 +1,5 @@
 import { cx } from '../../../components/cx';
+import { Icon } from '../../../components/Icon/Icon';
 import { DESKTOP_QUERY, useMediaQuery } from '../../../hooks/useMediaQuery';
 import styles from './FlowSteps.module.css';
 
@@ -30,11 +31,15 @@ export function FlowSteps({ current }: { current: 1 | 2 | 3 }) {
         return (
           <li
             key={step}
-            className={cx(styles.step, state !== 'next' && styles.stepActive)}
+            className={cx(
+              styles.step,
+              state !== 'next' && styles.stepActive,
+              state === 'current' && styles.stepCurrent,
+            )}
             aria-current={state === 'current' ? 'step' : undefined}
           >
             <span className={styles.dot} aria-hidden>
-              {number}
+              {state === 'done' ? <Icon name="check" size={16} /> : number}
             </span>
             <span className={styles.label}>{step}</span>
           </li>

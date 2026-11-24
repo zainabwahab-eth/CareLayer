@@ -12,18 +12,20 @@ import { Alert } from '../../components/Alert/Alert';
 import { Button } from '../../components/Button/Button';
 import { Checkbox } from '../../components/Checkbox/Checkbox';
 import { Icon } from '../../components/Icon/Icon';
+import { DESKTOP_QUERY, useMediaQuery } from '../../hooks/useMediaQuery';
 import { consultationWaitingPath, paths } from '../../routes/paths';
 import { categoryLabel } from '../../utils/categories';
 import { formatNaira } from '../../utils/money';
 import { shortNurseName } from '../../utils/nurses';
-import styles from './ask/AskFlow.module.css';
+import styles from './ConfirmPayPage.module.css';
 import { FlowHeader } from './ask/FlowHeader';
+import { FlowSteps } from './ask/FlowSteps';
 import { flowErrorMessage } from './ask/flow-errors';
 
 type Failure = { message: string; action?: 'choose' | 'review' };
 
 /**
- * W09 Confirm and send (Figma: W09 / D-W09). Sends POST /questions with the W07 draft
+ * W09 Confirm and send (Figma: "W09 Confirm and pay", "D-W09 Confirm and pay"). Sends POST /questions with the W07 draft
  * token, her consent and her W08 choice. Free to send: pay on delivery, so nothing is
  * charged until she opens the answer (W11), and nothing at all if no one answers.
  */
@@ -31,6 +33,7 @@ export function ConfirmPayPage() {
   const api = useApi();
   const navigate = useNavigate();
   const { request, setRequest } = useChat();
+  const isDesktop = useMediaQuery(DESKTOP_QUERY);
   const wallet = useApiQuery((client) => client.wallet.get());
   const settings = useApiQuery((client) => client.me.getSettings());
   const [approved, setApproved] = useState(false);
@@ -127,54 +130,63 @@ export function ConfirmPayPage() {
     }
   };
 
-  return (
-    <div className={styles.page}>
-      <FlowHeader title="Send to a nurse" subtitle="Step 3 of 3" backTo={paths.askChoose} />
+  const summary = (
+    <section className={styles.card} aria-label="Summary">
+      <dl className={styles.rows}>
+        <div className={styles.row}>
+          <dt>Answered by</dt>
+          <dd>{answeredBy}</dd>
+        </div>
+        <div className={styles.row}>
+          <dt>Topic</dt>
+          <dd>{categoryLabel(draft.category)}</dd>
+        </div>
+        {isDesktop && (
+          <div className={styles.row}>
+            <dt>Your question</dt>
+            <dd className={styles.question}>{draft.cleanedText}</dd>
+          </div>
+        )}
+        <div className={styles.row}>
+          <dt>Answer price</dt>
+          <dd className={styles.price}>{offer.isFree ? 'Free' : price}</dd>
+        </div>
+        <div className={styles.row}>
+          <dt>Paid from</dt>
+          <dd>
+            {offer.isFree
+              ? `Free answer (${offer.freeAnswersRemaining} left)`
+              : 'CareLayer balance'}
+          </dd>
+        </div>
+        <div className={styles.row}>
+          <dt>Balance after</dt>
+          <dd>{balanceAfter == null ? '–' : formatNaira(Math.max(balanceAfter, 0))}</dd>
+        </div>
+        <div className={styles.row}>
+          <dt>Your limit per answer</dt>
+          <dd>{limitKobo == null ? '–' : formatNaira(limitKobo)}</dd>
+        </div>
+      </dl>
+    </section>
+  );
 
-      <h2 className={styles.title}>Confirm and send</h2>
-
-      <section className={styles.card} aria-label="Summary">
-        <dl className={styles.rows}>
-          <div className={styles.row}>
-            <dt>Answered by</dt>
-            <dd>{answeredBy}</dd>
-          </div>
-          <div className={styles.row}>
-            <dt>Topic</dt>
-            <dd>{categoryLabel(draft.category)}</dd>
-          </div>
-          <div className={styles.row}>
-            <dt>Answer price</dt>
-            <dd>{offer.isFree ? 'Free' : price}</dd>
-          </div>
-          <div className={styles.row}>
-            <dt>Paid from</dt>
-            <dd>
-              {offer.isFree
-                ? `Free answer (${offer.freeAnswersRemaining} left)`
-                : 'CareLayer balance'}
-            </dd>
-          </div>
-          <div className={styles.row}>
-            <dt>Balance after</dt>
-            <dd>{balanceAfter == null ? '–' : formatNaira(Math.max(balanceAfter, 0))}</dd>
-          </div>
-          <div className={styles.row}>
-            <dt>Your limit per answer</dt>
-            <dd>{limitKobo == null ? '–' : formatNaira(limitKobo)}</dd>
-          </div>
-        </dl>
-      </section>
-
-      <p className={styles.warning}>
-        <Icon name="wallet" size={18} className={styles.noteIcon} />
-        <span>
-          {offer.isFree
-            ? `Nothing is charged: this answer is free. If no one answers within ${QUESTION_CLAIMS_CLOSE_MINUTES} minutes, your free answer is not used.`
-            : `Nothing is charged now. ${price} moves only when your answer is delivered. If no one answers within ${QUESTION_CLAIMS_CLOSE_MINUTES} minutes, you pay nothing.`}
-        </span>
+  const payOnDelivery = (
+    <section className={styles.pay} aria-labelledby="pay-title">
+      <h3 id="pay-title" className={styles.payTitle}>
+        <Icon name="clock" size={22} />
+        {offer.isFree ? 'Nothing is charged' : 'Nothing is charged now'}
+      </h3>
+      <p className={styles.payText}>
+        {offer.isFree
+          ? `This answer is free. If no one answers within ${QUESTION_CLAIMS_CLOSE_MINUTES} minutes, your free answer is not used.`
+          : `${price} moves only when your answer is delivered. If no one answers within ${QUESTION_CLAIMS_CLOSE_MINUTES} minutes, you pay nothing.`}
       </p>
+    </section>
+  );
 
+  const extras = (
+    <>
       {!offer.isFree && balanceAfter != null && balanceAfter < 0 && (
         <Alert tone="info">
           Your balance is lower than the price. You can send now and{' '}
@@ -184,14 +196,12 @@ export function ConfirmPayPage() {
           before you open the answer.
         </Alert>
       )}
-
       {needsApproval && (
         <Checkbox checked={approved} onChange={(event) => setApproved(event.target.checked)}>
           Pay {price} for this answer, above my limit
           {limitKobo == null ? '' : ` of ${formatNaira(limitKobo)}`}.
         </Checkbox>
       )}
-
       {failure && (
         <div className={styles.errorBlock}>
           <Alert tone="error">{failure.message}</Alert>
@@ -207,25 +217,67 @@ export function ConfirmPayPage() {
           )}
         </div>
       )}
+    </>
+  );
 
-      {!offer.isFree && (
-        <p className={styles.small}>
-          Paid in USDC on Stellar through x402. Your receipt appears in History.
-        </p>
+  const paidNote = !offer.isFree && (
+    <p className={styles.paidNote}>
+      <Icon name="lock" size={16} />
+      <span>Paid in USDC on Stellar through x402. Your receipt appears in Consultations.</span>
+    </p>
+  );
+
+  const buttons = (
+    <>
+      <Button
+        fullWidth
+        disabled={sending || (needsApproval && !approved)}
+        onClick={() => void handleSend()}
+      >
+        {sending ? 'Sending…' : 'Confirm and send'}
+      </Button>
+      <Button variant="ghost" fullWidth onClick={() => navigate(paths.askChoose)}>
+        Back
+      </Button>
+    </>
+  );
+
+  return (
+    <div className={styles.page}>
+      <FlowHeader
+        title="Send to a nurse"
+        subtitle="Step 3 of 3"
+        desktopSubtitle="Check the details. Nothing is charged until your answer arrives."
+        backTo={paths.askChoose}
+        backLabel="Back to who answers"
+      />
+      <FlowSteps current={3} />
+
+      {isDesktop ? (
+        <div className={styles.grid}>
+          <div className={styles.summaryColumn}>
+            <h2 className={styles.title}>Confirm and send</h2>
+            {summary}
+          </div>
+          <aside className={styles.panel} aria-label="Send">
+            {payOnDelivery}
+            {extras}
+            {buttons}
+            {paidNote}
+          </aside>
+        </div>
+      ) : (
+        <>
+          <h2 className={styles.title}>Confirm and send</h2>
+          {summary}
+          {payOnDelivery}
+          {extras}
+          <div className={styles.mobileFooter}>
+            {paidNote}
+            {buttons}
+          </div>
+        </>
       )}
-
-      <div className={styles.actions}>
-        <Button
-          fullWidth
-          disabled={sending || (needsApproval && !approved)}
-          onClick={() => void handleSend()}
-        >
-          {sending ? 'Sending…' : 'Confirm and send'}
-        </Button>
-        <Button variant="ghost" fullWidth onClick={() => navigate(paths.askChoose)}>
-          Back
-        </Button>
-      </div>
     </div>
   );
 }
