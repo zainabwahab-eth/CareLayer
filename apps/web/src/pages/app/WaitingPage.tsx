@@ -1,3 +1,4 @@
+import { NEW_CHAT_STATE } from '../../chat/ask-route-state';
 import type { MyQuestion } from '@carelayer/shared';
 import { useEffect } from 'react';
 import { Link, Navigate, useParams } from 'react-router';
@@ -142,7 +143,11 @@ function WaitingDetails({ question }: { question: MyQuestion }) {
       )}
 
       <div className={styles.actions}>
-        {ended && <ButtonLink to={paths.ask}>Ask again</ButtonLink>}
+        {ended && (
+          <ButtonLink to={paths.ask} state={NEW_CHAT_STATE}>
+            Ask again
+          </ButtonLink>
+        )}
         <ButtonLink to={paths.home} variant={ended ? 'secondary' : 'primary'}>
           Back to home
         </ButtonLink>

@@ -1,3 +1,4 @@
+import { NEW_CHAT_STATE } from '../../chat/ask-route-state';
 import type { MyQuestion } from '@carelayer/shared';
 import { useDeferredValue, useId, useMemo, useState, type ReactNode } from 'react';
 import { Link } from 'react-router';
@@ -127,7 +128,9 @@ function QuestionHistory({ top }: { top: ReactNode }) {
           <p className={styles.emptyText}>
             When you send a question to a nurse, it appears here with the answer and receipt.
           </p>
-          <ButtonLink to={paths.ask}>Ask a question</ButtonLink>
+          <ButtonLink to={paths.ask} state={NEW_CHAT_STATE}>
+            Ask a question
+          </ButtonLink>
         </section>
       </div>
     );

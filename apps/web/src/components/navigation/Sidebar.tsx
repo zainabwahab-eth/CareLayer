@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router';
+import { NEW_CHAT_STATE } from '../../chat/ask-route-state';
 import { paths } from '../../routes/paths';
 import { Avatar } from '../Avatar/Avatar';
 import { ButtonLink } from '../Button/Button';
@@ -35,7 +36,7 @@ export function Sidebar({ active, user, balance, className }: SidebarProps) {
         <Logo />
       </Link>
 
-      <ButtonLink to={paths.ask} fullWidth>
+      <ButtonLink to={paths.ask} state={NEW_CHAT_STATE} fullWidth>
         Ask a question
       </ButtonLink>
 

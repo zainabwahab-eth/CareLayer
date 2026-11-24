@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { Alert } from '../../components/Alert/Alert';
 import { Button } from '../../components/Button/Button';
 import { TopBar } from '../../components/navigation/TopBar';
@@ -7,6 +7,7 @@ import { QuickExitButton } from '../../components/QuickExit/QuickExitButton';
 import type { EmergencyLocationState } from '../../chat/emergency-state';
 import { useChat } from '../../chat/useChat';
 import { CHAT_PARAM, paths } from '../../routes/paths';
+import { readAskRouteState } from '../../chat/ask-route-state';
 import { AssistantAvatar, ChatMessage, TypingIndicator } from './ask/ChatMessage';
 import { ChatComposer } from './ask/ChatComposer';
 import { ChatContextRail } from './ask/ChatContextRail';
@@ -29,6 +30,9 @@ const SUBTITLE = 'AI guidance, not a nurse';
 export function AskPage() {
   const chat = useChat();
   const navigate = useNavigate();
+  // Opened to start afresh ("Ask a question") and/or with a starter (W05 topic chips).
+  const { state: locationState, key: locationKey } = useLocation();
+  const { newChat, prefill } = readAskRouteState(locationState);
   const emptyTitleId = useId();
   const endRef = useRef<HTMLDivElement>(null);
   const fieldRef = useRef<HTMLTextAreaElement>(null);
@@ -61,12 +65,24 @@ export function AskPage() {
     };
   }, [requested, conversationId, failedHere, leftId, openConversation]);
 
+  // "Ask a question" from anywhere: leave the open chat and start a blank one. The state is
+  // then dropped (keeping any starter) so Back or a reload does not wipe a new chat again.
+  const { reset } = chat;
+  useEffect(() => {
+    if (!newChat) return;
+    reset();
+    navigate(paths.ask, { replace: true, state: prefill ? { prefill } : null });
+    // Once per navigation that asked for it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [newChat, locationKey]);
+
   // Once her chat is saved, put it in the URL so a reload brings it back.
   useEffect(() => {
+    if (newChat) return; // the open chat is being left: don't put it back in the URL
     if (conversationId && !requested) {
       setSearchParams({ [CHAT_PARAM]: conversationId }, { replace: true });
     }
-  }, [conversationId, requested, setSearchParams]);
+  }, [newChat, conversationId, requested, setSearchParams]);
 
   const startNewChat = () => {
     setLeftId(requested);
@@ -207,6 +223,7 @@ export function AskPage() {
           pending={chat.pending}
           canAskNurse={chat.canAskNurse}
           textareaRef={fieldRef}
+          initialText={prefill}
         />
       </div>
 
