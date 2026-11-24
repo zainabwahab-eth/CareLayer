@@ -110,8 +110,11 @@ describe('Send to a nurse (W07-W10)', () => {
     expect(
       await screen.findByText(/exactly what the nurse will see/i, {}, { timeout: 5000 }),
     ).toBeTruthy();
+    // Continue without the tick asks for it and stays on W07.
     const continueButton = screen.getByRole('button', { name: 'Continue' });
-    expect((continueButton as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(continueButton);
+    expect(screen.getByText('Tick this to send your question to a nurse.')).toBeTruthy();
+    expect(screen.queryByText('Who should answer?')).toBeNull();
     fireEvent.click(screen.getByLabelText(/I agree to share this/));
     fireEvent.click(continueButton);
 
@@ -248,5 +251,80 @@ describe('Use CareLayer in Claude (Account connections)', () => {
       expect(screen.queryByRole('button', { name: 'Remove Claude on my laptop' })).toBeNull(),
     );
     expect(await api.agentTokens.list()).toEqual([]);
+  });
+});
+
+describe('W07 Consent: edit the question', () => {
+  const ask = async (api: ReturnType<typeof createMockApi>) => {
+    renderApp(api, paths.ask);
+    await screen.findByText('authenticated');
+    await act(() => chat.current!.send('Is spotting normal on the pill?'));
+    act(() => nav.current!(paths.askConsent));
+    await screen.findByText(/exactly what the nurse will see/i, {}, { timeout: 5000 });
+  };
+
+  it('Edit makes the question editable; Save drafts it again and asks for consent again', async () => {
+    const api = createMockApi({ latencyMs: 0, startSignedIn: true, seedChats: false });
+    const draft = vi.spyOn(api.chat, 'draft');
+    const create = vi.spyOn(api.questions, 'create');
+    await ask(api);
+
+    fireEvent.click(screen.getByLabelText(/I agree to share this/));
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    const field = screen.getByLabelText('Edit your question') as HTMLTextAreaElement;
+    expect(field.value).toContain('spotting');
+    // While editing, consent and Continue wait.
+    expect((screen.getByRole('button', { name: 'Continue' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+
+    fireEvent.change(field, {
+      target: { value: 'I started the pill 2 weeks ago and I am spotting. Is that normal?' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(
+      await screen.findByText(/I started the pill 2 weeks ago/, { selector: 'p' }),
+    ).toBeTruthy();
+    expect(draft.mock.calls.at(-1)![0].messages).toEqual([
+      { role: 'user', text: 'I started the pill 2 weeks ago and I am spotting. Is that normal?' },
+    ]);
+    // New text, new consent.
+    expect((screen.getByLabelText(/I agree to share this/) as HTMLInputElement).checked).toBe(
+      false,
+    );
+
+    // The edited question is what gets sent.
+    fireEvent.click(screen.getByLabelText(/I agree to share this/));
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    await screen.findByText('Who should answer?', {}, { timeout: 5000 });
+    await waitFor(
+      () =>
+        expect(
+          (screen.getByRole('button', { name: 'Continue' }) as HTMLButtonElement).disabled,
+        ).toBe(false),
+      { timeout: 5000 },
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Confirm and send' }));
+    await waitFor(() => expect(create).toHaveBeenCalled());
+    expect(create.mock.calls[0]![0].originalText).toBe(
+      'I started the pill 2 weeks ago and I am spotting. Is that normal?',
+    );
+  });
+
+  it('Cancel keeps the question; an empty question is not saved', async () => {
+    const api = createMockApi({ latencyMs: 0, startSignedIn: true, seedChats: false });
+    await ask(api);
+    const before = screen.getByText(/spotting/i, { selector: 'p' }).textContent;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Edit' }));
+    fireEvent.change(screen.getByLabelText('Edit your question'), { target: { value: '   ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    expect(await screen.findByText('Your question can’t be empty.')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByLabelText('Edit your question')).toBeNull();
+    expect(screen.getByText(/spotting/i, { selector: 'p' }).textContent).toBe(before);
   });
 });

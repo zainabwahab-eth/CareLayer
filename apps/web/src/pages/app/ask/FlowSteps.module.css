@@ -1,0 +1,80 @@
+/* Mobile: three 4px bars, 6px apart (W07 "Progress"). */
+.bars {
+  display: flex;
+  gap: 0.375rem;
+}
+
+.bar {
+  flex: 1;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--color-border);
+}
+
+.barDone {
+  background: var(--color-primary-bg);
+}
+
+/* Desktop: 28px dots, labels, 2px lines between (D-W07 "Stepper"). */
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.625rem;
+  color: var(--color-text-muted);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+/* Every step after the first starts with a line that fills the space before it. */
+.step + .step {
+  flex: 1 1 0;
+}
+
+.step + .step::before {
+  content: '';
+  flex: 1;
+  min-width: 1rem;
+  height: 2px;
+  margin-right: var(--space-4);
+  background: var(--color-border);
+}
+
+.dot {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-surface);
+  color: var(--color-text-muted);
+  font-family: var(--text-label-s-family);
+  font-size: var(--text-label-s-size);
+  line-height: var(--text-label-s-leading);
+  font-weight: var(--text-label-s-weight);
+}
+
+.stepActive {
+  color: var(--color-text);
+  font-family: var(--text-label-m-family);
+  font-weight: var(--text-label-m-weight);
+}
+
+.stepActive .dot {
+  border-color: var(--color-primary-bg);
+  background: var(--color-primary-bg);
+  color: var(--color-on-primary-bg);
+}
