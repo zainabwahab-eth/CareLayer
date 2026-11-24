@@ -1,6 +1,7 @@
 import { NEW_CHAT_STATE } from '../../chat/ask-route-state';
 import {
   stellarExplorerUrl,
+  type Answer,
   type AnswerResponse,
   type CollectAnswerBody,
   type Id,
@@ -19,11 +20,14 @@ import { Badge } from '../../components/Badge/Badge';
 import { Button, ButtonLink } from '../../components/Button/Button';
 import { Chip } from '../../components/Chip/Chip';
 import { Icon } from '../../components/Icon/Icon';
+import { DESKTOP_QUERY, useMediaQuery } from '../../hooks/useMediaQuery';
 import { useAppShell } from '../../layouts/app-shell';
 import { consultationWaitingPath, paths } from '../../routes/paths';
 import { formatNaira } from '../../utils/money';
+import { categoryLabel } from '../../utils/categories';
+import { formatTime } from '../../utils/dates';
 import { nurseRoleLabel } from '../../utils/nurses';
-import styles from './ask/AskFlow.module.css';
+import styles from './NurseResponsePage.module.css';
 import { FlowHeader } from './ask/FlowHeader';
 import { flowErrorMessage } from './ask/flow-errors';
 
@@ -48,23 +52,42 @@ type Collect =
   | { status: 'error'; error: unknown };
 
 /**
- * W11 Nurse response (Figma: W11 / D-W11). Opening the answer collects it
+ * W11 Nurse response (Figma: "W11 Nurse response", "D-W11 Nurse response"). Opening the answer collects it
  * (POST /me/questions/:id/collect): pay on delivery from her balance, or a free answer.
  * Collecting again is free, so the receipt shows on every visit. Above her limit she
  * approves first; short of money she tops up.
  */
 export function NurseResponsePage() {
   const { consultationId = '' } = useParams();
+  const isDesktop = useMediaQuery(DESKTOP_QUERY);
   const question = useApiQuery((api) => api.questions.getMine(consultationId), [consultationId]);
+  const [answer, setAnswer] = useState<Answer | null>(null);
   useSessionGuard(question.error);
 
   if (question.data && question.data.status !== 'answered') {
     return <Navigate to={consultationWaitingPath(consultationId)} replace />;
   }
 
+  const q = question.data;
+  const shown = answer ?? q?.answer ?? null;
+  const minutes = q && shown ? minutesBetween(q.createdAt, shown.answeredAt) : null;
+  const answeredIn =
+    minutes === null ? null : `Answered in ${minutes} ${minutes === 1 ? 'minute' : 'minutes'}`;
+
   return (
     <div className={styles.page}>
-      <FlowHeader title="Your nurse has replied" backTo={paths.consultations} />
+      <FlowHeader
+        title="Your answer"
+        subtitle={q ? categoryLabel(q.category) : undefined}
+        desktopSubtitle={
+          q
+            ? `${categoryLabel(q.category)} consultation${shown ? `, answered at ${formatTime(shown.answeredAt)}` : ''}`
+            : undefined
+        }
+        backTo={paths.consultations}
+        backLabel="Back to consultations"
+        actions={answeredIn && <Badge variant="primary">{answeredIn}</Badge>}
+      />
 
       {question.status === 'loading' && (
         <p className={styles.message} role="status">
@@ -83,12 +106,30 @@ export function NurseResponsePage() {
           </Button>
         </div>
       )}
-      {question.data && <CollectedAnswer question={question.data} />}
+      {q && (
+        <CollectedAnswer
+          question={q}
+          onCollected={setAnswer}
+          answeredIn={isDesktop ? null : answeredIn}
+          desktop={isDesktop}
+        />
+      )}
     </div>
   );
 }
 
-function CollectedAnswer({ question }: { question: MyQuestion }) {
+function CollectedAnswer({
+  question,
+  onCollected,
+  answeredIn,
+  desktop,
+}: {
+  question: MyQuestion;
+  onCollected: (answer: Answer) => void;
+  /** Mobile shows "Answered in N minutes" under the nurse; desktop has it in the header. */
+  answeredIn: string | null;
+  desktop: boolean;
+}) {
   const api = useApi();
   const { refreshWallet } = useAppShell();
   const [approved, setApproved] = useState(false);
@@ -108,6 +149,7 @@ function CollectedAnswer({ question }: { question: MyQuestion }) {
       (response) => {
         if (cancelled) return;
         setCollect({ status: 'done', response });
+        onCollected(response.answer);
         // Money moved (or a free answer was used): update the sidebar balance.
         if (!question.answer) refreshWallet();
       },
@@ -174,86 +216,160 @@ function CollectedAnswer({ question }: { question: MyQuestion }) {
     );
   }
 
-  return <AnswerView question={question} response={collect.response} />;
+  return (
+    <AnswerView
+      question={question}
+      response={collect.response}
+      answeredIn={answeredIn}
+      desktop={desktop}
+    />
+  );
 }
 
 function minutesBetween(from: string, to: string) {
   return Math.max(1, Math.round((Date.parse(to) - Date.parse(from)) / 60_000));
 }
 
-function AnswerView({ question, response }: { question: MyQuestion; response: AnswerResponse }) {
+function AnswerView({
+  question,
+  response,
+  answeredIn,
+  desktop,
+}: {
+  question: MyQuestion;
+  response: AnswerResponse;
+  answeredIn: string | null;
+  desktop: boolean;
+}) {
   const { answer, payment } = response;
-  const minutes = minutesBetween(question.createdAt, answer.answeredAt);
+  const nurse = (
+    <section className={styles.nurseCard} aria-labelledby="answer-nurse">
+      <div className={styles.nurseHead}>
+        <Avatar name={answer.nurse.displayName} size={44} decorative />
+        <div className={styles.nurseText}>
+          <h2 id="answer-nurse" className={styles.nurseName}>
+            {answer.nurse.displayName}
+          </h2>
+          <span className={styles.muted}>{nurseRoleLabel(answer.nurse.role)}</span>
+          {!desktop && <Badge variant="verified">Licence verified, NMCN</Badge>}
+        </div>
+      </div>
+      {desktop && <Badge variant="verified">Licence verified, NMCN</Badge>}
+    </section>
+  );
+
+  const clinic = answer.recommendSeeSomeoneToday && (
+    <div className={styles.clinic} role="note">
+      <p className={styles.clinicTitle}>
+        <Icon name="alert" size={18} />
+        Go to a clinic today
+      </p>
+      <p className={styles.clinicText}>
+        Your nurse recommends you see a health worker in person today. If you feel worse, get urgent
+        help now.
+      </p>
+      <Link to={paths.emergency} className={styles.link}>
+        Get urgent help
+      </Link>
+    </div>
+  );
+
+  const receiptText = (
+    <span className={styles.receiptText}>
+      <span className={styles.receiptTitle}>
+        {payment.paidFromTreasury
+          ? 'Free answer, nothing paid'
+          : `${formatNaira(payment.amount)} paid on delivery`}
+      </span>
+      {payment.stellarTxHash && <span className={styles.receiptLink}>View receipt on Stellar</span>}
+    </span>
+  );
+  const receipt = payment.stellarTxHash ? (
+    <a
+      href={stellarExplorerUrl('tx', payment.stellarTxHash)}
+      target="_blank"
+      rel="noreferrer"
+      className={styles.receipt}
+    >
+      <Icon name="receipt" size={22} />
+      {receiptText}
+      <Icon name="chevron" size={18} className={styles.chevron} />
+    </a>
+  ) : (
+    <div className={styles.receipt}>
+      <Icon name="receipt" size={22} />
+      {receiptText}
+    </div>
+  );
+
+  const disclaimer = (
+    <p className={styles.caption}>
+      Health guidance, not a diagnosis. If you’re worried, visit a clinic.
+    </p>
+  );
+  const askAgain = (
+    <ButtonLink to={paths.ask} state={NEW_CHAT_STATE} fullWidth>
+      Ask another question
+    </ButtonLink>
+  );
+
+  if (desktop) {
+    return (
+      <div className={styles.grid}>
+        <div className={styles.reading}>
+          <section className={styles.asked} aria-labelledby="answer-asked">
+            <h2 id="answer-asked" className={styles.label}>
+              You asked
+            </h2>
+            <p className={styles.bodyM}>{question.cleanedText}</p>
+          </section>
+          <section className={styles.answerCard} aria-label="The answer">
+            <p className={styles.answerText}>{answer.text}</p>
+            {clinic}
+            {disclaimer}
+          </section>
+        </div>
+        <div className={styles.side}>
+          {nurse}
+          {receipt}
+          <section className={styles.feedbackCard} aria-label="Feedback">
+            <Feedback questionId={question.id} initial={question.feedback?.helpful ?? null} />
+          </section>
+          {askAgain}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
-      <section className={styles.card} aria-labelledby="answer-nurse">
-        <div className={styles.nurse}>
-          <Avatar name={answer.nurse.displayName} size={48} decorative />
-          <div className={styles.nurseText}>
-            <h2 id="answer-nurse" className={styles.choiceName}>
-              {answer.nurse.displayName}
-            </h2>
-            <span className={styles.small}>{nurseRoleLabel(answer.nurse.role)}</span>
-          </div>
-          <Badge variant="verified">Licence verified</Badge>
-        </div>
-        <p className={styles.small}>
-          Answered in {minutes} {minutes === 1 ? 'minute' : 'minutes'}
-        </p>
-        <p className={styles.body}>{answer.text}</p>
-      </section>
-
-      {answer.recommendSeeSomeoneToday && (
-        <div className={styles.emergency} role="note">
-          <Icon name="alert" size={18} className={styles.noteIcon} />
-          <div className={styles.noteBody}>
-            <span>
-              Your nurse recommends you see a health worker today. Go to a clinic today, and get
-              urgent help if you feel worse.
-            </span>
-            <Link to={paths.emergency} className={styles.link}>
-              Get urgent help
-            </Link>
-          </div>
-        </div>
-      )}
-
-      <p className={styles.note}>
-        <Icon name="wallet" size={18} className={styles.noteIcon} />
-        <span>
-          {payment.paidFromTreasury
-            ? 'Free answer. You paid nothing.'
-            : `${formatNaira(payment.amount)} paid on delivery.`}{' '}
-          {payment.stellarTxHash && (
-            <a
-              href={stellarExplorerUrl('tx', payment.stellarTxHash)}
-              target="_blank"
-              rel="noreferrer"
-              className={styles.link}
-            >
-              View receipt on Stellar
-            </a>
-          )}
+      {nurse}
+      {answeredIn && (
+        <span className={styles.answeredIn}>
+          <Badge variant="primary">{answeredIn}</Badge>
         </span>
-      </p>
-
-      <Feedback questionId={question.id} initial={question.feedback?.helpful ?? null} />
-
-      <div className={styles.actions}>
-        <ButtonLink to={paths.ask} state={NEW_CHAT_STATE} fullWidth>
-          Ask another question
-        </ButtonLink>
+      )}
+      <p className={styles.answerText}>{answer.text}</p>
+      {clinic}
+      {receipt}
+      <Feedback questionId={question.id} initial={question.feedback?.helpful ?? null} inline />
+      <div className={styles.mobileFooter}>
+        {askAgain}
+        {disclaimer}
       </div>
-
-      <p className={styles.small}>
-        Health guidance, not a diagnosis. If you’re worried, visit a clinic.
-      </p>
     </>
   );
 }
 
-function Feedback({ questionId, initial }: { questionId: Id; initial: boolean | null }) {
+function Feedback({
+  questionId,
+  initial,
+  inline = false,
+}: {
+  questionId: Id;
+  initial: boolean | null;
+  inline?: boolean;
+}) {
   const api = useApi();
   const [helpful, setHelpful] = useState<boolean | null>(initial);
   const [saving, setSaving] = useState(false);
@@ -274,18 +390,24 @@ function Feedback({ questionId, initial }: { questionId: Id; initial: boolean | 
   };
 
   return (
-    <div className={styles.errorBlock}>
-      <div className={styles.feedback} role="group" aria-label="Was this helpful?">
-        <span className={styles.feedbackLabel}>Was this helpful?</span>
-        <Chip selected={helpful === true} disabled={saving} onClick={() => void rate(true)}>
-          Yes
-        </Chip>
-        <Chip selected={helpful === false} disabled={saving} onClick={() => void rate(false)}>
-          Not really
-        </Chip>
+    <div className={styles.feedbackBlock}>
+      <div
+        className={inline ? styles.feedbackInline : styles.feedback}
+        role="group"
+        aria-label="Was this helpful?"
+      >
+        <span className={inline ? styles.muted : styles.feedbackLabel}>Was this helpful?</span>
+        <span className={styles.chips}>
+          <Chip selected={helpful === true} disabled={saving} onClick={() => void rate(true)}>
+            Yes
+          </Chip>
+          <Chip selected={helpful === false} disabled={saving} onClick={() => void rate(false)}>
+            Not really
+          </Chip>
+        </span>
       </div>
       {helpful !== null && !failed && (
-        <p className={styles.small} role="status">
+        <p className={styles.caption} role="status">
           Thank you. Your rating helps other women choose.
         </p>
       )}
