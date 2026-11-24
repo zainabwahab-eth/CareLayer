@@ -18,6 +18,7 @@ import home from '../../assets/icons/home.svg';
 import lock18 from '../../assets/icons/lock-18.svg';
 import lock22 from '../../assets/icons/lock-22.svg';
 import lock from '../../assets/icons/lock.svg';
+import phone18 from '../../assets/icons/phone-18.svg';
 import mail30 from '../../assets/icons/mail-30.svg';
 import search18 from '../../assets/icons/search-18.svg';
 import send20 from '../../assets/icons/send-20.svg';
@@ -28,6 +29,7 @@ import shield56 from '../../assets/icons/shield-56.svg';
 import shield60 from '../../assets/icons/shield-60.svg';
 import shield84 from '../../assets/icons/shield-84.svg';
 import shield from '../../assets/icons/shield.svg';
+import theme20 from '../../assets/icons/theme-20.svg';
 import sparkle16 from '../../assets/icons/sparkle-16.svg';
 import sparkle20 from '../../assets/icons/sparkle-20.svg';
 import upload20 from '../../assets/icons/upload-20.svg';
@@ -73,6 +75,9 @@ export const icons = {
   heart: { src: heart22, frame: 22, x: 3.708, y: 4.667, w: 14.583, h: 14.083 },
   upload: { src: upload20, frame: 20, x: 2.875, y: 2.875, w: 14.25, h: 14.667 },
   camera: { src: camera20, frame: 20, x: 2.042, y: 2.875, w: 15.917, h: 13.833 },
+  // Landing page (theme toggle, emergency call line).
+  theme: { src: theme20, frame: 20, x: 0, y: 0, w: 20, h: 20 },
+  phone: { src: phone18, frame: 18, x: 2.5, y: 2.125, w: 13.375, h: 13.375 },
   sparkle: [
     { src: sparkle16, frame: 16, x: 2.792, y: 1.792, w: 10.417, h: 10.417 },
     { src: sparkle20, frame: 20, x: 3.708, y: 2.458, w: 12.583, h: 12.583 },

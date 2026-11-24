@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } fro
 import { isApiError } from '../api/errors';
 import { useApi } from '../api/useApi';
 import { AuthContext, type AuthContextValue, type AuthState } from './auth-context';
+import { writeSessionHint } from './session-hint';
 
 /*
  * Holds who is signed in.
@@ -18,6 +19,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signedIn = useRef(false);
   useEffect(() => {
     signedIn.current = state.status === 'authenticated';
+    // Lets the landing page wait for a returning user instead of flashing (session-hint.ts).
+    if (state.status !== 'loading') writeSessionHint(state.status === 'authenticated');
   }, [state.status]);
 
   useEffect(() => {

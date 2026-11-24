@@ -1,337 +1,971 @@
 /*
- * W01 Welcome. Every colour is a theme token, so light and dark follow
- * "W01 Welcome" and "W01 Welcome — Dark" without extra rules.
+ * W01 landing page (Figma "Landing — Desktop 1440" / "— Dark"). Every colour is a
+ * theme token, so the dark frame follows from the dark palette with no extra rules.
  *
- * Breakpoints: mobile < 40rem, tablet 40-60rem, desktop >= 60rem (the app shell's).
+ * Figma: 1440 wide, 96px side margins (content 1248), sections 112px tall padding.
+ * Below 60rem (the app's desktop breakpoint) the same sections stack in one column.
+ * Display tracking follows the Figma layers (-2% / -1.5% / -1% / -0.5% of the size).
  */
 
 .page {
+  --landing-gutter: var(--layout-margin-inline);
+  --landing-section-y: 4rem;
+  --landing-content: 78rem; /* 1248px */
+
   display: flex;
   flex-direction: column;
   min-height: 100dvh;
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+@media (min-width: 40rem) {
+  .page {
+    --landing-gutter: 2.5rem;
+    --landing-section-y: 5rem;
+  }
+}
+
+@media (min-width: 60rem) {
+  .page {
+    --landing-gutter: max(3rem, calc((100% - var(--landing-content)) / 2));
+    --landing-section-y: 7rem; /* 112px */
+  }
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+}
+
+.main:focus {
+  outline: none;
+}
+
+.page a {
+  color: inherit;
+}
+
+/* ---- Type (Figma text styles) ---- */
+.displayL {
+  color: var(--color-text);
+  font-family: var(--text-display-l-family);
+  font-size: 2rem;
+  line-height: 2.5rem;
+  font-weight: var(--text-display-l-weight);
+  letter-spacing: -0.015em;
+}
+
+.displayM {
+  color: var(--color-text);
+  font-family: var(--text-display-m-family);
+  font-size: 1.625rem;
+  line-height: 2rem;
+  font-weight: var(--text-display-m-weight);
+  letter-spacing: -0.01em;
+}
+
+@media (min-width: 60rem) {
+  .displayL {
+    font-size: var(--text-display-l-size);
+    line-height: var(--text-display-l-leading);
+  }
+
+  .displayM {
+    font-size: var(--text-display-m-size);
+    line-height: var(--text-display-m-leading);
+  }
+}
+
+.titleL {
+  color: var(--color-text);
+  font-family: var(--text-title-l-family);
+  font-size: var(--text-title-l-size);
+  line-height: var(--text-title-l-leading);
+  font-weight: var(--text-title-l-weight);
+  letter-spacing: var(--text-title-l-tracking);
+}
+
+.titleM {
+  color: var(--color-text);
+  font-family: var(--text-title-m-family);
+  font-size: var(--text-title-m-size);
+  line-height: var(--text-title-m-leading);
+  font-weight: var(--text-title-m-weight);
+}
+
+.bodyL,
+.bodyLMuted {
+  font-family: var(--text-body-l-family);
+  font-size: var(--text-body-l-size);
+  line-height: var(--text-body-l-leading);
+  font-weight: var(--text-body-l-weight);
+}
+
+.bodyL {
+  color: var(--color-text);
+}
+
+.bodyLMuted {
+  color: var(--color-text-muted);
+}
+
+.bodyMuted {
+  color: var(--color-text-muted);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+  font-weight: var(--text-body-m-weight);
+}
+
+/* ---- Sections ---- */
+.section {
+  padding: var(--landing-section-y) var(--landing-gutter);
+}
+
+.surface {
+  background: var(--color-bg-surface);
+}
+
+.canvas,
+.canvasSection {
+  background: var(--color-bg);
+}
+
+.primary {
+  background: var(--color-primary-bg);
+}
+
+.inlineLink {
+  font-weight: var(--text-label-m-weight);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ================= Hero ================= */
+.hero {
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 4rem;
   background: var(--color-primary-bg);
   color: var(--color-on-primary);
 }
 
-/* Figma "Top nav" (desktop only). Hidden on phones, where W01 has no header. */
-.topNav {
-  display: none;
+/* The global focus ring is primary-coloured, which would vanish on teal. */
+.hero :focus-visible,
+.primary :focus-visible {
+  outline-color: var(--color-on-primary);
 }
 
-.navLinks {
+.nav {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-32);
+  gap: var(--space-12) var(--space-32);
+  padding: var(--space-16) var(--landing-gutter);
 }
 
-.navLink,
-.navLinkMuted {
+.logoLink {
   display: inline-flex;
-  align-items: center;
-  min-height: var(--size-touch-target-min);
-  font-family: var(--text-label-m-family);
-  font-size: var(--text-label-m-size);
-  line-height: var(--text-label-m-leading);
-  font-weight: var(--text-label-m-weight);
-  color: var(--color-on-primary);
+  margin-right: auto;
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+}
+
+/* Figma "Links": Body/M, on-primary muted, 36px apart. Hidden on phones. */
+.navLinks {
+  display: none;
+  gap: var(--space-24) 2.25rem;
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+.navLinks a {
+  color: var(--color-on-primary-muted);
   text-decoration: none;
   text-underline-offset: 0.25em;
 }
 
-.navLinkMuted {
-  color: var(--color-on-primary-muted);
-}
-
-.navLink:hover,
-.navLinkMuted:hover {
+.navLinks a:hover,
+.logIn:hover {
   text-decoration: underline;
 }
 
-/* The global focus ring is primary-coloured, which would vanish on this teal page. */
-.page :focus-visible {
-  outline-color: var(--color-on-primary);
-}
-
-.hero {
+.navActions {
   display: flex;
-  flex: 1;
-  flex-direction: column;
+  align-items: center;
+  gap: var(--space-12);
 }
 
-.hero:focus {
-  outline: none;
+/* Figma "Theme toggle": 40px circle, 1px on-primary-muted border. */
+.themeToggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  border: 1px solid var(--color-on-primary-muted);
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-on-primary);
+  cursor: pointer;
 }
 
-/* Figma "Body": 8px top, 20px sides, 32px bottom, 16px gap. */
-.copy {
+.themeToggle:hover {
+  background: color-mix(in srgb, var(--color-on-primary) 10%, transparent);
+}
+
+.logIn {
+  padding: 0.625rem var(--space-12);
+  color: var(--color-on-primary);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+  text-decoration: none;
+  text-underline-offset: 0.25em;
+}
+
+/* Figma "Button/Secondary" on teal: on-primary fill, primary text (both themes). */
+.page .lightButton {
+  border-color: transparent;
+  background: var(--color-on-primary);
+  color: var(--color-primary);
+}
+
+@media (hover: hover) {
+  .page .lightButton:hover:not(:disabled) {
+    background: var(--color-on-primary);
+    filter: brightness(0.94);
+  }
+}
+
+.navCta {
+  display: none;
+}
+
+.heroBody {
   display: flex;
-  flex: 1;
   flex-direction: column;
-  gap: var(--space-16);
-  padding: var(--space-8) var(--layout-margin-inline)
-    calc(var(--space-32) + env(safe-area-inset-bottom));
+  gap: 3rem;
+  padding: var(--space-24) var(--landing-gutter) 0;
 }
 
-/* Display/L. Figma tracks it at -1.5% (-0.6px), as in the auth panel. */
-.headline {
+.heroCopy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1.75rem;
+}
+
+/* Display/XL: 56/62, -2%. */
+.heroTitle {
+  max-width: 31.25rem;
   font-family: var(--text-display-l-family);
-  font-size: var(--text-display-l-size);
-  line-height: var(--text-display-l-leading);
+  font-size: 2.5rem;
+  line-height: 2.875rem;
   font-weight: var(--text-display-l-weight);
-  letter-spacing: -0.0375rem;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
 }
 
-.lede {
+.heroLede {
+  max-width: 32.5rem;
   color: var(--color-on-primary-muted);
   font-family: var(--text-body-l-family);
   font-size: var(--text-body-l-size);
   line-height: var(--text-body-l-leading);
 }
 
-/* Promises: desktop (and tablet) only, as in D-W01. */
-.promises {
-  display: none;
+.ctaRow {
+  display: flex;
   flex-wrap: wrap;
-  gap: var(--space-8) var(--space-24);
+  align-items: center;
+  gap: var(--space-24);
 }
 
-.promise {
-  display: flex;
-  align-items: center;
-  gap: var(--space-8);
+.heroLink {
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.page .heroLink {
+  color: var(--color-on-primary);
+}
+
+.heroNote {
+  margin-top: calc(-1 * var(--space-8));
+  color: var(--color-on-primary-muted);
   font-family: var(--text-body-s-family);
   font-size: var(--text-body-s-size);
   line-height: var(--text-body-s-leading);
 }
 
-.promiseIcon {
-  color: var(--color-accent-bg);
-}
-
-/* Mobile: the Figma spacer pushes the actions to the bottom; full-width, stacked. */
-.actions {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-16);
-  margin-top: auto;
-  padding-top: var(--space-16);
-}
-
-.desktopOnly {
-  display: none;
-}
-
-/*
- * Figma "Illustration / Layers". Shapes are placed on a stage measured in
- * --u (1px on phones). Mobile frame: 360px tall, stage 300 x 265 at (40, 40).
- * Comes first visually on phones, after the copy in the DOM.
- */
-.illustration {
-  --u: 1px;
-  order: -1;
-  flex-shrink: 0;
-  padding: calc(40 * var(--u)) 0 calc(55 * var(--u));
-  padding-top: calc(40 * var(--u) + env(safe-area-inset-top));
-}
-
-.stage {
+/* Figma "Hero visual": 616x620, radius 32, 7% on-primary tint, dot pattern, chat card. */
+.heroVisual {
   position: relative;
-  width: calc(300 * var(--u));
-  height: calc(265 * var(--u));
-  margin-inline: auto;
-}
-
-.stage > span {
-  position: absolute;
-}
-
-.layerSoft {
-  top: calc(30 * var(--u));
-  left: 0;
-  width: calc(220 * var(--u));
-  height: calc(220 * var(--u));
-  border-radius: calc(56 * var(--u));
-  background: var(--color-primary-soft);
-  opacity: 0.14;
-}
-
-.layerAccent {
-  top: 0;
-  left: calc(110 * var(--u));
-  width: calc(190 * var(--u));
-  height: calc(190 * var(--u));
-  border-radius: calc(52 * var(--u));
-  background: var(--color-accent-bg);
-}
-
-.layerRose {
-  top: calc(90 * var(--u));
-  left: calc(30 * var(--u));
-  width: calc(210 * var(--u));
-  height: calc(170 * var(--u));
-  border-radius: calc(48 * var(--u));
-  background: var(--color-rose-bg);
-}
-
-.layerSurface {
-  top: calc(135 * var(--u));
-  left: calc(165 * var(--u));
   display: flex;
   align-items: center;
   justify-content: center;
-  width: calc(130 * var(--u));
-  height: calc(130 * var(--u));
-  border-radius: calc(40 * var(--u));
+  margin: 0;
+  padding: 2rem var(--space-16);
+  overflow: hidden;
+  border-radius: 2rem;
+  background: color-mix(in srgb, var(--color-on-primary) 7%, transparent);
+}
+
+.dotPattern {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 616px;
+  height: 620px;
+  pointer-events: none;
+}
+
+.chatPreview {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+  width: 100%;
+  max-width: 28.5rem; /* 456px */
+  padding: var(--space-24);
+  border-radius: 1.5rem;
   background: var(--color-bg-surface);
+  box-shadow: 0 24px 48px -8px rgba(5, 31, 26, 0.28);
+  color: var(--color-text);
+}
+
+.chatHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.assistantAvatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: var(--radius-full);
+  background: var(--color-primary-bg-soft);
   color: var(--color-primary-text);
 }
 
-.layerSurface .shieldMobile {
-  width: calc(56 * var(--u));
-  height: calc(56 * var(--u));
+.chatTitle {
+  flex: 1;
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
 }
 
-.layerSurface .shieldDesktop {
-  display: none;
-  width: calc(84 * var(--u));
-  height: calc(84 * var(--u));
+.chatPrivate {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-4);
 }
 
-/* ---------- Tablet: centred column, top nav and promises appear ---------- */
+.chatPrivate,
+.chatCaption {
+  color: var(--color-text-muted);
+  font-family: var(--text-caption-family);
+  font-size: var(--text-caption-size);
+  line-height: var(--text-caption-leading);
+  font-weight: var(--text-caption-weight);
+  letter-spacing: var(--text-caption-tracking);
+}
+
+.herMessage {
+  align-self: flex-end;
+  max-width: 20.125rem; /* 322px */
+  padding: var(--space-12) var(--space-16);
+  border-radius: 1.125rem 1.125rem 0.375rem 1.125rem;
+  background: var(--color-rose-bg-soft);
+}
+
+.herMessage,
+.chatText {
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+.verifiedAnswer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding: var(--space-16);
+  border-radius: 1.125rem;
+  background: var(--color-bg);
+}
+
+.answerWho {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.answerName {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 8rem;
+}
+
+.answerNurse {
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+}
+
 @media (min-width: 40rem) {
-  .topNav {
+  .navLinks {
     display: flex;
+    order: 3;
+    width: 100%;
+  }
+}
+
+@media (min-width: 60rem) {
+  .hero {
+    padding-bottom: 7rem; /* 112px */
+  }
+
+  /* Figma "Nav": 24px tall padding, links centred between logo and actions. */
+  .nav {
+    flex-wrap: nowrap;
+    padding-block: var(--space-24);
+  }
+
+  .logoLink {
+    margin-right: 0;
+  }
+
+  .navLinks {
+    order: 0;
+    width: auto;
+    margin-inline: auto;
+  }
+
+  .navCta {
+    display: inline-flex;
+  }
+
+  .heroBody {
+    flex-direction: row;
     align-items: center;
+    gap: 5rem;
+    padding-top: var(--space-40);
+  }
+
+  .heroCopy {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .heroTitle {
+    font-size: 3.5rem;
+    line-height: 3.875rem;
+  }
+
+  .heroVisual {
+    flex: none;
+    align-items: flex-start;
+    justify-content: flex-start;
+    width: 38.5rem; /* 616px */
+    height: 38.75rem; /* 620px */
+    padding: 4.25rem 0 0 5rem; /* card at 80, 68 */
+  }
+}
+
+/* Between the breakpoints the visual would crowd the copy: shrink it. */
+@media (min-width: 60rem) and (max-width: 80rem) {
+  .heroBody {
+    gap: 3rem;
+  }
+
+  .heroVisual {
+    width: min(38.5rem, 48%);
+    padding-left: 2.5rem;
+  }
+}
+
+/* ================= How it works ================= */
+.steps {
+  display: grid;
+  gap: var(--space-32);
+  margin: 2.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  padding-top: var(--space-24);
+  border-top: 1px solid var(--color-border);
+}
+
+.stepNumber {
+  color: var(--color-rose);
+  font-family: var(--text-display-l-family);
+  font-size: var(--text-display-l-size);
+  line-height: var(--text-display-l-leading);
+  font-weight: var(--text-display-l-weight);
+  letter-spacing: -0.015em;
+}
+
+@media (min-width: 60rem) {
+  .steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-40);
+    margin-top: 3.5rem;
+  }
+}
+
+/* ================= Who answers + privacy, emergencies (canvas) ================= */
+.canvasSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--landing-section-y);
+  padding: var(--landing-section-y) var(--landing-gutter);
+}
+
+.twoColumns {
+  display: grid;
+  gap: 3rem;
+}
+
+.whoCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-20);
+  padding: var(--space-32) var(--space-24);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-surface);
+}
+
+.roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Figma "Chip/Default" (display only here, so not the interactive Chip). */
+.roleChip {
+  padding: 0.625rem var(--space-16);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-surface);
+  color: var(--color-text);
+  font-family: var(--text-label-s-family);
+  font-size: var(--text-label-s-size);
+  line-height: var(--text-label-s-leading);
+  font-weight: var(--text-label-s-weight);
+  letter-spacing: var(--text-label-s-tracking);
+}
+
+.privacy {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+}
+
+.points {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.point {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-16);
+}
+
+.pointIcon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: var(--radius-full);
+}
+
+.pointIcon.tonePrimary {
+  background: var(--color-primary-bg-soft);
+  color: var(--color-primary-text);
+}
+
+.pointIcon.toneAccent {
+  background: var(--color-accent-bg-soft);
+  color: var(--color-text);
+}
+
+.pointIcon.toneRose {
+  background: var(--color-rose-bg-soft);
+  color: var(--color-rose);
+}
+
+.pointText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+@media (min-width: 60rem) {
+  .twoColumns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 5rem;
+  }
+
+  .whoCard {
+    padding: 3rem;
+  }
+
+  .privacy {
+    padding-top: 3rem;
+  }
+}
+
+/* Figma "Emergency callout": emergency-soft, radius 28, 48/44 padding. */
+.emergency {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-24);
+  padding: var(--space-32) var(--space-24);
+  border-radius: var(--radius-xl);
+  background: var(--color-emergency-bg-soft);
+}
+
+.emergencyTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-16);
+}
+
+.emergencyIcon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-surface);
+  color: var(--color-emergency);
+}
+
+/* Display/S in emergency red. */
+.emergencyHeading {
+  color: var(--color-emergency);
+  font-family: var(--text-display-s-family);
+  font-size: var(--text-display-s-size);
+  line-height: var(--text-display-s-leading);
+  font-weight: var(--text-display-s-weight);
+  letter-spacing: -0.005em;
+}
+
+.emergencyText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.call {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-8);
+  color: var(--color-emergency);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+}
+
+.page .call a {
+  color: var(--color-emergency);
+  text-underline-offset: 2px;
+}
+
+@media (min-width: 60rem) {
+  .emergency {
+    flex-direction: row;
+    align-items: center;
+    gap: 4rem;
+    padding: 2.75rem 3rem;
+  }
+
+  .emergencyTitle,
+  .emergencyText {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* ================= Pricing and FAQ (intro column + list) ================= */
+.split {
+  display: grid;
+  gap: var(--space-32);
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-16);
+}
+
+.priceList {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+}
+
+.priceRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-16);
+  padding: 1.375rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.priceValue {
+  margin: 0;
+  color: var(--color-primary-text);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.priceLarge {
+  font-size: var(--text-title-l-size);
+  line-height: var(--text-title-l-leading);
+  letter-spacing: var(--text-title-l-tracking);
+}
+
+@media (min-width: 60rem) {
+  .split {
+    grid-template-columns: 26.25rem minmax(0, 1fr); /* intro 420 */
+    align-items: start;
+    gap: 6rem;
+  }
+}
+
+/* ================= For nurses and midwives ================= */
+.nursesLayout {
+  display: grid;
+  gap: 3rem;
+}
+
+.nursesCopy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-24);
+}
+
+.eyebrow {
+  color: var(--color-accent);
+  font-family: var(--text-label-m-family);
+  font-size: var(--text-label-m-size);
+  line-height: var(--text-label-m-leading);
+  font-weight: var(--text-label-m-weight);
+}
+
+.page .onPrimary {
+  color: var(--color-on-primary);
+}
+
+.onPrimaryMuted,
+.onPrimaryMutedM {
+  color: var(--color-on-primary-muted);
+}
+
+.onPrimaryMuted {
+  font-family: var(--text-body-l-family);
+  font-size: var(--text-body-l-size);
+  line-height: var(--text-body-l-leading);
+}
+
+.onPrimaryMutedM {
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+.nurseSteps {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 1px solid color-mix(in srgb, var(--color-on-primary) 18%, transparent);
+}
+
+.nurseStep {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: var(--space-24) 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-on-primary) 18%, transparent);
+}
+
+@media (min-width: 60rem) {
+  .primary {
+    padding-block: 7.5rem; /* 120px */
+  }
+
+  .nursesLayout {
+    grid-template-columns: minmax(0, 1fr) 31.25rem; /* steps 500 */
+    align-items: center;
+    gap: 6rem;
+  }
+}
+
+/* ================= FAQ ================= */
+.faqTitle {
+  max-width: 25rem;
+}
+
+.faqList {
+  border-top: 1px solid var(--color-border);
+}
+
+.faqItem {
+  border-bottom: 1px solid var(--color-border);
+}
+
+.faqItem > p {
+  padding-bottom: var(--space-24);
+}
+
+.faqQuestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-16);
+  padding: var(--space-24) 0;
+  color: var(--color-text);
+  font-family: var(--text-title-m-family);
+  font-size: var(--text-title-m-size);
+  line-height: var(--text-title-m-leading);
+  font-weight: var(--text-title-m-weight);
+  list-style: none;
+  cursor: pointer;
+}
+
+.faqItem[open] > .faqQuestion {
+  padding-bottom: var(--space-12);
+}
+
+.faqQuestion::-webkit-details-marker {
+  display: none;
+}
+
+/* "+" closed, "–" open (Title/L, primary text). */
+.faqSign {
+  flex: none;
+  color: var(--color-primary-text);
+  font-family: var(--text-title-l-family);
+  font-size: var(--text-title-l-size);
+  line-height: var(--text-title-l-leading);
+}
+
+.faqSign::before {
+  content: '+';
+}
+
+.faqItem[open] .faqSign::before {
+  content: '–';
+}
+
+/* ================= Footer ================= */
+.footer {
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  padding: 3.5rem var(--landing-gutter) calc(3.5rem + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--color-border);
+  background: var(--color-bg-surface);
+}
+
+.footerTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-24) var(--space-32);
+}
+
+.footerLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-12) var(--space-32);
+  font-family: var(--text-body-m-family);
+  font-size: var(--text-body-m-size);
+  line-height: var(--text-body-m-leading);
+}
+
+.page .footerLinks a,
+.page .footerBottom a {
+  color: var(--color-text-muted);
+  text-decoration: none;
+  text-underline-offset: 0.25em;
+}
+
+.page .footerLinks a:hover,
+.page .footerBottom a:hover {
+  text-decoration: underline;
+}
+
+.footerBottom {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  color: var(--color-text-muted);
+  font-family: var(--text-body-s-family);
+  font-size: var(--text-body-s-size);
+  line-height: var(--text-body-s-leading);
+}
+
+@media (min-width: 60rem) {
+  .footerTop {
+    flex-wrap: nowrap;
+  }
+
+  .footerLinks {
+    margin-left: auto;
+  }
+
+  .footerBottom {
+    flex-direction: row;
     justify-content: space-between;
     gap: var(--space-32);
-    padding: calc(var(--space-24) + env(safe-area-inset-top)) var(--space-40) 0;
-  }
-
-  .hero {
-    width: 100%;
-    max-width: 36rem;
-    margin-inline: auto;
-  }
-
-  .illustration {
-    --u: 1.15px;
-    padding-top: calc(32 * var(--u));
-  }
-
-  .copy {
-    gap: var(--space-24);
-  }
-
-  .promises {
-    display: flex;
-  }
-
-  .actions {
-    gap: var(--space-12);
-  }
-}
-
-/* ---------- Desktop: Figma D-W01 ---------- */
-@media (min-width: 60rem) {
-  .page {
-    --page-inline: clamp(3rem, 7.5vw, 6rem); /* 96px at 1280px, as in Figma */
-  }
-
-  /* Figma "Top nav": 32px vertical, 96px sides, 32px gap. */
-  .topNav {
-    width: 100%;
-    max-width: calc(78rem + 2 * var(--page-inline));
-    margin-inline: auto;
-    padding: var(--space-32) var(--page-inline);
-  }
-
-  /* Figma "Hero": copy | 80px | illustration, vertically centred, 64px bottom. */
-  .hero {
-    flex-direction: row;
-    align-items: center;
-    gap: clamp(2.5rem, 6vw, 5rem);
-    max-width: calc(78rem + 2 * var(--page-inline));
-    padding: 0 var(--page-inline) 4rem; /* 64px */
-  }
-
-  .copy {
-    flex: 1 1 0;
-    min-width: 0;
-    padding: 0;
-  }
-
-  /* Display/XL (56/62, -2% = -1.12px). No token for it yet, so it is set here. */
-  .headline {
-    font-size: clamp(2.75rem, 1rem + 3vw, 3.5rem);
-    line-height: 1.107;
-    letter-spacing: -0.02em;
-  }
-
-  .actions {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: var(--space-12);
-    margin-top: 0;
-    padding-top: var(--space-12);
-  }
-
-  .desktopOnly {
-    display: inline;
-  }
-
-  /*
-   * Desktop frame: 540 x 520, stage 460 x 410 at (30, 40). --u reaches 1px at
-   * a 1440px window (the Figma frame) and shrinks below that so the copy keeps its room.
-   */
-  .illustration {
-    --u: min(1px, (100vw - 15rem) / 1200);
-    order: 0;
-    width: calc(540 * var(--u));
-    height: calc(520 * var(--u));
-    padding: calc(40 * var(--u)) 0 0 calc(30 * var(--u));
-  }
-
-  .stage {
-    width: calc(460 * var(--u));
-    height: calc(410 * var(--u));
-    margin: 0;
-  }
-
-  .layerSoft {
-    top: calc(50 * var(--u));
-    width: calc(320 * var(--u));
-    height: calc(320 * var(--u));
-    border-radius: calc(80 * var(--u));
-  }
-
-  .layerAccent {
-    left: calc(180 * var(--u));
-    width: calc(280 * var(--u));
-    height: calc(280 * var(--u));
-    border-radius: calc(72 * var(--u));
-  }
-
-  .layerRose {
-    top: calc(140 * var(--u));
-    left: calc(40 * var(--u));
-    width: calc(300 * var(--u));
-    height: calc(250 * var(--u));
-    border-radius: calc(68 * var(--u));
-  }
-
-  .layerSurface {
-    top: calc(210 * var(--u));
-    left: calc(250 * var(--u));
-    width: calc(200 * var(--u));
-    height: calc(200 * var(--u));
-    border-radius: calc(56 * var(--u));
-  }
-
-  .layerSurface .shieldMobile {
-    display: none;
-  }
-
-  .layerSurface .shieldDesktop {
-    display: inline-block;
   }
 }

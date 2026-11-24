@@ -19,8 +19,8 @@ import { BeforeYouStartPage } from '../pages/public/BeforeYouStartPage';
 import { LogInPage } from '../pages/public/LogInPage';
 import { SignUpPage } from '../pages/public/SignUpPage';
 import { VerifyEmailPage } from '../pages/public/VerifyEmailPage';
-import { WelcomePage } from '../pages/public/WelcomePage';
 import { GuestOnly } from './GuestOnly';
+import { LandingRoute } from './LandingRoute';
 import { paths } from './paths';
 import { RequireAuth } from './RequireAuth';
 import type { RouteHandle } from './route-handle';
@@ -44,7 +44,8 @@ export const routes: RouteObject[] = [
     Component: RootLayout,
     children: [
       // Public: W01 landing page. Full-bleed, renders its own header and <main>.
-      { path: paths.welcome, Component: WelcomePage },
+      // Signed-in visitors go straight to Home (LandingRoute).
+      { path: paths.welcome, Component: LandingRoute },
 
       // Public: W13 emergency. Full-bleed emergency background, renders its own <main>.
       // Never behind sign-in: emergencies are free and never queued.

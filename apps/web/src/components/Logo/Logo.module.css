@@ -45,3 +45,8 @@
   letter-spacing: -0.0075rem;
   white-space: nowrap;
 }
+
+/* Figma inverse logo (on teal): the lower square is on-primary, or it vanishes into the panel. */
+.inverse .markPrimary {
+  background: var(--color-on-primary);
+}
