@@ -10,6 +10,7 @@ import { loadErrorMessage } from '../../api/error-message';
 import { useApiQuery, type ApiQueryResult } from '../../api/useApiQuery';
 import { useAuth } from '../../auth/useAuth';
 import { useSessionGuard } from '../../auth/useSessionGuard';
+import { NEW_CHAT_STATE, type AskRouteState } from '../../chat/ask-route-state';
 import type { EmergencyLocationState } from '../../chat/emergency-state';
 import { useChat } from '../../chat/useChat';
 import { CHAT_MESSAGE_MAX_LENGTH } from '../../chat/chat-context';
@@ -26,7 +27,6 @@ import { consultationWaitingPath, paths } from '../../routes/paths';
 import { formatLongDay, formatTimeAgo, greeting } from '../../utils/dates';
 import { formatNaira } from '../../utils/money';
 import { nurseLine } from '../../utils/nurses';
-import type { AskPrefillState } from './ask/ask-prefill';
 import {
   costLabel,
   isInReview,
@@ -151,7 +151,7 @@ function AskCard({ compact = false }: { compact?: boolean }) {
     event.preventDefault();
     const question = text.trim();
     if (!question) {
-      navigate(paths.ask);
+      navigate(paths.ask, { state: NEW_CHAT_STATE });
       return;
     }
     // A question from Home starts a new chat, then the chat screen shows the reply.
@@ -341,9 +341,10 @@ function Topics() {
       </h2>
       <ul role="list" className={styles.chips}>
         {TOPICS.map((topic) => {
-          const state: AskPrefillState | undefined = topic.prefill
-            ? { prefill: topic.prefill }
-            : undefined;
+          // A topic is a new question: a new chat, with the starter to finish.
+          const state: AskRouteState = topic.prefill
+            ? { newChat: true, prefill: topic.prefill }
+            : NEW_CHAT_STATE;
           return (
             <li key={topic.label}>
               <Link

@@ -1,3 +1,4 @@
+import { NEW_CHAT_STATE } from '../../../chat/ask-route-state';
 import type { ConversationSummary } from '@carelayer/shared';
 import { useState } from 'react';
 import { Link } from 'react-router';
@@ -77,7 +78,9 @@ export function ChatHistory() {
           Your chats with the assistant are saved here, so you can come back to them. Only you can
           see them.
         </p>
-        <ButtonLink to={paths.ask}>Start a chat</ButtonLink>
+        <ButtonLink to={paths.ask} state={NEW_CHAT_STATE}>
+          Start a chat
+        </ButtonLink>
       </section>
     );
   }

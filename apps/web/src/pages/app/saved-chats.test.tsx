@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useEffect } from 'react';
-import { MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { Link, MemoryRouter, Route, Routes, useLocation } from 'react-router';
+import { NEW_CHAT_STATE } from '../../chat/ask-route-state';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiProvider } from '../../api/ApiProvider';
 import { createMockApi } from '../../api/mock/mock-api';
@@ -54,6 +55,10 @@ async function renderApp(api: CareLayerApi, path: string) {
         <ChatProvider>
           <MemoryRouter initialEntries={[path]}>
             <LocationProbe />
+            <Link to={paths.ask} state={NEW_CHAT_STATE}>
+              Sidebar ask
+            </Link>
+            <Link to={paths.ask}>Ask tab</Link>
             <Routes>
               <Route path={paths.ask} element={<AskPage />} />
               <Route path={paths.history} element={<HistoryPage />} />
@@ -152,5 +157,27 @@ describe('History (saved chats)', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(screen.getByRole('link', { name: /Keep me/ })).toBeTruthy();
     expect((await api.chat.listConversations()).items).toHaveLength(1);
+  });
+});
+
+describe('"Ask a question" starts a new chat', () => {
+  it('leaves the open chat for a blank one; the Ask tab keeps it', async () => {
+    const api = createMockApi({ latencyMs: 0, startSignedIn: true, seedChats: false });
+    const sent = await api.chat.send({ messages: [{ role: 'user', text: 'Old question' }] });
+    await renderApp(api, chatPath(sent.conversationId!));
+    expect(await screen.findByText('Old question')).toBeTruthy();
+
+    // The Ask tab (no state) stays in the chat.
+    fireEvent.click(screen.getByRole('link', { name: 'Ask tab' }));
+    await waitFor(() => expect(location.current).toBe(chatPath(sent.conversationId!)));
+    expect(screen.getByText('Old question')).toBeTruthy();
+
+    // "Ask a question" (new-chat state) opens a blank chat and keeps it blank.
+    fireEvent.click(screen.getByRole('link', { name: 'Sidebar ask' }));
+    await waitFor(() => expect(location.current).toBe(paths.ask));
+    await waitFor(() => expect(screen.queryByText('Old question')).toBeNull());
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(location.current).toBe(paths.ask);
+    expect(screen.queryByText('Old question')).toBeNull();
   });
 });

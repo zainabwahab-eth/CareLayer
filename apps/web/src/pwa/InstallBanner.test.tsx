@@ -24,20 +24,39 @@ beforeEach(() => {
 const heading = () => screen.queryByRole('heading', { name: 'Add CareLayer to your home screen' });
 
 describe('InstallBanner', () => {
-  it('renders nothing when there is nothing to install', () => {
-    const { container } = render(<InstallBanner />);
-    expect(container.innerHTML).toBe('');
+  it('Android without an install offer: shows the browser-menu steps', () => {
+    render(<InstallBanner />);
+    expect(heading()).not.toBeNull();
+    expect(screen.getByRole('list').textContent).toContain('Add to Home screen');
+    expect(screen.queryByRole('button', { name: 'Install CareLayer' })).toBeNull();
   });
 
-  it('Android: appears when Chrome offers an install, and Install opens the dialog', async () => {
+  it('a computer browser without an install offer: shows Chrome/Edge and phone steps', () => {
+    setUserAgent(
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:132.0) Gecko/20100101 Firefox/132.0',
+      'Win32',
+    );
     render(<InstallBanner />);
-    expect(heading()).toBeNull();
+    expect(screen.getByRole('list').textContent).toContain('Install CareLayer');
+  });
+
+  it('Safari on a Mac: shows Add to Dock', () => {
+    setUserAgent(
+      'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15',
+      'MacIntel',
+    );
+    render(<InstallBanner />);
+    expect(screen.getByRole('list').textContent).toContain('Add to Dock');
+  });
+
+  it('Android: Chrome offers an install, and Install opens the dialog', async () => {
+    render(<InstallBanner />);
 
     act(() => {
       window.dispatchEvent(fakeInstallEvent('accepted'));
     });
     expect(heading()).not.toBeNull();
-    expect(screen.queryByRole('list')).toBeNull(); // no iPhone steps
+    expect(screen.queryByRole('list')).toBeNull(); // the Install button replaces the steps
 
     await act(async () => {
       fireEvent.click(screen.getByRole('button', { name: 'Install CareLayer' }));
